@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -26,5 +26,4 @@ export default defineConfig({
     }),
   ],
   server: { host: true },
-  test: { environment: 'node' },
 })

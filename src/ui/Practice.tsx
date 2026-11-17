@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { notesForStage, stageLabel, stagesFor, type Lesson, type Stage } from '../music/lessons'
 import { WaitSession, type PassResult } from '../practice/session'
-import { CLEAN_GOAL, cleanCount, loadProgress, recordPass } from '../practice/progress'
+import { CLEAN_GOAL } from '../practice/goal'
+import { store } from '../sync/store'
+import { useStoreVersion } from '../sync/Sync'
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
+import { Toggle } from '@ui-sdk/react/toggle'
 import { MicListener, type MicStatus } from '../audio/mic'
 import { audioContext, getPiano, playNote, stopAll } from '../audio/audio'
 import { connectMidi, keyToMidi, midiSupported, type NoteOn } from '../input/sources'
@@ -18,9 +22,10 @@ const MIC_TEXT: Record<MicStatus, string> = {
 
 export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) {
   const stages = useMemo(() => stagesFor(lesson), [lesson])
-  const [progress, setProgress] = useState(loadProgress)
+  useStoreVersion()
+  const cleanCount = (st: Stage) => store.cleanCount(lesson.id, st)
   const [stage, setStage] = useState<Stage>(
-    () => stages.find((s) => cleanCount(loadProgress(), lesson.id, s) < CLEAN_GOAL) ?? stages[stages.length - 1],
+    () => stages.find((s) => store.cleanCount(lesson.id, s) < CLEAN_GOAL) ?? stages[stages.length - 1],
   )
   const [micStatus, setMicStatus] = useState<MicStatus>('off')
   const [midiNames, setMidiNames] = useState<string[]>([])
@@ -39,7 +44,15 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
 
   const onPass = useCallback(
     (r: PassResult) => {
-      setProgress(recordPass(lesson.id, stage, r.clean))
+      store.record({
+        lessonId: lesson.id,
+        stage,
+        clean: r.clean,
+        wrong: r.wrong,
+        unverified: r.unverified,
+        source: r.source,
+        durationMs: Math.round(r.durationMs),
+      })
       setResult(r)
     },
     [lesson.id, stage],
@@ -200,7 +213,7 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
   }
 
   const nextStage = stages[stages.indexOf(stage) + 1]
-  const clean = cleanCount(progress, lesson.id, stage)
+  const clean = cleanCount(stage)
   const s = sessionRef.current
   const listening = micStatus === 'listening' || micStatus === 'calibrating'
 
@@ -214,24 +227,24 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
           <h1>{lesson.title}</h1>
           <p className="goal">{lesson.goal}</p>
         </div>
-        <div className="stages" role="tablist" aria-label="Hand">
+        <SegmentedControl
+          className="stages"
+          aria-label="Hand"
+          value={stage}
+          onValueChange={(v) => v && setStage(v as Stage)}
+        >
+          <SegmentedControlIndicator className={`stage-indicator stage-indicator-${stage}`} />
           {stages.map((st) => (
-            <button
-              key={st}
-              role="tab"
-              aria-selected={st === stage}
-              className={`stage stage-${st}`}
-              onClick={() => setStage(st)}
-            >
+            <SegmentedControlItem key={st} value={st} className={`stage stage-${st}`}>
               <span>{stageLabel[st]}</span>
-              <span className="dots" aria-label={`${cleanCount(progress, lesson.id, st)} von ${CLEAN_GOAL} sauber`}>
+              <span className="dots" aria-label={`${cleanCount(st)} von ${CLEAN_GOAL} sauber`}>
                 {Array.from({ length: CLEAN_GOAL }, (_, i) => (
-                  <i key={i} className={i < cleanCount(progress, lesson.id, st) ? 'on' : ''} />
+                  <i key={i} className={i < cleanCount(st) ? 'on' : ''} />
                 ))}
               </span>
-            </button>
+            </SegmentedControlItem>
           ))}
-        </div>
+        </SegmentedControl>
       </header>
 
       <main className="stage-area">
@@ -279,12 +292,12 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
           {demo ? 'Vorspielen stoppen' : 'Vorspielen'}
         </button>
         <span className="spacer" />
-        <button className={`toggle ${showNames ? 'on' : ''}`} aria-pressed={showNames} onClick={() => setShowNames((x) => !x)}>
+        <Toggle className="toggle" pressed={showNames} onPressedChange={setShowNames}>
           Notennamen
-        </button>
-        <button className={`toggle ${showFingers ? 'on' : ''}`} aria-pressed={showFingers} onClick={() => setShowFingers((x) => !x)}>
+        </Toggle>
+        <Toggle className="toggle" pressed={showFingers} onPressedChange={setShowFingers}>
           Finger
-        </button>
+        </Toggle>
         <button className="ghost" onClick={again} disabled={!s || (s.index === 0 && !result)}>
           Von vorn
         </button>

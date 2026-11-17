@@ -1,24 +1,29 @@
 import { useState } from 'react'
 import { LESSONS, stageLabel, stagesFor, type Lesson } from './music/lessons'
-import { CLEAN_GOAL, cleanCount, loadProgress } from './practice/progress'
+import { CLEAN_GOAL } from './practice/goal'
 import { Practice } from './ui/Practice'
 import { audioContext } from './audio/audio'
+import { store } from './sync/store'
+import { DevicesDialog, useStoreVersion } from './sync/Sync'
 
-export function App() {
+export function App({ synced }: { synced: boolean }) {
   const [lesson, setLesson] = useState<Lesson | null>(null)
+  useStoreVersion()
   if (lesson) return <Practice lesson={lesson} onBack={() => setLesson(null)} />
-  return <Home onOpen={(l) => (audioContext(), setLesson(l))} />
+  return <Home synced={synced} onOpen={(l) => (audioContext(), setLesson(l))} />
 }
 
-function Home({ onOpen }: { onOpen: (l: Lesson) => void }) {
-  const progress = loadProgress()
-  const doneAll = (l: Lesson) => stagesFor(l).every((s) => cleanCount(progress, l.id, s) >= CLEAN_GOAL)
+function Home({ onOpen, synced }: { onOpen: (l: Lesson) => void; synced: boolean }) {
+  const doneAll = (l: Lesson) => stagesFor(l).every((s) => store.cleanCount(l.id, s) >= CLEAN_GOAL)
   const next = LESSONS.find((l) => !doneAll(l))
 
   return (
     <div className="home">
       <header className="fallboard">
-        <h1 className="brand">Piano Buddy</h1>
+        <div className="brand-row">
+          <h1 className="brand">Piano Buddy</h1>
+          {synced && <DevicesDialog />}
+        </div>
         <p className="lede">
           Jedes Stück in drei Stufen: erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen
           Durchgängen.
@@ -39,7 +44,7 @@ function Home({ onOpen }: { onOpen: (l: Lesson) => void }) {
                 </span>
                 <span className="mini-stages">
                   {stages.map((s) => {
-                    const c = cleanCount(progress, l.id, s)
+                    const c = store.cleanCount(l.id, s)
                     return (
                       <span key={s} className={`mini mini-${s} ${c >= CLEAN_GOAL ? 'full' : c > 0 ? 'some' : ''}`}>
                         {stageLabel[s]}

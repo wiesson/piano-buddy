@@ -24,6 +24,8 @@ export interface PassResult {
   durationMs: number
   /** Töne, die das Mikrofon nicht sicher prüfen konnte (Oberton eines gleichzeitig erwarteten tieferen Tons) */
   unverified: number
+  /** Überwiegende Eingabe in diesem Durchgang */
+  source: string
 }
 
 /** Liegt m auf einem Oberton eines anderen Tons desselben Schritts (Oktave, Duodezime, Doppeloktave)? */
@@ -35,6 +37,7 @@ export class WaitSession {
   struck = new Set<number>()
   wrongCount = 0
   unverified = 0
+  private sourceHits: Record<string, number> = {}
   feedback: Feedback[] = []
   private recent: (NoteOn & { used: boolean })[] = []
   private passStart = 0
@@ -89,6 +92,7 @@ export class WaitSession {
         if (r.tMs < this.stepStartedAt - CARRY_MS) continue
         r.used = true
         if (r.source === 'mic' && masked(exp, r.midi)) this.unverified++
+        this.sourceHits[r.source] = (this.sourceHits[r.source] ?? 0) + 1
         this.struck.add(r.midi)
         this.feedback.push({ midi: r.midi, kind: 'hit', tMs: nowMs })
       }
@@ -103,6 +107,7 @@ export class WaitSession {
             wrong: this.wrongCount,
             durationMs: nowMs - this.passStart,
             unverified: this.unverified,
+            source: Object.entries(this.sourceHits).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'touch',
           })
           return
         }
@@ -115,6 +120,7 @@ export class WaitSession {
     this.struck = new Set()
     this.wrongCount = 0
     this.unverified = 0
+    this.sourceHits = {}
     this.recent = []
     this.passStart = 0
     this.stepStartedAt = performance.now()
