@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { ScoreNote } from '../../music/lessons'
-import { isBlack, noteName } from '../../music/notes'
+import { isBlack } from '../../music/notes'
+import { displayNoteName, displayNoteLabel } from '../../i18n/noteNames'
 
 export interface RollView {
   notes: ScoreNote[]
@@ -191,7 +192,7 @@ export function PianoRoll({
           let ly = by + bh - label * 0.85
           if (v.showNames) {
             g.font = `800 ${label}px ${font}`
-            g.fillText(noteName(n.midi), bx + bw / 2, ly)
+            g.fillText(displayNoteName(n.midi), bx + bw / 2, ly)
             ly -= label * 1.15
           }
           if (v.showFingers && n.finger && bh > label * 2.6) {
@@ -256,7 +257,7 @@ export function PianoRoll({
           const size = Math.min(w * 0.42, 20)
           g.font = `${hand ? 800 : 600} ${size}px ${font}`
           g.fillStyle = hand ? C.ink : m % 12 === 0 ? '#7a6a5c' : '#a39482'
-          g.fillText(m % 12 === 0 ? noteName(m) + (Math.floor(m / 12) - 1) : noteName(m), x + w / 2, keyTop + h - size * 0.9)
+          g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), x + w / 2, keyTop + h - size * 0.9)
         }
       }
       for (let m = l.lo; m <= l.hi; m++) if (!isBlack(m)) drawKey(m)

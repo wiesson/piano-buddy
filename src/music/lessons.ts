@@ -1,4 +1,5 @@
 import { parseNote } from './notes'
+import type { Localized } from '../i18n/localized'
 
 export type Hand = 'L' | 'R'
 
@@ -14,9 +15,9 @@ export interface ScoreNote {
 
 export interface Lesson {
   id: string
-  title: string
+  title: Localized
   /** Ein Satz, worum es geht */
-  goal: string
+  goal: Localized
   bpm: number
   beatsPerBar: number
   notes: ScoreNote[]
@@ -60,24 +61,33 @@ const lesson = (l: Omit<Lesson, 'notes'> & { left?: string; right?: string }): L
 export const LESSONS: Lesson[] = [
   lesson({
     id: 'lh-fuenf',
-    title: 'Fünf Finger links',
-    goal: 'Der kleine Finger links liegt auf dem C eine Oktave tiefer.',
+    title: { de: 'Fünf Finger links', en: 'Five fingers, left hand' },
+    goal: {
+      de: 'Der kleine Finger links liegt auf dem C eine Oktave tiefer.',
+      en: 'The left pinky rests on the C one octave lower.',
+    },
     bpm: 72,
     beatsPerBar: 4,
     left: 'C3:1:5 D3:1:4 E3:1:3 F3:1:2 G3:1:1 F3:1:2 E3:1:3 D3:1:4 C3:4:5',
   }),
   lesson({
     id: 'rh-fuenf',
-    title: 'Fünf Finger rechts',
-    goal: 'Daumen auf das C in der Mitte, jeder Finger bekommt eine Taste.',
+    title: { de: 'Fünf Finger rechts', en: 'Five fingers, right hand' },
+    goal: {
+      de: 'Daumen auf das C in der Mitte, jeder Finger bekommt eine Taste.',
+      en: 'Thumb on middle C, each finger gets one key.',
+    },
     bpm: 72,
     beatsPerBar: 4,
     right: 'C4:1:1 D4:1:2 E4:1:3 F4:1:4 G4:1:5 F4:1:4 E4:1:3 D4:1:2 C4:4:1',
   }),
   lesson({
     id: 'wechsel',
-    title: 'Frage und Antwort',
-    goal: 'Links fängt an, rechts antwortet. Die Hände wechseln sich ab.',
+    title: { de: 'Frage und Antwort', en: 'Question and answer' },
+    goal: {
+      de: 'Links fängt an, rechts antwortet. Die Hände wechseln sich ab.',
+      en: 'The left hand starts, the right answers. The hands take turns.',
+    },
     bpm: 76,
     beatsPerBar: 4,
     left: 'C3:1:5 D3:1:4 E3:1:3 F3:1:2 G3:4:1 -:8',
@@ -85,8 +95,11 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'parallel',
-    title: 'Beide Hände parallel',
-    goal: 'Gleiche Töne, eine Oktave auseinander. Die Daumen bewegen sich gegenläufig.',
+    title: { de: 'Beide Hände parallel', en: 'Both hands in parallel' },
+    goal: {
+      de: 'Gleiche Töne, eine Oktave auseinander. Die Daumen bewegen sich gegenläufig.',
+      en: 'Same notes, one octave apart. The thumbs move in opposite directions.',
+    },
     bpm: 60,
     beatsPerBar: 4,
     left: 'C3:1:5 D3:1:4 E3:1:3 F3:1:2 G3:1:1 F3:1:2 E3:1:3 D3:1:4 C3:4:5',
@@ -94,8 +107,11 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'entchen',
-    title: 'Alle meine Entchen',
-    goal: 'Das erste Lied. Rechts die Melodie, links ein Ton pro Takt.',
+    title: { de: 'Alle meine Entchen', en: 'All My Little Ducklings' },
+    goal: {
+      de: 'Das erste Lied. Rechts die Melodie, links ein Ton pro Takt.',
+      en: 'Your first song. Melody on the right, one note per bar on the left.',
+    },
     bpm: 84,
     beatsPerBar: 4,
     right:
@@ -106,8 +122,11 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'ode',
-    title: 'Ode an die Freude',
-    goal: 'Beethoven, ganz in der C-Lage. Achte auf die punktierten Stellen.',
+    title: { de: 'Ode an die Freude', en: 'Ode to Joy' },
+    goal: {
+      de: 'Beethoven, ganz in der C-Lage. Achte auf die punktierten Stellen.',
+      en: 'Beethoven, entirely in C position. Watch the dotted rhythms.',
+    },
     bpm: 80,
     beatsPerBar: 4,
     right:
@@ -117,8 +136,11 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'vier-akkorde',
-    title: 'Vier Akkorde',
-    goal: 'a-Moll, F, C, G: die Folge hinter unzähligen Popsongs. Rechts Akkorde, links der Grundton.',
+    title: { de: 'Vier Akkorde', en: 'Four chords' },
+    goal: {
+      de: 'a-Moll, F, C, G: die Folge hinter unzähligen Popsongs. Rechts Akkorde, links der Grundton.',
+      en: 'A minor, F, C, G: the progression behind countless pop songs. Chords on the right, root note on the left.',
+    },
     bpm: 70,
     beatsPerBar: 4,
     right: 'C4+E4+A4:4:1+2+5 C4+F4+A4:4:1+3+5 C4+E4+G4:4:1+3+5 H3+D4+G4:4:1+2+5',

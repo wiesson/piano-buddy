@@ -2,8 +2,9 @@ import { LESSONS, stagesFor, type Lesson } from '../../music/lessons'
 import { CLEAN_GOAL } from '../../practice/goal'
 import { store } from '../../sync/store'
 import { DevicesDialog } from '../../sync/DevicesDialog'
-import { t } from '../../i18n'
+import { t, localized } from '../../i18n'
 import { Logo } from '../shared/Logo'
+import { AboutDialog } from '../shared/AboutDialog'
 
 /** Startseite: App-Leiste wie eine Tastenklappe, darunter der Lernpfad */
 export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; synced: boolean }) {
@@ -13,7 +14,9 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
   return (
     <div className="home">
       <header className="appbar">
-        <span className="appbar-side" />
+        <span className="appbar-side">
+          <AboutDialog />
+        </span>
         <h1 className="appbar-brand">
           <Logo size={26} />
           <span>{t.appName}</span>
@@ -59,10 +62,10 @@ function LessonStep({
         <span className="body">
           <span className="name">
             <span className="sr-only">{index + 1}. </span>
-            {lesson.title}
+            {localized(lesson.title)}
             {isNext && <span className="next-tag">{t.home.next}</span>}
           </span>
-          <span className="goal">{lesson.goal}</span>
+          <span className="goal">{localized(lesson.goal)}</span>
         </span>
         <span className="mini-stages">
           {stagesFor(lesson).map((s) => {

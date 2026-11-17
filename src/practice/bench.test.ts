@@ -25,7 +25,7 @@ describe('Mikrofon-Messung gegen MIDI', () => {
     b.truth(n('C3'), 1000)
     b.mic(n('C4'), 1100)
     expect(b.stats().falseAlarms).toBe(1)
-    expect(b.stats().recent[0].note).toBe('Oktave über C3')
+    expect(b.stats().recent[0].relation).toEqual({ kind: 'octaveAbove', of: n('C3') })
   })
 
   it('ordnet zwei Anschläge derselben Taste je einer Meldung zu', () => {

@@ -9,7 +9,7 @@ import { MicListener, type MicStatus } from '../../audio/mic'
 import { audioContext, getPiano, playNote, stopAll } from '../../audio/audio'
 import type { NoteOn } from '../../input/events'
 import { keyToMidi } from '../../input/keyboard'
-import { t } from '../../i18n'
+import { t, localized } from '../../i18n'
 import { PianoRoll, type RollView } from './PianoRoll'
 import { StageSwitcher } from './StageSwitcher'
 import { ResultCard } from './ResultCard'
@@ -227,8 +227,8 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
           ‹
         </button>
         <div className="title">
-          <h1>{lesson.title}</h1>
-          <p className="goal">{lesson.goal}</p>
+          <h1>{localized(lesson.title)}</h1>
+          <p className="goal">{localized(lesson.goal)}</p>
         </div>
         <StageSwitcher stages={stages} stage={stage} cleanCount={cleanCount} onChange={setStage} />
       </header>

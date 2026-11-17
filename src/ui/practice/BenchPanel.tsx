@@ -1,6 +1,6 @@
 import type { BenchStats } from '../../practice/bench'
-import { noteLabel } from '../../music/notes'
 import { t } from '../../i18n'
+import { displayNoteLabel } from '../../i18n/noteNames'
 
 /** Live-Messung „Mikrofon gegen MIDI“, solange beide Eingänge laufen */
 export function BenchPanel({
@@ -32,8 +32,8 @@ export function BenchPanel({
         <ul className="bench-log">
           {bench.recent.map((e, i) => (
             <li key={i} className={`bench-${e.kind}`}>
-              {noteLabel(e.midi)}{' '}
-              {e.kind === 'hit' ? t.bench.hit(e.latencyMs ?? 0) : e.kind === 'missed' ? t.bench.missed : t.bench.falseAlarm(e.note)}
+              {displayNoteLabel(e.midi)}{' '}
+              {e.kind === 'hit' ? t.bench.hit(e.latencyMs ?? 0) : e.kind === 'missed' ? t.bench.missed : t.bench.falseAlarm(e.relation && t.bench.relation(e.relation.kind, displayNoteLabel(e.relation.of)))}
             </li>
           ))}
         </ul>

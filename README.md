@@ -4,8 +4,8 @@ A practice companion for learning piano basics, one hand at a time: every piece 
 stages, left hand, right hand, then both. A stage counts as learned after three clean passes,
 because clean repetitions predict progress better than minutes practiced.
 
-Live: **[piano-buddy.studionordwerk.workers.dev](https://piano-buddy.studionordwerk.workers.dev)**
-(the interface is German; add it to your home screen for the app feel)
+Live: **[piano.wiesson.dev](https://piano.wiesson.dev)**
+(German or English, following your browser; add it to your home screen for the app feel)
 
 ![Practice screen: falling notes over the keyboard, left hand in petrol, right hand in brass](.github/assets/practice.png)
 

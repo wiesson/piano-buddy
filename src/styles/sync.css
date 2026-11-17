@@ -259,3 +259,79 @@
   font-size: 14px;
   color: #5b4a3f;
 }
+
+/* ---------- Über-Fenster ---------- */
+
+.about-trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--ivory-dim);
+}
+.about-trigger:hover,
+.about-trigger[data-open] {
+  color: var(--ivory);
+  background: rgba(243, 235, 221, 0.06);
+}
+.about-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.about-head .dialog-title {
+  margin: 0;
+}
+/* Signet auf hellem Grund: Elfenbeintasten brauchen eine Kontur */
+.about .logo rect[fill='var(--ivory)'] {
+  stroke: #cdbfa9;
+  stroke-width: 0.6;
+}
+.about a {
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: var(--brass);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.about-by,
+.about-links {
+  margin: 0 0 6px;
+}
+.about-credits {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: #7a6a5c;
+}
+.lang {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(36, 26, 23, 0.08);
+}
+.lang-indicator {
+  position: absolute;
+  z-index: -1;
+  top: var(--segmented-control-indicator-top);
+  left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width);
+  height: var(--segmented-control-indicator-height);
+  border-radius: 9px;
+  background: var(--ivory);
+  box-shadow: 0 1px 3px rgba(36, 26, 23, 0.2);
+  transition: left 200ms, width 200ms;
+}
+.lang-item {
+  padding: 8px 16px;
+  border-radius: 9px;
+  font-weight: 600;
+  color: #5b4a3f;
+}
+.lang-item[data-checked] {
+  color: var(--ink);
+}

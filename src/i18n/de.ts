@@ -62,8 +62,26 @@ export const de = {
     waiting: 'Spiel los. MIDI führt, das Mikrofon wird mitgemessen.',
     hit: (ms: number) => `erkannt, ${ms} ms`,
     missed: 'verpasst',
-    falseAlarm: (note?: string) => `Fehlalarm${note ? ` (${note})` : ''}`,
+    relation: (kind: 'octaveAbove' | 'octaveBelow' | 'neighbor' | 'other', of: string) =>
+      kind === 'octaveAbove'
+        ? `Oktave über ${of}`
+        : kind === 'octaveBelow'
+          ? `Oktave unter ${of}`
+          : kind === 'neighbor'
+            ? `Nachbar von ${of}`
+            : `gespielt war ${of}`,
+    falseAlarm: (relation?: string) => `Fehlalarm${relation ? ` (${relation})` : ''}`,
     reset: 'Messung zurücksetzen',
+  },
+
+  about: {
+    open: 'Über Piano Buddy',
+    title: 'Piano Buddy',
+    text: 'Ein Übe-Begleiter, mit dem ich selbst Klavier lerne: erst links, dann rechts, dann beide Hände.',
+    by: 'Gebaut von',
+    source: 'Quellcode auf GitHub',
+    language: 'Sprache',
+    credits: 'Klang: Splendid Grand Piano über smplr. Schrift: Geist und Geist Serif.',
   },
 
   sync: {

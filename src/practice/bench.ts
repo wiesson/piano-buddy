@@ -1,5 +1,3 @@
-import { noteLabel } from '../music/notes'
-
 /**
  * Vergleichsmessung: MIDI ist die Wahrheit, das Mikrofon wird dagegen gemessen.
  * Jeder MIDI-Anschlag wartet bis zu MATCH_MS auf eine Mikrofon-Meldung derselben Taste.
@@ -9,12 +7,18 @@ const MATCH_MS = 700
 /** Das Mikrofon darf minimal vor MIDI melden (Zeitbasen unterscheiden sich leicht) */
 const EARLY_MS = 60
 
+export interface BenchRelation {
+  kind: 'octaveAbove' | 'octaveBelow' | 'neighbor' | 'other'
+  /** MIDI-Note des tatsächlichen Anschlags */
+  of: number
+}
+
 export interface BenchEntry {
   midi: number
   kind: 'hit' | 'missed' | 'false'
   latencyMs?: number
   /** bei Fehlalarm: was tatsächlich gespielt wurde, z. B. Oktave darunter */
-  note?: string
+  relation?: BenchRelation
   tMs: number
 }
 
@@ -54,17 +58,13 @@ export class MicBench {
     this.falseAlarms++
     // Was wurde stattdessen gespielt? Hilft beim Deuten: Oktav- oder Nachbarfehler
     const near = [...this.truths].reverse().find((x) => tMs - x.tMs <= MATCH_MS && tMs - x.tMs >= -EARLY_MS)
-    let note: string | undefined
+    let relation: BenchRelation | undefined
     if (near) {
       const d = midi - near.midi
-      note =
-        Math.abs(d) === 12
-          ? `Oktave ${d > 0 ? 'über' : 'unter'} ${noteLabel(near.midi)}`
-          : Math.abs(d) <= 2
-            ? `Nachbar von ${noteLabel(near.midi)}`
-            : `gespielt war ${noteLabel(near.midi)}`
+      const kind = Math.abs(d) === 12 ? (d > 0 ? 'octaveAbove' : 'octaveBelow') : Math.abs(d) <= 2 ? 'neighbor' : 'other'
+      relation = { kind, of: near.midi }
     }
-    this.entries.push({ midi, kind: 'false', note, tMs })
+    this.entries.push({ midi, kind: 'false', relation, tMs })
   }
 
   tick(nowMs: number) {
