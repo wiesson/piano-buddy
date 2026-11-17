@@ -35,6 +35,8 @@ export class NoteAnalyzer {
   private window: Float64Array
   private mag: Float64Array
   private ranges: Int32Array // [lo, hi] je (Note, Teilton); -1 wenn oberhalb Nyquist/Grenze
+  /** exakte (gebrochene) Bin-Position je (Note, Teilton) für schmale Fenster */
+  private centers: Float64Array
 
   constructor(sampleRate: number, fftSize = 8192) {
     this.sampleRate = sampleRate
@@ -44,6 +46,7 @@ export class NoteAnalyzer {
     this.mag = new Float64Array(fftSize / 2)
     const n = MAX_MIDI - MIN_MIDI + 1
     this.ranges = new Int32Array(n * HARMONICS * 2)
+    this.centers = new Float64Array(n * HARMONICS)
     const df = sampleRate / fftSize
     const maxHz = Math.min(6000, sampleRate / 2 - df * 2)
     for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
@@ -57,9 +60,18 @@ export class NoteAnalyzer {
           continue
         }
         const k = f / df
-        const spread = Math.max(1, (f * (2 ** (CENTS / 1200) - 1)) / df)
-        this.ranges[i] = Math.max(1, Math.round(k - spread))
-        this.ranges[i + 1] = Math.round(k + spread)
+        // Toleranz ±40 Cent. In der tiefen Lage ist das weniger als ein Bin: Dann wird genau an der
+        // Sollfrequenz interpoliert (lo = hi = 0 als Marker), statt das Maximum über ±1 Bin zu nehmen.
+        // Sonst fängt das Fenster die Flanke des Halbton-Nachbarn ein, der dort unter 3 Bins entfernt liegt.
+        const spread = (f * (2 ** (CENTS / 1200) - 1)) / df
+        this.centers[i / 2] = k
+        if (spread < 1) {
+          this.ranges[i] = 0
+          this.ranges[i + 1] = 0
+        } else {
+          this.ranges[i] = Math.max(1, Math.round(k - spread))
+          this.ranges[i + 1] = Math.round(k + spread)
+        }
       }
     }
   }
@@ -85,7 +97,12 @@ export class NoteAnalyzer {
         const lo = ranges[i]
         if (lo < 0) continue
         let peak = 0
-        for (let k = lo; k <= ranges[i + 1]; k++) if (mag[k] > peak) peak = mag[k]
+        if (lo === 0) {
+          const k = this.centers[j * HARMONICS + h]
+          const k0 = Math.floor(k)
+          const fr = k - k0
+          peak = mag[k0] * (1 - fr) + mag[k0 + 1] * fr
+        } else for (let k = lo; k <= ranges[i + 1]; k++) if (mag[k] > peak) peak = mag[k]
         amp[j * HARMONICS + h] = peak
         s += peak * (h === 0 ? 1 : 0.8)
       }
@@ -259,10 +276,11 @@ export class OnsetDetector {
       const rising = this.filled === 0 ? false : s > min * this.rise
       // Erwartete Töne prüfen wir gezielt, alle anderen nur, wenn sie frei gehört werden.
       const sounding = expected.has(m) ? isSounding(f, m, expected, cal, this.opt) : heard.has(m)
-      // Bestätigung über mehrere Frames: erwartete Töne 2, fremde Töne 3 und nie im ersten
-      // verschmierten Frame direkt nach einem Anschlag (Fehlalarme kosten mehr als späte Meldungen).
+      // Bestätigung über mehrere Frames: erwartete Töne 2, fremde Töne 3. Frames, in denen der
+      // Anschlag erst am Fensterende liegt, zählen nie: Dort ist das Spektrum verschmiert und der
+      // Halbton-Nachbar „klingt“ mit. Das kostet ~90 ms, Fehlalarme kosten mehr als späte Meldungen.
       const need = expected.has(m) ? 2 : 3
-      const ok = rising && sounding && (expected.has(m) || f.freshness < 3)
+      const ok = rising && sounding && f.freshness < 3
       this.count[j] = ok ? Math.min(255, this.count[j] + 1) : 0
       if (this.count[j] === need && tMs - this.lastOnset[j] > this.refractoryMs) {
         onsets.push(m)

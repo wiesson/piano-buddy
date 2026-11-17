@@ -152,4 +152,39 @@ describe('Mikrofon-Erkennung erwarteter Töne', () => {
     const o = onsets(render(1.2, [{ midi: n('D4'), at: 0.4 }], 0.02), [n('D4')])
     expect(midis(o)).toContain(n('D4'))
   })
+
+  // Alle Töne, die in den Lektionen vorkommen, gegen ihre Halbton- und Ganzton-Nachbarn
+  const LESSON_NOTES = ['F2', 'G2', 'A2', 'H2', 'C3', 'D3', 'E3', 'F3', 'G3', 'H3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4']
+  for (const exp of LESSON_NOTES) {
+    for (const d of [-2, -1, 1, 2]) {
+      it(`akzeptiert ${exp} nicht, wenn ${d > 0 ? '+' : ''}${d} Halbtöne daneben gespielt wird`, () => {
+        const o = onsets(render(1.2, [{ midi: n(exp) + d, at: 0.4 }]), [n(exp)])
+        expect(midis(o)).not.toContain(n(exp))
+      })
+    }
+  }
+
+  // Beide Hände: Die linke Hand allein soll die rechte nicht „mitspielen“.
+  it('meldet bei erwartetem C3+C4 nur C4, wenn nur C4 gespielt wird', () => {
+    const o = onsets(render(1.2, [{ midi: n('C4'), at: 0.4 }]), [n('C3'), n('C4')])
+    expect(midis(o)).toEqual([n('C4')])
+  })
+
+  // BEKANNTE GRENZE des Mikrofons (it.fails = wir erwarten das Scheitern): Liegt der hohe Ton auf
+  // einem Oberton des tiefen (Oktave, Duodezime, Doppeloktave) und sind beide erwartet, hört die
+  // App ihn auch, wenn nur der tiefe gespielt wird. Ein Lautstärkevergleich hilft nicht, weil sich
+  // beide Töne im selben Bin je nach Phase verstärken oder auslöschen. Abhilfe ist MIDI.
+  // Wird einer dieser Tests grün, ist die Grenze behoben: dann it.fails zu it machen.
+  const MASKED: [string[], string[]][] = [
+    [['C3', 'C4'], ['C3']],
+    [['C3', 'G4'], ['C3']],
+    [['A2', 'C4', 'E4', 'A4'], ['A2']],
+    [['G2', 'H3', 'D4', 'G4'], ['G2']],
+  ]
+  for (const [expected, played] of MASKED) {
+    it.fails(`Grenze: bei ${expected.join('+')} zählt ${played.join('+')} allein nicht als alles`, () => {
+      const o = onsets(render(1.2, played.map((p) => ({ midi: n(p), at: 0.4 }))), expected.map(n))
+      expect(midis(o)).toEqual(played.map(n))
+    })
+  }
 })

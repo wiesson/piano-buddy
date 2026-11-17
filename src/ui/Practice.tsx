@@ -246,6 +246,13 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
                   : 'Beide Hände sitzen. Morgen einmal wiederholen, dann bleibt es.'
                 : `${clean} von ${CLEAN_GOAL} sauberen Durchgängen.`}
             </p>
+            {result.unverified > 0 && (
+              <p className="result-note">
+                {result.unverified === 1 ? 'Ein Ton liegt' : `${result.unverified} Töne liegen`} eine Oktave oder Duodezime
+                über der linken Hand. Dort hört das Mikrofon die rechte Hand auch, wenn nur links gespielt wird. Mit
+                MIDI wird es genau.
+              </p>
+            )}
             <div className="result-actions">
               <button className="primary" onClick={again}>
                 Nochmal

@@ -24,7 +24,8 @@ export async function connectMidi(onNote: (n: NoteOn) => void, onDevices: (names
         const d = e.data
         if (!d || d.length < 3) return
         const cmd = d[0] & 0xf0
-        if (cmd === 0x90 && d[2] > 0) onNote({ midi: d[1], tMs: performance.now(), source: 'midi' })
+        // Zeitstempel der Quelle (gleiche Zeitbasis wie performance.now()), nicht die Ankunftszeit
+        if (cmd === 0x90 && d[2] > 0) onNote({ midi: d[1], tMs: e.timeStamp, source: 'midi' })
       }
     })
     onDevices(names)

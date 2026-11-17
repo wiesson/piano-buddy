@@ -377,6 +377,13 @@ button:disabled {
   margin: 0 0 16px;
   color: #5b4a3f;
 }
+.result-note {
+  margin: -6px 0 16px;
+  font-size: 14px;
+  color: #6d5a4c;
+  border-left: 3px solid var(--felt);
+  padding-left: 10px;
+}
 .result-actions {
   display: flex;
   gap: 10px;

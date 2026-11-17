@@ -22,13 +22,19 @@ export interface PassResult {
   clean: boolean
   wrong: number
   durationMs: number
+  /** Töne, die das Mikrofon nicht sicher prüfen konnte (Oberton eines gleichzeitig erwarteten tieferen Tons) */
+  unverified: number
 }
+
+/** Liegt m auf einem Oberton eines anderen Tons desselben Schritts (Oktave, Duodezime, Doppeloktave)? */
+const masked = (notes: ReadonlySet<number>, m: number) => [12, 19, 24].some((d) => notes.has(m - d))
 
 export class WaitSession {
   readonly steps: Step[]
   index = 0
   struck = new Set<number>()
   wrongCount = 0
+  unverified = 0
   feedback: Feedback[] = []
   private recent: (NoteOn & { used: boolean })[] = []
   private passStart = 0
@@ -82,6 +88,7 @@ export class WaitSession {
         if (r.used || !exp.has(r.midi) || this.struck.has(r.midi)) continue
         if (r.tMs < this.stepStartedAt - CARRY_MS) continue
         r.used = true
+        if (r.source === 'mic' && masked(exp, r.midi)) this.unverified++
         this.struck.add(r.midi)
         this.feedback.push({ midi: r.midi, kind: 'hit', tMs: nowMs })
       }
@@ -91,7 +98,12 @@ export class WaitSession {
         this.stepStartedAt = nowMs
         advanced = true
         if (this.index >= this.steps.length) {
-          this.onPass({ clean: this.wrongCount === 0, wrong: this.wrongCount, durationMs: nowMs - this.passStart })
+          this.onPass({
+            clean: this.wrongCount === 0,
+            wrong: this.wrongCount,
+            durationMs: nowMs - this.passStart,
+            unverified: this.unverified,
+          })
           return
         }
       }
@@ -102,6 +114,7 @@ export class WaitSession {
     this.index = 0
     this.struck = new Set()
     this.wrongCount = 0
+    this.unverified = 0
     this.recent = []
     this.passStart = 0
     this.stepStartedAt = performance.now()
