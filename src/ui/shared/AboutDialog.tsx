@@ -9,7 +9,7 @@ import {
 } from '@ui-sdk/react/dialog'
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import { locale, setLocale, t, type Locale } from '../../i18n'
-import { Logo } from './Logo'
+import { InfoIcon, Logo } from './icons'
 
 const AUTHOR = { name: 'Arne Wiese', url: 'https://wiesson.dev' }
 const SOURCE = 'https://github.com/wiesson/piano-buddy'
@@ -18,12 +18,8 @@ const SOURCE = 'https://github.com/wiesson/piano-buddy'
 export function AboutDialog() {
   return (
     <Dialog>
-      <DialogTrigger className="about-trigger" aria-label={t.about.open}>
-        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 11v5.5" strokeLinecap="round" />
-          <circle cx="12" cy="7.8" r="0.6" fill="currentColor" />
-        </svg>
+      <DialogTrigger className="icon-button" aria-label={t.about.open}>
+        <InfoIcon />
       </DialogTrigger>
       <DialogBackdrop className="dialog-backdrop" />
       <DialogContent className="dialog about">

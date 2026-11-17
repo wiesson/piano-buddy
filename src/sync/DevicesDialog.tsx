@@ -15,7 +15,7 @@ import { t } from '../i18n'
 import { store } from './store'
 import { useSyncStatus } from './hooks'
 import { toast } from '../ui/shared/Toaster'
-import { DevicesIcon } from '../ui/shared/Logo'
+import { DevicesIcon } from '../ui/shared/icons'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function randomCode() {
@@ -80,7 +80,7 @@ export function DevicesDialog() {
 
   return (
     <Dialog onOpenChange={(open) => !open && (setShown(null), setError(null))}>
-      <DialogTrigger className="sync-trigger" aria-label={count > 1 ? t.sync.paired(count) : t.sync.pair}>
+      <DialogTrigger className="icon-button sync-trigger" aria-label={count > 1 ? t.sync.paired(count) : t.sync.pair}>
         <DevicesIcon />
         {count > 1 && <span className="sync-count">{count}</span>}
         <span className={`sync-dot ${online ? (pending ? 'pending' : 'ok') : 'off'}`} aria-hidden />

@@ -77,3 +77,27 @@ button:disabled {
   opacity: 0.35;
   cursor: default;
 }
+
+/* Icon-Knöpfe (Zurück, Info, Geräte): eine Form überall, 44 px Trefferfläche */
+.icon-button {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--ivory-dim);
+  background: transparent;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.icon-button:hover,
+.icon-button[data-open] {
+  color: var(--ivory);
+  background: rgba(243, 235, 221, 0.06);
+}
+.icon-button:active {
+  background: rgba(243, 235, 221, 0.1);
+}

@@ -1,19 +1,5 @@
 /* ---------- Geräte & Sync (UI SDK: Dialog, OTP Input, Toast) ---------- */
 
-.sync-trigger {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  color: var(--ivory-dim);
-}
-.sync-trigger:hover,
-.sync-trigger[data-open] {
-  color: var(--ivory);
-  background: rgba(243, 235, 221, 0.06);
-}
 .sync-count {
   position: absolute;
   left: 6px;
@@ -275,19 +261,6 @@
 
 /* ---------- Über-Fenster ---------- */
 
-.about-trigger {
-  display: inline-grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  color: var(--ivory-dim);
-}
-.about-trigger:hover,
-.about-trigger[data-open] {
-  color: var(--ivory);
-  background: rgba(243, 235, 221, 0.06);
-}
 .about-head {
   display: flex;
   align-items: center;

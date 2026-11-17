@@ -3,7 +3,7 @@ import { CLEAN_GOAL } from '../../practice/goal'
 import { store } from '../../sync/store'
 import { DevicesDialog } from '../../sync/DevicesDialog'
 import { t, localized } from '../../i18n'
-import { Logo } from '../shared/Logo'
+import { Logo } from '../shared/icons'
 import { AboutDialog } from '../shared/AboutDialog'
 
 /** Startseite: App-Leiste wie eine Tastenklappe, darunter der Lernpfad */

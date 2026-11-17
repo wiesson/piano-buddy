@@ -37,11 +37,8 @@
   text-overflow: ellipsis;
 }
 .back {
-  font-size: 34px;
-  line-height: 1;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  /* optisch bündig: das Chevron steht links im Knopf, der Knopf rückt um den Leerraum heraus */
+  margin-left: -6px;
 }
 .stages {
   position: relative;

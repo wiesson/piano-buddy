@@ -16,6 +16,7 @@ import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
+import { BackIcon } from '../shared/icons'
 
 /**
  * Übe-Seite im Warte-Modus. Eingaben (Mikrofon, MIDI, Bildschirm, Tastatur) landen alle
@@ -223,8 +224,8 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
   return (
     <div className="practice">
       <header className="bar">
-        <button className="ghost back" onClick={onBack} aria-label={t.practice.back}>
-          ‹
+        <button className="icon-button back" onClick={onBack} aria-label={t.practice.back}>
+          <BackIcon />
         </button>
         <div className="title">
           <h1>{localized(lesson.title)}</h1>
