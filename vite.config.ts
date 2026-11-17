@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
+import { seo } from './scripts/seo'
 
 // HTTPS ist Pflicht, sobald iPhone/iPad übers WLAN zugreifen: Safari gibt das Mikrofon nur in
 // einem sicheren Kontext frei. Lokal am Mac reicht http://localhost.
@@ -10,6 +11,7 @@ const lan = process.env.LAN === '1'
 export default defineConfig({
   plugins: [
     react(),
+    seo(),
     lan && basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',

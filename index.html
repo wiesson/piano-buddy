@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="icon" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Piano Buddy</title>
-    <meta name="description" content="Learn piano one hand at a time: left, right, then both. Listens via microphone or MIDI, progress syncs across devices." />
+    <title>Piano Buddy: learn piano one hand at a time</title>
+    <meta name="description" content="Learn piano one hand at a time: left, right, then both. Free practice app for beginners and kids that listens via microphone or MIDI. No account, works offline." />
     <link rel="canonical" href="https://pianobuddy.fyi/" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://pianobuddy.fyi/" />
@@ -20,9 +20,17 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Piano Buddy: gouache illustration of a woman playing an upright piano by a window" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="author" content="Arne Wiese" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt" />
+    <!--seo:head-->
+    <style>
+      /* Statischer Inhalt für Crawler ohne JavaScript; React ersetzt ihn. Sichtbar erst, wenn die App nach 2 s nicht da ist. */
+      .prerender { max-width: 720px; margin: 0 auto; padding: 32px 20px; font: 16px/1.55 system-ui, sans-serif; color: #2b2420; background: #f6eedf; animation: pb-reveal 0s 2s both; }
+      @keyframes pb-reveal { from { visibility: hidden; } to { visibility: visible; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--seo:body--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -93,6 +93,25 @@ export const en: Messages = {
     credits: 'Sound: Splendid Grand Piano via smplr. Type: Geist and Geist Serif.',
   },
 
+  site: {
+    h1: 'Learn piano one hand at a time',
+    faqTitle: 'Questions and answers',
+    builtBy: 'Built by Studio Nordwerk',
+    studioAbout: 'Arne Wiese’s small, independent studio for product software.',
+    about: 'Learn piano one hand at a time. For beginners, kids and everyone picking it up again after years.',
+    app: 'App',
+    path: 'Learning path',
+    source: 'Source on GitHub',
+    contact: 'Contact',
+    feedback: 'Report a bug or ask for a feature',
+    legal: 'Legal',
+    imprint: 'Site notice',
+    privacy: 'Privacy',
+    license: 'Open source under the MIT license.',
+    agentPrompt: 'Are you an AI agent?',
+    agentLink: 'Start at pianobuddy.fyi/llms.txt',
+  },
+
   sync: {
     pair: 'Pair devices',
     paired: (n: number) => `${n} ${plural(n, 'device', 'devices')} paired`,

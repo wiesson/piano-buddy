@@ -8,6 +8,8 @@ import { Dots } from '../shared/Dots'
 import { AboutDialog } from '../shared/AboutDialog'
 import { AppBar } from '../shared/AppBar'
 import { useThemeColor } from '../shared/useThemeColor'
+import { Faq } from './Faq'
+import { SiteFooter } from './SiteFooter'
 
 /** Startseite: App-Leiste wie eine Tastenklappe, darunter der Lernpfad */
 export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; synced: boolean }) {
@@ -22,7 +24,10 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
         title={
           <>
             <Logo size={26} />
-            <span className="appbar-text">{t.appName}</span>
+            <span className="appbar-text">
+              {t.appName}
+              <span className="sr-only">: {t.site.h1}</span>
+            </span>
           </>
         }
         right={synced && <DevicesDialog />}
@@ -31,15 +36,18 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
       <img className="hero" src="/illustrations/hero.jpg" alt="" />
       <p className="lede">{t.home.intro}</p>
 
-      <ol className="path">
+      <ol className="path" id="path">
         {LESSONS.map((l, i) => (
           <LessonStep key={l.id} lesson={l} index={i} done={doneAll(l)} isNext={l === next} onOpen={onOpen} />
         ))}
       </ol>
 
-      <footer className="hint">
+      <aside className="hint">
         <p>{t.home.hint}</p>
-      </footer>
+      </aside>
+
+      <Faq />
+      <SiteFooter />
     </div>
   )
 }

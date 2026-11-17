@@ -95,6 +95,25 @@ export const de = {
     credits: 'Klang: Splendid Grand Piano über smplr. Schrift: Geist und Geist Serif.',
   },
 
+  site: {
+    h1: 'Klavier lernen, eine Hand nach der anderen',
+    faqTitle: 'Häufige Fragen',
+    builtBy: 'Gebaut von Studio Nordwerk',
+    studioAbout: 'Das kleine, unabhängige Studio von Arne Wiese für Produktsoftware.',
+    about: 'Klavier lernen, eine Hand nach der anderen. Für Anfänger, Kinder und alle, die nach Jahren wieder anfangen.',
+    app: 'App',
+    path: 'Lernpfad',
+    source: 'Quellcode auf GitHub',
+    contact: 'Kontakt',
+    feedback: 'Fehler melden oder Wunsch äußern',
+    legal: 'Rechtliches',
+    imprint: 'Impressum',
+    privacy: 'Datenschutz',
+    license: 'Open Source unter MIT-Lizenz.',
+    agentPrompt: 'Du bist ein KI-Agent?',
+    agentLink: 'Starte bei pianobuddy.fyi/llms.txt',
+  },
+
   sync: {
     pair: 'Geräte koppeln',
     paired: (n: number) => `${n} Geräte gekoppelt`,
