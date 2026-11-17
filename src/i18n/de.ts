@@ -26,7 +26,7 @@ export const de = {
       { label: '02 · Rechts', title: 'Dann die rechte', text: 'Die Melodie mit Notennamen und Fingersatz. Die Musik wartet, bis du die richtige Taste triffst.' },
       { label: '03 · Beide', title: 'Dann beide zusammen', text: 'Drei saubere Durchgänge, und die Stufe ist gelernt. Nicht die Minuten zählen, sondern die Treffer.' },
     ],
-    pathTitle: 'Von fünf Fingern bis zu vier Akkorden.',
+    pathTitle: 'Von fünf Fingern bis Für Elise.',
     pathLede: 'Jede Zeile ein Stück. Die Punkte zeigen deine sauberen Durchgänge je Hand.',
     pathNote: 'Dein Fortschritt liegt auf diesem Gerät. Mit „Geräte koppeln“ ist er überall gleich.',
     roll: (bpm: number) => `♩ ${bpm} · beide Hände`,
@@ -37,7 +37,10 @@ export const de = {
       { label: 'MIDI', text: 'Digitalpiano per USB oder Bluetooth, in Chrome am Mac oder PC und in der iOS-App.' },
       { label: 'Tastatur', text: 'Ohne Klavier: links A S D F G vom kleinen Finger bis zum Daumen, rechts H J K L Ö.' },
     ],
-    dock: { path: 'Lernpfad', method: 'Methode', faq: 'Fragen', about: 'Über' },
+    songsTitle: 'Lieder zum Mitspielen.',
+    songsLede: 'Kinderlieder, Weihnachten, Barock und Beethoven, alle gemeinfrei. Eigene MIDI-Dateien kommen als Nächstes.',
+    songMeta: (learned: number, total: number) => `${learned}/${total} Stufen gelernt`,
+    dock: { path: 'Lernpfad', songs: 'Lieder', method: 'Methode', faq: 'Fragen', about: 'Über' },
     dockLabel: 'Abschnitte',
   },
 
@@ -118,7 +121,7 @@ export const de = {
     by: 'Gebaut von',
     source: 'Quellcode auf GitHub',
     language: 'Sprache',
-    credits: 'Klang: Splendid Grand Piano über smplr. Schrift: Geist und Geist Serif.',
+    credits: 'Klang: Splendid Grand Piano über smplr. Schrift: Geist, Geist Serif und Geist Mono.',
   },
 
   site: {

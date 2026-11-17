@@ -34,7 +34,7 @@ export function AboutDialog({ label, className }: { label?: string; className?: 
       <DialogBackdrop className="dialog-backdrop" />
       <DialogContent className="dialog about">
         <div className="about-head">
-          <Logo size={40} />
+          <Logo size={32} />
           <DialogTitle className="dialog-title">{t.about.title}</DialogTitle>
         </div>
         <DialogDescription className="dialog-desc">{t.about.text}</DialogDescription>

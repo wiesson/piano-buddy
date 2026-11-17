@@ -82,8 +82,8 @@ export const FAQ: FaqItem[] = [
     id: 'beginners',
     q: { en: 'Is it for complete beginners and kids?', de: 'Ist es für absolute Anfänger und Kinder geeignet?' },
     a: {
-      en: 'Yes. The learning path starts with five fingers per hand on five white keys and builds up to short pieces like Ode to Joy and first chords. No account, no ads, nothing to buy, so it is safe to hand to a child.',
-      de: 'Ja. Der Lernpfad beginnt mit fünf Fingern je Hand auf fünf weißen Tasten und baut bis zu kurzen Stücken wie der Ode an die Freude und ersten Akkorden auf. Kein Konto, keine Werbung, nichts zu kaufen: Man kann es einem Kind in die Hand geben.',
+      en: 'Yes. The learning path starts with five fingers per hand on five white keys and builds up to songs like Lightly Row, Ode to Joy and Jingle Bells, then the C major scale, four pop chords, Pachelbel’s Canon and the opening of Für Elise. No account, no ads, nothing to buy, so it is safe to hand to a child.',
+      de: 'Ja. Der Lernpfad beginnt mit fünf Fingern je Hand auf fünf weißen Tasten und führt über Lieder wie Hänschen klein, die Ode an die Freude und Jingle Bells zur C-Dur-Tonleiter, vier Pop-Akkorden, Pachelbels Kanon und dem Anfang von Für Elise. Kein Konto, keine Werbung, nichts zu kaufen: Man kann es einem Kind in die Hand geben.',
     },
   },
   {

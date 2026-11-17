@@ -608,6 +608,57 @@ body:has(.home) {
   background: var(--hand-r);
 }
 
+/* Lieder: Galerie wie bei monet.directory, jedes Lied mit seinem Gouache-Bild */
+.pb-wide {
+  max-width: 1200px;
+  margin-inline: auto;
+}
+.pb-center {
+  margin-inline: auto;
+  text-align: center;
+}
+.pb-gallery {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 40px 0 0;
+  padding: 0;
+}
+.pb-song {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.04);
+  text-align: left;
+  transition: transform 0.2s;
+}
+.pb-song:hover {
+  transform: translateY(-2px);
+}
+.pb-song img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+.pb-song-body {
+  display: grid;
+  gap: 6px;
+  padding: 14px 18px 18px;
+}
+.pb-song-title {
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.2;
+}
+
 /* Was du brauchst: drei Spalten ohne Karten, feine Linie oben */
 .pb-needs {
   display: grid;
@@ -620,6 +671,11 @@ body:has(.home) {
   margin-top: 8px;
 }
 
+@media (max-width: 1000px) {
+  .pb-gallery {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 @media (max-width: 900px) {
   .pb-split {
     grid-template-columns: minmax(0, 1fr);
@@ -634,6 +690,16 @@ body:has(.home) {
   .pb-trio,
   .pb-needs {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .pb-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .pb-song-body {
+    padding: 12px 14px 14px;
+  }
+  .pb-song-title {
+    font-size: 17px;
   }
   .pb-trio {
     margin-top: 36px;
@@ -870,6 +936,7 @@ body:has(.home) {
 
 /* Sprungziele landen unter der App-Leiste, nicht dahinter */
 #path,
+#songs,
 #method,
 #faq,
 .faq details {

@@ -62,6 +62,10 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
               <PathIcon />
               {t.home.dock.path}
             </a>
+            <a href="#songs">
+              <SongsIcon />
+              {t.home.dock.songs}
+            </a>
             <a href="#method">
               <StepsIcon />
               {t.home.dock.method}
@@ -134,6 +138,30 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
               </ol>
               <p className="pb-note">{t.home.pathNote}</p>
             </div>
+          </div>
+        </section>
+
+        <section id="songs" className="pb-section">
+          <div className="pb-wide">
+            <h2 className="pb-h2 pb-center">{t.home.songsTitle}</h2>
+            <p className="pb-body pb-center">{t.home.songsLede}</p>
+            <ul className="pb-gallery">
+              {LESSONS.filter((l) => l.illustration).map((l) => {
+                const stages = stagesFor(l)
+                const done = stages.filter((s) => store.cleanCount(l.id, s) >= CLEAN_GOAL).length
+                return (
+                  <li key={l.id}>
+                    <button type="button" className="pb-song" onClick={() => onOpen(l)}>
+                      <img src={l.illustration} alt="" loading="lazy" />
+                      <span className="pb-song-body">
+                        <span className="pb-song-title">{localized(l.title)}</span>
+                        <span className="pb-mono">{t.home.songMeta(done, stages.length)}</span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </section>
 
@@ -218,6 +246,16 @@ function PathIcon() {
       <circle cx="6" cy="6" r="2" />
       <circle cx="6" cy="18" r="2" />
       <path d="M6 8v8M11 6h9M11 18h9M11 12h6" />
+    </svg>
+  )
+}
+
+function SongsIcon() {
+  return (
+    <svg {...dockIcon}>
+      <path d="M9 18V5l11-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="17" cy="16" r="3" />
     </svg>
   )
 }

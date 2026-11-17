@@ -7,7 +7,7 @@ because clean repetitions predict progress better than minutes practiced.
 Live: **[pianobuddy.fyi](https://pianobuddy.fyi)**
 (German or English, following your browser; add it to your home screen for the app feel)
 
-![Piano Buddy: gouache illustration of a woman playing an upright piano by a window](public/og-paper.jpg)
+![Piano Buddy: gouache illustration of a woman playing an upright piano by a window](public/og-home.jpg)
 
 ## What it does
 
@@ -20,9 +20,12 @@ Live: **[pianobuddy.fyi](https://pianobuddy.fyi)**
 - **Progress on every device:** a local-first practice log syncs through Convex. No account,
   devices pair with an 8-character code.
 - **Works offline** as a PWA; fonts, icons and the app shell are cached.
+- **14 pieces, all public domain:** five-finger patterns, children's songs (Alle meine Entchen,
+  Lightly Row, Mary Had a Little Lamb), Ode to Joy, Jingle Bells, the C major scale, four pop
+  chords with a moving left hand, Pachelbel's Canon and the opening of Für Elise.
 
 <p>
-  <img src=".github/assets/home.png" width="300" alt="Home screen with the learning path">
+  <img src=".github/assets/home.png" width="300" alt="Home page on an iPhone">
   <img src=".github/assets/mic-vs-midi.png" width="520" alt="Microphone measured against MIDI: 6 of 6 detected, 159 ms">
 </p>
 

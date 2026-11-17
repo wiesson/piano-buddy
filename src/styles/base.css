@@ -158,6 +158,9 @@ button:disabled {
 }
 
 /* Signet (Pianorollen-P): Balken in der Textfarbe, die aktuelle Note in Messing */
+.logo {
+  flex: none;
+}
 .logo-note {
   fill: #d3a04d;
 }

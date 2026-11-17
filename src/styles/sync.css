@@ -259,6 +259,13 @@
 .about-head .dialog-title {
   margin: 0;
 }
+/* Der Name als Wortmarke wie in der Kopfzeile der Startseite: Geist halbfett, nicht Serif */
+.about .about-head .dialog-title {
+  font-family: var(--sans);
+  font-weight: 650;
+  font-size: 24px;
+  letter-spacing: -0.015em;
+}
 .about a {
   color: var(--ink);
   font-weight: 800;

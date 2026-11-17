@@ -24,7 +24,7 @@ export const en: Messages = {
       { label: '02 · Right', title: 'Then the right', text: 'The melody, with note names and fingering. The music waits until you hit the right key.' },
       { label: '03 · Both', title: 'Then both together', text: 'Three clean passes and the stage is learned. Not minutes, but hits.' },
     ],
-    pathTitle: 'From five fingers to four chords.',
+    pathTitle: 'From five fingers to Für Elise.',
     pathLede: 'One row per piece. The dots show your clean passes per hand.',
     pathNote: 'Your progress lives on this device. With “Pair devices” it is the same everywhere.',
     roll: (bpm: number) => `♩ ${bpm} · both hands`,
@@ -35,7 +35,10 @@ export const en: Messages = {
       { label: 'MIDI', text: 'Digital piano over USB or Bluetooth, in Chrome on a Mac or PC and in the iOS app.' },
       { label: 'Keyboard', text: 'No piano: left A S D F G from little finger to thumb, right H J K L ;.' },
     ],
-    dock: { path: 'Learning path', method: 'Method', faq: 'Questions', about: 'About' },
+    songsTitle: 'Songs to play along.',
+    songsLede: 'Children’s songs, Christmas, baroque and Beethoven, all in the public domain. Your own MIDI files come next.',
+    songMeta: (learned: number, total: number) => `${learned}/${total} stages learned`,
+    dock: { path: 'Path', songs: 'Songs', method: 'Method', faq: 'Questions', about: 'About' },
     dockLabel: 'Sections',
   },
 
@@ -116,7 +119,7 @@ export const en: Messages = {
     by: 'Built by',
     source: 'Source on GitHub',
     language: 'Language',
-    credits: 'Sound: Splendid Grand Piano via smplr. Type: Geist and Geist Serif.',
+    credits: 'Sound: Splendid Grand Piano via smplr. Type: Geist, Geist Serif and Geist Mono.',
   },
 
   site: {

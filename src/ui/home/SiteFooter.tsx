@@ -54,6 +54,9 @@ export function SiteFooter() {
               <a href="#path">{f.path}</a>
             </li>
             <li>
+              <a href="#songs">{t.home.dock.songs}</a>
+            </li>
+            <li>
               <a href="#faq">{f.faqTitle}</a>
             </li>
             <li>

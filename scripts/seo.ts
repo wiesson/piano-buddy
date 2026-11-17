@@ -34,7 +34,7 @@ function jsonLd() {
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
       license: 'https://opensource.org/licenses/MIT',
       codeRepository: SITE.source,
-      image: `${SITE.url}og-paper.jpg`,
+      image: `${SITE.url}og-home.jpg`,
       author,
       publisher: { '@type': 'Organization', name: SITE.studio.name, url: SITE.studio.url },
       featureList: [
