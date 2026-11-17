@@ -1,0 +1,464 @@
+:root {
+  --lacquer: #241a17;
+  --lacquer-2: #2f231f;
+  --lacquer-3: #3b2d28;
+  --ivory: #f3ebdd;
+  --ivory-dim: #b9ab98;
+  --felt: #8e2f2b;
+  --brass: #d3a04d;
+  --petrol: #4f9db5;
+  --ink: #241a17;
+  --serif: 'Young Serif', Georgia, serif;
+  --sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--lacquer);
+  color: var(--ivory);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---------- Startseite ---------- */
+
+.home {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: max(28px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+}
+.fallboard {
+  padding: 28px 0 24px;
+  border-bottom: 6px solid var(--felt);
+  margin-bottom: 20px;
+}
+/* Wie der Markenschriftzug auf der Tastenklappe: Serifenschrift in Messing */
+.brand {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 9vw, 64px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--brass);
+  margin: 0 0 14px;
+}
+.lede {
+  margin: 0;
+  max-width: 34em;
+  color: var(--ivory-dim);
+}
+.path {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.lesson {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2.2em 1fr auto;
+  gap: 4px 14px;
+  align-items: center;
+  text-align: left;
+  padding: 16px 14px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.lesson:hover {
+  background: var(--lacquer-2);
+}
+.next .lesson {
+  background: var(--lacquer-2);
+  box-shadow: inset 3px 0 0 var(--brass);
+}
+.num {
+  font-family: var(--serif);
+  font-size: 26px;
+  color: var(--ivory-dim);
+  text-align: center;
+}
+.next .num {
+  color: var(--brass);
+}
+.done .num {
+  color: var(--petrol);
+}
+.body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.name {
+  font-weight: 800;
+  font-size: 19px;
+}
+.lesson .goal {
+  color: var(--ivory-dim);
+  font-size: 15px;
+}
+.mini-stages {
+  display: flex;
+  gap: 4px;
+}
+.mini {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--lacquer-3);
+  color: var(--ivory-dim);
+}
+.mini.some {
+  border-color: currentColor;
+}
+.mini-L.some,
+.mini-L.full {
+  color: var(--petrol);
+}
+.mini-R.some,
+.mini-R.full {
+  color: var(--brass);
+}
+.mini-LR.some,
+.mini-LR.full {
+  color: var(--ivory);
+}
+.mini.full {
+  background: currentColor;
+}
+.mini.full {
+  color: var(--ink) !important;
+}
+.mini-L.full {
+  background: var(--petrol);
+}
+.mini-R.full {
+  background: var(--brass);
+}
+.mini-LR.full {
+  background: var(--ivory);
+}
+.hint {
+  margin-top: 28px;
+  color: var(--ivory-dim);
+  font-size: 15px;
+  max-width: 36em;
+}
+@media (max-width: 560px) {
+  .lesson {
+    grid-template-columns: 2em 1fr;
+  }
+  .mini-stages {
+    grid-column: 2;
+  }
+}
+
+/* ---------- Üben ---------- */
+
+.practice {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.bar .title {
+  min-width: 0;
+  flex: 1;
+}
+.bar h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  color: var(--brass);
+  font-size: 24px;
+  line-height: 1.1;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar .goal {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--ivory-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.back {
+  font-size: 34px;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.stages {
+  display: flex;
+  background: var(--lacquer-2);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+}
+.stage {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 6px 14px 7px;
+  border-radius: 9px;
+  font-weight: 800;
+  color: var(--ivory-dim);
+  min-width: 76px;
+}
+.stage[aria-selected='true'] {
+  background: var(--lacquer-3);
+  color: var(--ivory);
+}
+.stage-L[aria-selected='true'] {
+  box-shadow: inset 0 -3px 0 var(--petrol);
+}
+.stage-R[aria-selected='true'] {
+  box-shadow: inset 0 -3px 0 var(--brass);
+}
+.stage-LR[aria-selected='true'] {
+  box-shadow: inset 0 -3px 0 var(--ivory);
+}
+.dots {
+  display: flex;
+  gap: 4px;
+}
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lacquer-3);
+  outline: 1px solid rgba(243, 235, 221, 0.25);
+}
+.stage-L .dots i.on {
+  background: var(--petrol);
+  outline-color: var(--petrol);
+}
+.stage-R .dots i.on {
+  background: var(--brass);
+  outline-color: var(--brass);
+}
+.stage-LR .dots i.on {
+  background: var(--ivory);
+  outline-color: var(--ivory);
+}
+
+.stage-area {
+  position: relative;
+  min-height: 0;
+}
+.roll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.tools {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.spacer {
+  flex: 1;
+}
+.toggle,
+.ghost,
+.mic,
+.pill {
+  padding: 9px 14px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ivory-dim);
+  background: var(--lacquer-2);
+}
+.toggle.on {
+  color: var(--ivory);
+  background: var(--lacquer-3);
+}
+.pill {
+  background: none;
+  border: 1px solid var(--lacquer-3);
+}
+.mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ivory);
+}
+.mic.listening {
+  background: var(--felt);
+}
+.mic.calibrating {
+  background: var(--lacquer-3);
+}
+.mic.denied,
+.mic.error {
+  color: #f0a08f;
+}
+.meter {
+  width: 6px;
+  height: 18px;
+  border-radius: 3px;
+  background: rgba(243, 235, 221, 0.18);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: flex-end;
+}
+.meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--ivory);
+  transform-origin: bottom;
+  transform: scaleY(0.12);
+}
+
+.result {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  background: var(--ivory);
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  animation: rise 0.28s ease-out;
+}
+.result-head {
+  font-family: var(--serif);
+  font-size: 24px;
+  margin: 0 0 4px;
+}
+.result-sub {
+  margin: 0 0 16px;
+  color: #5b4a3f;
+}
+.result-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.primary,
+.secondary {
+  padding: 11px 18px;
+  border-radius: 99px;
+  font-weight: 800;
+}
+.primary {
+  background: var(--ink);
+  color: var(--ivory);
+}
+.secondary {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .result {
+    animation: none;
+  }
+}
+
+@media (max-height: 500px) {
+  .bar {
+    padding: 6px 12px;
+  }
+  .bar .goal {
+    display: none;
+  }
+  .bar h1 {
+    font-size: 20px;
+  }
+  .stage {
+    padding: 4px 10px 5px;
+    min-width: 64px;
+  }
+}
+@media (max-width: 640px) {
+  .bar .goal {
+    display: none;
+  }
+  .stage {
+    min-width: 0;
+    padding: 6px 10px 7px;
+  }
+}
+
+/* Hochkant am Telefon: Stufenwahl in eigener Zeile über die volle Breite */
+.practice {
+  width: 100%;
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  header.bar {
+    flex-wrap: wrap;
+  }
+  header.bar .title {
+    flex-basis: calc(100% - 60px);
+  }
+  .stages {
+    width: 100%;
+  }
+  .stage {
+    flex: 1;
+  }
+  .tools .spacer {
+    display: none;
+  }
+  .toggle,
+  .ghost,
+  .mic,
+  .pill {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
