@@ -109,7 +109,7 @@ export function Roll({
     const el = canvas.current!
     const g = el.getContext('2d')!
     let raf = 0
-    const font = '"Atkinson Hyperlegible Next", system-ui, sans-serif'
+    const font = '"Geist", system-ui, sans-serif'
 
     const draw = () => {
       raf = requestAnimationFrame(draw)

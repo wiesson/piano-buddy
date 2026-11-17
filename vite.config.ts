@@ -13,6 +13,8 @@ export default defineConfig({
     lan && basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Schriften und Icons gehören zur App und müssen offline da sein
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2,png,svg}'] },
       manifest: {
         name: 'Piano Buddy',
         short_name: 'Piano',

@@ -1,3 +1,19 @@
+/* Geist und Geist Serif (Vercel, SIL OFL 1.1), selbst gehostet: laden schnell und gehen offline mit */
+@font-face {
+  font-family: 'Geist';
+  src: url('../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Serif';
+  src: url('../node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --lacquer: #241a17;
   --lacquer-2: #2f231f;
@@ -8,8 +24,13 @@
   --brass: #d3a04d;
   --petrol: #4f9db5;
   --ink: #241a17;
-  --serif: 'Young Serif', Georgia, serif;
-  --sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --serif: 'Geist Serif', Georgia, serif;
+  --sans: 'Geist', system-ui, sans-serif;
+  /* iOS: Notch, Statusleiste, Home-Indikator, Safaris schwebende Leiste */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
   color-scheme: dark;
 }
 
@@ -64,7 +85,7 @@ button:disabled {
 
 .home {
   min-height: 100%;
-  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  padding-bottom: calc(28px + var(--sab));
 }
 
 /* Tastenklappe: bleibt oben stehen, Schriftzug mittig, Filzstreifen als Abschluss */
@@ -105,7 +126,7 @@ button:disabled {
 .lede {
   max-width: 760px;
   margin: 0 auto;
-  padding: 22px 20px 10px;
+  padding: 22px max(20px, var(--sar)) 10px max(20px, var(--sal));
   color: var(--ivory-dim);
 }
 
@@ -122,7 +143,7 @@ button:disabled {
 .step::before {
   content: '';
   position: absolute;
-  left: 37px;
+  left: calc(max(20px, var(--sal)) + 17px);
   top: 0;
   bottom: 0;
   width: 2px;
@@ -145,7 +166,7 @@ button:disabled {
   gap: 4px 16px;
   align-items: start;
   text-align: left;
-  padding: 14px 20px;
+  padding: 14px max(20px, var(--sar)) 14px max(20px, var(--sal));
   transition: background 0.15s;
 }
 .lesson:hover {
@@ -244,7 +265,7 @@ button:disabled {
 .hint {
   max-width: 760px;
   margin: 20px auto 0;
-  padding: 0 20px;
+  padding: 0 max(20px, var(--sar)) 0 max(20px, var(--sal));
   color: var(--ivory-dim);
   font-size: 15px;
 }
@@ -254,11 +275,11 @@ button:disabled {
 @media (max-width: 560px) {
   .lesson {
     grid-template-columns: 36px 1fr;
-    padding: 12px 16px;
+    padding: 12px max(16px, var(--sar)) 12px max(16px, var(--sal));
     gap: 2px 14px;
   }
   .step::before {
-    left: 33px;
+    left: calc(max(16px, var(--sal)) + 17px);
   }
   .step:first-child::before {
     top: 30px;
@@ -271,7 +292,7 @@ button:disabled {
     padding-top: 6px;
   }
   .lede {
-    padding: 18px 16px 6px;
+    padding: 18px max(16px, var(--sar)) 6px max(16px, var(--sal));
   }
 }
 
@@ -672,7 +693,7 @@ button:disabled {
   top: 50%;
   transform: translate(-50%, -50%);
   width: min(440px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 32px - var(--sat) - var(--sab));
   overflow: auto;
   background: var(--ivory);
   color: var(--ink);
