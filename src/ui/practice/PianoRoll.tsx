@@ -84,14 +84,32 @@ function keyRect(l: Layout, m: number) {
   return { x: (i + 1) * l.keyW - w / 2, w, black: true }
 }
 
-function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  if (w <= 0 || h <= 0) {
-    g.beginPath()
-    return
-  }
-  r = Math.max(0, Math.min(r, w / 2, h / 2))
+/** Radius je Ecke: Zahl oder [oben links, oben rechts, unten rechts, unten links] */
+function roundRect(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number | [number, number, number, number],
+) {
   g.beginPath()
-  g.roundRect(x, y, w, h, r)
+  if (w <= 0 || h <= 0) return
+  const max = Math.min(w / 2, h / 2)
+  const radii = (typeof r === 'number' ? [r, r, r, r] : r).map((v) => Math.max(0, Math.min(v, max)))
+  g.roundRect(x, y, w, h, radii)
+}
+
+/**
+ * Maße einer Taste und ihrer Einlagen aus einer Quelle. Designregel der App: Liegt eine Fläche in
+ * einer anderen, ist der Abstand an allen Seiten gleich und der innere Radius = äußerer Radius
+ * minus Abstand. Dieselbe Einlage nutzen die fallenden Blöcke, damit sie passgenau landen.
+ */
+function keyGeometry(width: number, black: boolean) {
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(v)))
+  const radius = black ? clamp(width * 0.14, 3, 6) : clamp(width * 0.16, 6, 12)
+  const inset = black ? clamp(width * 0.12, 2, 4) : clamp(width * 0.09, 3, 6)
+  return { radius, inset, inner: Math.max(2, radius - inset) }
 }
 
 /** Fallende Noten über einer Tastatur, gezeichnet in einem Canvas. Tippen auf Tasten spielt sie. */
@@ -159,12 +177,16 @@ export function PianoRoll({
       const sounding = (n: ScoreNote) => n.start <= v.beat + 1e-6 && v.beat < n.start + n.dur - 1e-6
       g.textAlign = 'center'
       g.textBaseline = 'middle'
+      const geoW = keyGeometry(l.keyW - 2, false)
+      const geoB = keyGeometry(l.keyW * 0.6, true)
       for (const n of v.notes) {
         const top = yOf(n.start + n.dur)
         const bottom = yOf(n.start)
         if (bottom < -20 || top > laneBottom + 400) continue
         const { x, w, black } = keyRect(l, n.midi)
-        const pad = black ? 1 : Math.max(2, w * 0.08)
+        const kg = black ? geoB : geoW
+        // weiße Tasten beginnen 1 px eingerückt (Fuge), die Einlage kommt dazu
+        const pad = (black ? 0 : 1) + kg.inset
         const isNow = v.expected.has(n.midi) && sounding(n)
         const past = n.start < v.beat - 1e-6
         const color = C[n.hand]
@@ -178,7 +200,7 @@ export function PianoRoll({
           g.shadowBlur = 18
         }
         g.fillStyle = color
-        roundRect(g, bx, by, bw, bh, Math.min(10, bw * 0.3))
+        roundRect(g, bx, by, bw, bh, kg.inner)
         g.fill()
         g.shadowBlur = 0
         if (isNow && v.struck.has(n.midi)) {
@@ -216,31 +238,46 @@ export function PianoRoll({
       // Tastatur
       const flashOf = (m: number) => v.flashes.find((f) => f.midi === m)
       const handOf = (m: number) => v.notes.find((n) => n.midi === m && v.expected.has(m) && sounding(n))?.hand
+      // Sichtbarer Elfenbein-Bereich unter den schwarzen Tasten: Die Einlage füllt ihn mit
+      // gleichem Abstand nach oben (zur schwarzen Taste), zu den Seiten und nach unten.
+      const blackH = keyH * 0.62
+      const whiteInlayH = Math.max(12, keyH - blackH - geoW.inset * 2)
+      const labelSize = Math.min(l.keyW * 0.42, 20, whiteInlayH * 0.56)
       const drawKey = (m: number) => {
         const { x, w, black } = keyRect(l, m)
-        const h = black ? keyH * 0.62 : keyH
+        const h = black ? blackH : keyH
+        const kg = black ? geoB : geoW
+        // Taste: oben eckig (verschwindet unter dem Filz), unten gerundet; weiße mit 1 px Fuge
+        const kx = black ? x : x + 1
+        const kw = black ? w : w - 2
+        const bottom = keyTop + h
         const hand = handOf(m)
         const flash = flashOf(m)
         g.fillStyle = black ? C.ebony : C.ivory
-        roundRect(g, x + (black ? 0 : 1), keyTop, w - (black ? 0 : 2), h, black ? 3 : 6)
+        roundRect(g, kx, keyTop, kw, h, [0, 0, kg.radius, kg.radius])
         g.fill()
         if (!black) {
           g.fillStyle = C.ivoryShade
-          g.fillRect(x + 1, keyTop, w - 2, 3)
+          g.fillRect(kx, keyTop, kw, 3)
         }
+        // Einlage: gleicher Abstand links, rechts, unten; Radius = Tastenradius − Abstand
+        const ix = kx + kg.inset
+        const iw = kw - kg.inset * 2
+        const ih = black ? h * 0.42 : whiteInlayH
+        const iy = bottom - kg.inset - ih
         if (hand) {
-          const done = v.struck.has(m)
           g.fillStyle = C[hand]
-          g.globalAlpha = done ? 1 : 0.85
-          roundRect(g, x + w * 0.14, keyTop + h * (black ? 0.35 : 0.66), w * 0.72, h * (black ? 0.55 : 0.3), 6)
+          g.globalAlpha = v.struck.has(m) ? 1 : 0.85
+          roundRect(g, ix, iy, iw, ih, kg.inner)
           g.fill()
           g.globalAlpha = 1
         }
         if (flash) {
+          // Rückmeldung füllt die ganze Taste innerhalb desselben Abstands
           const a = Math.max(0, 1 - flash.age / 900)
           g.fillStyle = flash.kind === 'wrong' ? C.wrong : 'rgba(255,255,255,0.9)'
           g.globalAlpha = a * (flash.kind === 'wrong' ? 0.85 : 0.5)
-          roundRect(g, x + 2, keyTop + 2, w - 4, h - 4, 5)
+          roundRect(g, ix, keyTop + kg.inset, iw, h - kg.inset * 2, [kg.inner, kg.inner, kg.inner, kg.inner])
           g.fill()
           g.globalAlpha = 1
         }
@@ -252,12 +289,11 @@ export function PianoRoll({
           g.fill()
           g.globalAlpha = 1
         }
-        // Namen: C immer zur Orientierung, alle anderen mit Schalter
+        // Namen: C immer zur Orientierung, alle anderen mit Schalter; immer mittig in der Einlage
         if (!black && (v.showNames || m % 12 === 0 || hand)) {
-          const size = Math.min(w * 0.42, 20)
-          g.font = `${hand ? 800 : 600} ${size}px ${font}`
+          g.font = `${hand ? 800 : 600} ${labelSize}px ${font}`
           g.fillStyle = hand ? C.ink : m % 12 === 0 ? '#7a6a5c' : '#a39482'
-          g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), x + w / 2, keyTop + h - size * 0.9)
+          g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), ix + iw / 2, iy + ih / 2 + 1)
         }
       }
       for (let m = l.lo; m <= l.hi; m++) if (!isBlack(m)) drawKey(m)

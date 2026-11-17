@@ -364,7 +364,8 @@
   border-radius: 14px;
   padding: 12px 14px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-  border-top: 4px solid var(--petrol);
+  overflow: hidden;
+  padding-top: 16px;
   font-size: 14px;
 }
 .bench-head {
@@ -476,4 +477,13 @@ header.bar:has(.stage-badge) .title {
   .bench-log li:nth-child(n + 4) {
     display: none;
   }
+}
+
+/* Akzentstreifen gerade statt als Rand: ein Rand an gerundeter Kante krümmt seine Innenkante */
+.bench::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--petrol);
 }

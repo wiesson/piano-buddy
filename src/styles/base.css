@@ -15,6 +15,12 @@
 }
 
 :root {
+  /*
+   * Designregel: Liegt eine Fläche in einer anderen, ist der Abstand an allen Seiten gleich und
+   * der innere Radius = äußerer Radius − Abstand (konzentrische Ecken). Akzente an gerundeten
+   * Kanten sind gerade Streifen, die von der Außenkante beschnitten werden, keine Ränder.
+   * Beispiele: Segmented Control 12 / 3 / 9, Taste und Einlage in PianoRoll (keyGeometry).
+   */
   --lacquer: #241a17;
   --lacquer-2: #2f231f;
   --lacquer-3: #3b2d28;
