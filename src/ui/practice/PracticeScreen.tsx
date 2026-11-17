@@ -9,6 +9,7 @@ import { MicListener, type MicStatus } from '../../audio/mic'
 import { audioContext, getPiano, playNote, stopAll } from '../../audio/audio'
 import type { NoteOn } from '../../input/events'
 import { keyToMidi } from '../../input/keyboard'
+import { fingerToMidi, keyToFinger } from '../../input/fingerKeys'
 import { t, localized } from '../../i18n'
 import { displayNoteLabel } from '../../i18n/noteNames'
 import { announce } from '@ui-sdk/core'
@@ -158,13 +159,20 @@ export function PracticeScreen({
     return () => clearInterval(timer)
   }, [comparing])
 
-  // Computertastatur
+  const stageNotes = useMemo(() => notesForStage(lesson, stage), [lesson, stage])
+  // Computertastatur: Fingertasten (Standard) oder Töne wie im Tracker (Y–M, Q–I)
+  const [fingerKeys, setFingerKeysState] = useState(() => getPref('fingerkeys', true))
+  const setFingerKeys = (v: boolean) => (setPref('fingerkeys', v), setFingerKeysState(v))
   const lowest = Math.min(...lesson.notes.map((n) => n.midi))
   useEffect(() => {
     const base = Math.min(48, Math.floor(lowest / 12) * 12)
     const down = (e: KeyboardEvent) => {
-      if (e.repeat || e.metaKey || e.ctrlKey) return
-      const m = keyToMidi(e.code, base)
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
+      let m: number | null
+      if (fingerKeys) {
+        const f = keyToFinger(e.code)
+        m = f ? fingerToMidi(stageNotes, sessionRef.current?.beat ?? 0, f.hand, f.finger) : null
+      } else m = keyToMidi(e.code, base)
       if (m === null) return
       e.preventDefault()
       if (micRef.current?.status !== 'listening') playNote(m)
@@ -172,7 +180,7 @@ export function PracticeScreen({
     }
     window.addEventListener('keydown', down)
     return () => window.removeEventListener('keydown', down)
-  }, [input, lowest])
+  }, [input, lowest, fingerKeys, stageNotes])
 
   // Display wach halten, solange geübt wird
   useEffect(() => {
@@ -225,7 +233,6 @@ export function PracticeScreen({
   }
 
   // Anzeige-Zustand, gelesen im Zeichen-Loop der Pianorolle
-  const stageNotes = useMemo(() => notesForStage(lesson, stage), [lesson, stage])
   const view = useCallback((): RollView => {
     const s = sessionRef.current
     const now = performance.now()
@@ -297,6 +304,8 @@ export function PracticeScreen({
             onShowNames={setShowNames}
             showFingers={showFingers}
             onShowFingers={setShowFingers}
+            fingerKeys={fingerKeys}
+            onFingerKeys={setFingerKeys}
           />
         }
       />

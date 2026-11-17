@@ -12,7 +12,7 @@ export const de = {
     intro:
       'Erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen Durchgängen.',
     next: 'Als Nächstes',
-    hint: 'Stell das iPhone oder iPad aufs Notenpult und tippe im Stück auf „Mikrofon“. Am Mac in Chrome und in der iOS-App geht auch „MIDI“. Ohne Klavier spielst du auf dem Bildschirm oder mit der Tastatur (Y–M und Q–I).',
+    hint: 'Stell das iPhone oder iPad aufs Notenpult und tippe im Stück auf „Mikrofon“. Am Mac in Chrome und in der iOS-App geht auch „MIDI“. Ohne Klavier übst du die Fingermuster auf der Tastatur: links A S D F G vom kleinen Finger bis zum Daumen, rechts H J K L Ö vom Daumen bis zum kleinen Finger.',
   },
 
   practice: {
@@ -43,6 +43,8 @@ export const de = {
     demo: 'Vorspielen',
     demoStop: 'Vorspielen stoppen',
     view: 'Ansicht',
+    fingerKeys: 'Fingertasten',
+    fingerKeysHint: 'Links A S D F G, rechts H J K L Ö',
     noteNames: 'Notennamen',
     fingers: 'Finger',
     restart: 'Von vorn',

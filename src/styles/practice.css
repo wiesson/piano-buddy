@@ -490,6 +490,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
@@ -504,6 +505,7 @@
   content: '';
   width: 18px;
   height: 18px;
+  flex: none;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px #cdbfa9;
 }
@@ -629,4 +631,14 @@
   .stage-goal {
     display: none;
   }
+}
+
+.toggle-text {
+  display: grid;
+  gap: 2px;
+}
+.toggle-text small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #75675a;
 }

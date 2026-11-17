@@ -9,6 +9,8 @@ export function ViewMenu(p: {
   onShowNames: (v: boolean) => void
   showFingers: boolean
   onShowFingers: (v: boolean) => void
+  fingerKeys: boolean
+  onFingerKeys: (v: boolean) => void
 }) {
   return (
     <Popover>
@@ -21,6 +23,12 @@ export function ViewMenu(p: {
         </Toggle>
         <Toggle className="toggle toggle-row" pressed={p.showFingers} onPressedChange={p.onShowFingers}>
           {t.practice.fingers}
+        </Toggle>
+        <Toggle className="toggle toggle-row" pressed={p.fingerKeys} onPressedChange={p.onFingerKeys}>
+          <span className="toggle-text">
+            {t.practice.fingerKeys}
+            <small>{t.practice.fingerKeysHint}</small>
+          </span>
         </Toggle>
       </PopoverContent>
     </Popover>

@@ -10,7 +10,7 @@ export const en: Messages = {
     intro:
       'Left hand first, then right, then both. A stage is learned after three clean passes.',
     next: 'Up next',
-    hint: 'Put your iPhone or iPad on the music stand and tap "Microphone" in a piece. On a Mac in Chrome and in the iOS app, "MIDI" works too. Without a piano, play on the screen or with the keyboard (Z–M and Q–I).',
+    hint: 'Put your iPhone or iPad on the music stand and tap "Microphone" in a piece. On a Mac in Chrome and in the iOS app, "MIDI" works too. Without a piano, practice the finger patterns on your keyboard: left A S D F G from little finger to thumb, right H J K L ; from thumb to little finger.',
   },
 
   practice: {
@@ -41,6 +41,8 @@ export const en: Messages = {
     demo: 'Play it for me',
     demoStop: 'Stop playback',
     view: 'View',
+    fingerKeys: 'Finger keys',
+    fingerKeysHint: 'Left A S D F G, right H J K L ;',
     noteNames: 'Note names',
     fingers: 'Fingering',
     restart: 'Restart',

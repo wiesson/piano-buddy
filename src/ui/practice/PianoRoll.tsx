@@ -384,7 +384,8 @@ export function PianoRoll({
           const a = Math.max(0, 1 - flash.age / 900)
           g.fillStyle = flash.kind === 'wrong' ? C.wrong : 'rgba(255,255,255,0.9)'
           g.globalAlpha = a * (flash.kind === 'wrong' ? 0.85 : 0.5)
-          roundRect(g, ix, keyTop + kg.inset, iw, h - sink - kg.inset * 2, [kg.inner, kg.inner, kg.inner, kg.inner])
+          // oben eckig wie die Taste (außen 0 → innen 0), unten Tastenradius − Abstand
+          roundRect(g, ix, keyTop + kg.inset, iw, h - sink - kg.inset * 2, [0, 0, kg.inner, kg.inner])
           g.fill()
           g.globalAlpha = 1
         }
