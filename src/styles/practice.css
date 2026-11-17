@@ -229,8 +229,6 @@
   margin: -6px 0 16px;
   font-size: 14px;
   color: #6d5a4c;
-  border-left: 3px solid var(--felt);
-  padding-left: 10px;
 }
 .result-actions {
   display: flex;
@@ -364,8 +362,6 @@
   border-radius: 14px;
   padding: 12px 14px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-  padding-top: 16px;
   font-size: 14px;
 }
 .bench-head {
@@ -479,11 +475,3 @@ header.bar:has(.stage-badge) .title {
   }
 }
 
-/* Akzentstreifen gerade statt als Rand: ein Rand an gerundeter Kante krümmt seine Innenkante */
-.bench::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  background: var(--petrol);
-}

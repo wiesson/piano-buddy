@@ -34,14 +34,24 @@ const C = {
   L: '#4f9db5',
   R: '#d3a04d',
   ink: '#241a17',
+  // Tasten außerhalb des Stücks: leicht grau
+  dimIvory: '#d4c9b8',
+  dimEbony: '#3a2f2b',
+  dimLane: 'rgba(16, 11, 9, 0.38)',
 }
 
 interface Layout {
   lo: number
   hi: number
+  /** Tonumfang des Stücks plus eine Taste Luft; alles außerhalb wird leicht grau gezeigt */
+  coreLo: number
+  coreHi: number
   whites: number[]
   keyW: number
 }
+
+/** Breiter werden weiße Tasten nicht: auf breiten Bildschirmen kommen statt dessen Tasten dazu */
+const MAX_KEY_W = 64
 
 function layoutKeys(notes: ScoreNote[], width: number): Layout {
   let lo = Math.min(...notes.map((n) => n.midi), 60)
@@ -61,16 +71,27 @@ function layoutKeys(notes: ScoreNote[], width: number): Layout {
   hi = isBlack(hi) ? up(hi) : hi
   lo = down(lo)
   hi = up(hi)
-  // mindestens 10 weiße Tasten, damit einzelne Tasten nicht riesig werden
-  let whites = []
-  for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m)
-  while (whites.length < 10) {
-    if (whites.length % 2) lo = down(lo)
-    else hi = up(hi)
-    whites = []
-    for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m)
+  // Hell bleibt nur der Tonumfang des Stücks (plus eine Taste Luft), nicht das erzwungene mittlere C
+  const toWhiteDown = (m: number) => (isBlack(m) ? down(m) : m)
+  const toWhiteUp = (m: number) => (isBlack(m) ? up(m) : m)
+  const coreLo = notes.length ? down(toWhiteDown(Math.min(...notes.map((x) => x.midi)))) : lo
+  const coreHi = notes.length ? up(toWhiteUp(Math.max(...notes.map((x) => x.midi)))) : hi
+  // mindestens 10 weiße Tasten und keine breiter als MAX_KEY_W: abwechselnd nach unten und oben
+  // auffüllen, innerhalb der 88 Tasten (A0 bis C8)
+  const count = () => {
+    let n = 0
+    for (let m = lo; m <= hi; m++) if (!isBlack(m)) n++
+    return n
   }
-  return { lo, hi, whites, keyW: width / whites.length }
+  let n = count()
+  while ((n < 10 || width / n > MAX_KEY_W) && (lo > 21 || hi < 108)) {
+    if ((n % 2 && lo > 21) || hi >= 108) lo = down(lo)
+    else hi = up(hi)
+    n = count()
+  }
+  const whites: number[] = []
+  for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m)
+  return { lo, hi, coreLo, coreHi, whites, keyW: width / whites.length }
 }
 
 /** x-Position und Breite einer Taste */
@@ -150,9 +171,15 @@ export function PianoRoll({
       const laneBottom = keyTop - feltH
       layoutRef.current = { l, keyTop, keyH }
 
-      // Bahn
+      // Bahn; außerhalb des Tonumfangs des Stücks leicht abgedunkelt
       g.fillStyle = C.lane
       g.fillRect(0, 0, W, laneBottom)
+      const coreX0 = keyRect(l, l.coreLo).x
+      const coreR = keyRect(l, l.coreHi)
+      const coreX1 = coreR.x + coreR.w
+      g.fillStyle = C.dimLane
+      if (coreX0 > 0) g.fillRect(0, 0, coreX0, laneBottom)
+      if (coreX1 < W) g.fillRect(coreX1, 0, W - coreX1, laneBottom)
       for (const m of l.whites) {
         if (m % 12 === 0 || m % 12 === 5) {
           const { x } = keyRect(l, m)
@@ -253,7 +280,8 @@ export function PianoRoll({
         const bottom = keyTop + h
         const hand = handOf(m)
         const flash = flashOf(m)
-        g.fillStyle = black ? C.ebony : C.ivory
+        const dim = m < l.coreLo || m > l.coreHi
+        g.fillStyle = black ? (dim ? C.dimEbony : C.ebony) : dim ? C.dimIvory : C.ivory
         roundRect(g, kx, keyTop, kw, h, [0, 0, kg.radius, kg.radius])
         g.fill()
         if (!black) {
@@ -290,9 +318,9 @@ export function PianoRoll({
           g.globalAlpha = 1
         }
         // Namen: C immer zur Orientierung, alle anderen mit Schalter; immer mittig in der Einlage
-        if (!black && (v.showNames || m % 12 === 0 || hand)) {
+        if (!black && (dim ? m % 12 === 0 : v.showNames || m % 12 === 0 || hand)) {
           g.font = `${hand ? 800 : 600} ${labelSize}px ${font}`
-          g.fillStyle = hand ? C.ink : m % 12 === 0 ? '#7a6a5c' : '#a39482'
+          g.fillStyle = hand ? C.ink : dim ? '#a69a8a' : m % 12 === 0 ? '#7a6a5c' : '#a39482'
           g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), ix + iw / 2, iy + ih / 2 + 1)
         }
       }

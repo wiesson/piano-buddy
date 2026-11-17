@@ -17,8 +17,8 @@
 :root {
   /*
    * Designregel: Liegt eine Fläche in einer anderen, ist der Abstand an allen Seiten gleich und
-   * der innere Radius = äußerer Radius − Abstand (konzentrische Ecken). Akzente an gerundeten
-   * Kanten sind gerade Streifen, die von der Außenkante beschnitten werden, keine Ränder.
+   * der innere Radius = äußerer Radius − Abstand (konzentrische Ecken). Keine farbigen Streifen
+   * oder Ränder an gerundeten Karten (weder oben noch seitlich): das ist das typische KI-Muster.
    * Beispiele: Segmented Control 12 / 3 / 9, Taste und Einlage in PianoRoll (keyGeometry).
    */
   --lacquer: #241a17;

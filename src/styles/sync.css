@@ -74,7 +74,6 @@
   border-radius: 18px;
   padding: 24px 22px 22px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  padding-top: 30px;
   transition:
     opacity 200ms,
     transform 220ms cubic-bezier(0.3, 0.7, 0.2, 1);
@@ -241,8 +240,6 @@
   border-radius: 14px;
   padding: 12px 16px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-  padding-left: 20px;
   transform: translate(var(--toast-swipe-x, 0), calc(var(--toast-index, 0) * -8px));
   transition:
     transform 250ms,
@@ -255,6 +252,21 @@
 }
 .toast-title {
   font-weight: 800;
+}
+/* Art der Meldung als kleiner Punkt vor dem Titel */
+.toast[data-type='success'] .toast-title::before,
+.toast[data-type='error'] .toast-title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: var(--petrol);
+}
+.toast[data-type='error'] .toast-title::before {
+  background: var(--felt);
 }
 .toast-desc {
   font-size: 14px;
@@ -337,18 +349,3 @@
   color: var(--ink);
 }
 
-/* Akzentstreifen gerade statt als Rand (siehe Designregel in base.css) */
-.dialog::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 6px;
-  background: var(--felt);
-}
-.toast::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--petrol);
-}
