@@ -9,7 +9,7 @@ import type { NoteOn } from '../input/events'
 
 /** Wie lange ein Anschlag, der kurz vor dem Schrittwechsel kam, noch für den neuen Schritt zählt */
 const CARRY_MS = 450
-/** Fremd-Anschläge erst nach dieser Frist als Fehler werten: vielleicht gehören sie zum nächsten Schritt */
+/** Töne des nächsten Schritts erst nach dieser Frist als Fehler werten: vielleicht kamen sie nur zu früh */
 const WRONG_DELAY_MS = 350
 
 export interface Feedback {
@@ -69,15 +69,27 @@ export class WaitSession {
     this.recent.push({ ...e, used: false })
     this.recent = this.recent.filter((r) => e.tMs - r.tMs < 2000)
     this.consume(e.tMs)
+    // Gehört der Ton weder hierher noch zum nächsten Schritt, ist er sofort falsch: Die
+    // Rückmeldung kommt mit dem Anschlag, nicht spürbar danach
+    const r = this.recent[this.recent.length - 1]
+    if (r && !r.used && !this.upcoming.has(r.midi)) this.wrong(r, e.tMs)
+  }
+
+  /** Töne des nächsten Schritts (können vor dem Weiterspringen ankommen) */
+  private get upcoming(): ReadonlySet<number> {
+    return new Set(this.steps[this.index + 1]?.notes.map((n) => n.midi) ?? [])
+  }
+
+  private wrong(r: { used: boolean; midi: number }, nowMs: number) {
+    r.used = true
+    this.wrongCount++
+    this.feedback.push({ midi: r.midi, kind: 'wrong', tMs: nowMs })
   }
 
   /** Regelmäßig aufrufen (pro Animationsframe), damit verzögerte Fehler gewertet werden */
   tick(nowMs: number) {
     for (const r of this.recent) {
-      if (r.used || nowMs - r.tMs < WRONG_DELAY_MS) continue
-      r.used = true
-      this.wrongCount++
-      this.feedback.push({ midi: r.midi, kind: 'wrong', tMs: nowMs })
+      if (!r.used && nowMs - r.tMs >= WRONG_DELAY_MS) this.wrong(r, nowMs)
     }
     this.feedback = this.feedback.filter((f) => nowMs - f.tMs < 900)
   }

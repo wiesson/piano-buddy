@@ -37,6 +37,13 @@ describe('Warte-Modus', () => {
     expect(results[0]).toMatchObject({ clean: false, wrong: 1 })
   })
 
+  it('meldet einen Ton, der weder jetzt noch als Nächstes dran ist, sofort als falsch', () => {
+    const { s } = run('lh-fuenf', 'L')
+    s.input({ midi: n('A3'), tMs: 1000, source: 'touch' }) // erwartet C3, danach D3
+    expect(s.wrongCount).toBe(1)
+    expect(s.feedback).toContainEqual({ midi: n('A3'), kind: 'wrong', tMs: 1000 })
+  })
+
   it('zählt einen Ton, der kurz vor dem Weiterspringen kam, für den nächsten Schritt', () => {
     // Schnelles Spiel: D3 kommt 100 ms vor der (verzögerten) Erkennung von C3 an.
     const { s, play } = run('lh-fuenf', 'L')
