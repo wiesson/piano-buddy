@@ -27,7 +27,9 @@ export function ResultCard({
         {done
           ? nextStage
             ? t.practice.stageDone(t.stage[stage], t.stage[nextStage])
-            : t.practice.allDone
+            : stage === 'LR'
+              ? t.practice.allDone
+              : t.practice.stageDoneLast(t.stage[stage])
           : t.practice.progress(clean, CLEAN_GOAL)}
       </p>
       {result.unverified > 0 && <p className="result-note">{t.practice.unverified(result.unverified)}</p>}

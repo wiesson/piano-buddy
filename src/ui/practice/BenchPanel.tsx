@@ -18,9 +18,9 @@ export function BenchPanel({
       <p className="bench-main">
         {bench.played ? (
           <>
-            <strong>{t.bench.detected(bench.detected, bench.played)}</strong> {t.bench.detectedSuffix}
-            {bench.medianLatencyMs !== null && <> · {bench.medianLatencyMs} ms</>}
-            {bench.falseAlarms > 0 && <> · {t.bench.falseAlarms(bench.falseAlarms)}</>}
+            <strong>{t.bench.detected(bench.detected, bench.played)}</strong>
+            {bench.medianLatencyMs !== null && <span className="bench-line">{t.bench.latency(bench.medianLatencyMs)}</span>}
+            {bench.falseAlarms > 0 && <span className="bench-line">{t.bench.falseAlarms(bench.falseAlarms)}</span>}
           </>
         ) : calibrating ? (
           t.bench.calibrating

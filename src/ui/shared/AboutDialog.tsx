@@ -9,7 +9,7 @@ import {
 } from '@ui-sdk/react/dialog'
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import { locale, setLocale, t, type Locale } from '../../i18n'
-import { InfoIcon, Logo } from './icons'
+import { CloseIcon, InfoIcon, Logo } from './icons'
 
 const AUTHOR = { name: 'Arne Wiese', url: 'https://wiesson.dev' }
 const SOURCE = 'https://github.com/wiesson/piano-buddy'
@@ -61,8 +61,8 @@ export function AboutDialog() {
 
         <p className="about-credits">{t.about.credits}</p>
 
-        <DialogClose className="dialog-close" aria-label={t.sync.close}>
-          ×
+        <DialogClose className="icon-button icon-button-ink dialog-close" aria-label={t.sync.close}>
+          <CloseIcon />
         </DialogClose>
       </DialogContent>
     </Dialog>

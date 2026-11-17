@@ -73,6 +73,7 @@ function LessonStep({
             return (
               <span key={s} className={`mini mini-${s} ${c >= CLEAN_GOAL ? 'full' : c > 0 ? 'some' : ''}`}>
                 {t.stage[s]}
+                {c > 0 && c < CLEAN_GOAL && <span className="mini-count">{`${c}/${CLEAN_GOAL}`}</span>}
               </span>
             )
           })}

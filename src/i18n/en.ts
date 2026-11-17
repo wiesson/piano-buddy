@@ -14,6 +14,9 @@ export const en: Messages = {
   },
 
   practice: {
+    keyboard: 'Keyboard',
+    upNext: 'up next',
+    nextNotes: (labels: string) => `Next: ${labels}`,
     back: 'Back to overview',
     hand: 'Hand',
     cleanOf: (n: number, goal: number) => `${n} of ${goal} clean`,
@@ -37,6 +40,7 @@ export const en: Messages = {
     },
     demo: 'Play it for me',
     demoStop: 'Stop playback',
+    view: 'View',
     noteNames: 'Note names',
     fingers: 'Fingering',
     restart: 'Restart',
@@ -45,6 +49,7 @@ export const en: Messages = {
     resultClean: 'Clean pass',
     resultWrong: (n: number) => `Finished with ${n} ${plural(n, 'wrong note', 'wrong notes')}`,
     stageDone: (stage: string, next: string) => `${stage} is learned. Up next: ${next}.`,
+    stageDoneLast: (stage: string) => `${stage} is learned. Repeat once tomorrow and it will stick.`,
     allDone: 'Both hands are learned. Repeat once tomorrow and it will stick.',
     progress: (n: number, goal: number) => `${n} of ${goal} clean passes.`,
     unverified: (n: number) =>
@@ -53,8 +58,8 @@ export const en: Messages = {
 
   bench: {
     title: 'Microphone vs. MIDI',
-    detected: (n: number, of: number) => `${n} of ${of}`,
-    detectedSuffix: 'detected',
+    detected: (n: number, of: number) => `${n} of ${of} detected`,
+    latency: (ms: number) => `Latency ${ms} ms`,
     falseAlarms: (n: number) => `${n} ${plural(n, 'false alarm', 'false alarms')}`,
     calibrating: 'Stay quiet, the microphone is measuring the room.',
     waiting: 'Start playing. MIDI leads, the microphone is measured against it.',

@@ -59,3 +59,32 @@ export function InfoIcon() {
     </svg>
   )
 }
+
+/** Von vorn */
+export function RestartIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+      <path d="M4.5 4.5v3.5H8" />
+    </svg>
+  )
+}
+
+/** Ansicht: was auf Tasten und Blöcken steht */
+export function ViewIcon() {
+  return (
+    <svg {...iconProps} width={18} height={18}>
+      <path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </svg>
+  )
+}
+
+/** Schließen */
+export function CloseIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+    </svg>
+  )
+}

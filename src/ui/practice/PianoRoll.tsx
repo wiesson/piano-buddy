@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createParts } from '@ui-sdk/react/primitive'
+import { pianoKeys } from './pianoKeys'
+import { t } from '../../i18n'
 import type { ScoreNote } from '../../music/lessons'
 import { isBlack } from '../../music/notes'
 import { displayNoteName, displayNoteLabel } from '../../i18n/noteNames'
@@ -84,9 +87,17 @@ function layoutKeys(notes: ScoreNote[], width: number): Layout {
     return n
   }
   let n = count()
+  // abwechselnd links und rechts je eine weiße Taste, damit das Stück in der Mitte bleibt
+  let left = 0
+  let right = 0
   while ((n < 10 || width / n > MAX_KEY_W) && (lo > 21 || hi < 108)) {
-    if ((n % 2 && lo > 21) || hi >= 108) lo = down(lo)
-    else hi = up(hi)
+    if ((left <= right && lo > 21) || hi >= 108) {
+      lo = down(lo)
+      left++
+    } else {
+      hi = up(hi)
+      right++
+    }
     n = count()
   }
   const whites: number[] = []
@@ -138,13 +149,19 @@ export function PianoRoll({
   view,
   beatsPerBar,
   onKey,
+  expected,
 }: {
   view: () => RollView
   beatsPerBar: number
   onKey: (midi: number) => void
+  /** Töne des aktuellen Schritts, für Screenreader („als Nächstes“) und den ersten Fokus */
+  expected: number[]
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const layoutRef = useRef<{ l: Layout; keyTop: number; keyH: number } | null>(null)
+  // Gleiche Lage wie die Zeichnung, als React-Zustand für die zugänglichen Tasten-Knöpfe
+  const [keysLayout, setKeysLayout] = useState<{ l: Layout; keyTop: number; keyH: number } | null>(null)
+  const layoutSig = useRef('')
 
   useEffect(() => {
     const el = canvas.current!
@@ -170,6 +187,11 @@ export function PianoRoll({
       const feltH = 6
       const laneBottom = keyTop - feltH
       layoutRef.current = { l, keyTop, keyH }
+      const sig = `${W}x${H}:${l.lo}-${l.hi}:${l.coreLo}-${l.coreHi}`
+      if (sig !== layoutSig.current) {
+        layoutSig.current = sig
+        setKeysLayout({ l, keyTop, keyH })
+      }
 
       // Bahn; außerhalb des Tonumfangs des Stücks leicht abgedunkelt
       g.fillStyle = C.lane
@@ -320,7 +342,8 @@ export function PianoRoll({
         // Namen: C immer zur Orientierung, alle anderen mit Schalter; immer mittig in der Einlage
         if (!black && (dim ? m % 12 === 0 : v.showNames || m % 12 === 0 || hand)) {
           g.font = `${hand ? 800 : 600} ${labelSize}px ${font}`
-          g.fillStyle = hand ? C.ink : dim ? '#a69a8a' : m % 12 === 0 ? '#7a6a5c' : '#a39482'
+          // Kontrast auf Elfenbein: C etwa 7:1, übrige etwa 4,6:1; gedimmte Tasten bewusst schwächer
+          g.fillStyle = hand ? C.ink : dim ? '#a69a8a' : m % 12 === 0 ? '#4f4137' : '#6f6052'
           g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), ix + iw / 2, iy + ih / 2 + 1)
         }
       }
@@ -351,5 +374,65 @@ export function PianoRoll({
     if (l.whites[i] !== undefined) onKey(l.whites[i])
   }
 
-  return <canvas ref={canvas} className="roll" onPointerDown={onPointerDown} />
+  return (
+    <div className="roll">
+      <canvas ref={canvas} className="roll-canvas" onPointerDown={onPointerDown} />
+      {keysLayout && <AccessibleKeys layout={keysLayout} expected={expected} onKey={onKey} />}
+    </div>
+  )
+}
+
+const keyParts = createParts(pianoKeys, { root: 'div', key: 'button' })
+
+/**
+ * Unsichtbare Knöpfe exakt über den gezeichneten Tasten: Tastatur und Screenreader bedienen die
+ * Klaviatur wie ein normales Bedienelement. Der Fokusring folgt der Tastenform (unten gerundet).
+ */
+function AccessibleKeys({
+  layout,
+  expected,
+  onKey,
+}: {
+  layout: { l: Layout; keyTop: number; keyH: number }
+  expected: number[]
+  onKey: (midi: number) => void
+}) {
+  const { l, keyTop, keyH } = layout
+  const geoW = keyGeometry(l.keyW - 2, false)
+  const geoB = keyGeometry(l.keyW * 0.6, true)
+  const next = new Set(expected)
+  const keys: number[] = []
+  for (let m = l.lo; m <= l.hi; m++) if (!isBlack(m) || (m > l.lo && m < l.hi)) keys.push(m)
+  const home = expected[0] ?? l.whites.find((m) => m >= l.coreLo) ?? l.lo
+  return (
+    <keyParts.Root
+      className="keys-a11y"
+      style={{ top: keyTop, height: keyH }}
+      aria-label={t.practice.keyboard}
+      home={home}
+      onPlay={onKey}
+    >
+      {keys.map((m) => {
+        const { x, w, black } = keyRect(l, m)
+        const g = black ? geoB : geoW
+        return (
+          <keyParts.Key
+            key={m}
+            value={String(m)}
+            className={`key-a11y ${black ? 'key-a11y-black' : ''}`}
+            aria-label={next.has(m) ? `${displayNoteLabel(m)}, ${t.practice.upNext}` : displayNoteLabel(m)}
+            // Weiße Tasten: nur der sichtbare Bereich unter den schwarzen, damit der Fokusring
+            // die Taste so umrahmt, wie man sie sieht
+            style={{
+              left: black ? x : x + 1,
+              width: black ? w : w - 2,
+              top: black ? 0 : keyH * 0.62,
+              height: black ? keyH * 0.62 : keyH * 0.38,
+              borderRadius: `0 0 ${g.radius}px ${g.radius}px`,
+            }}
+          />
+        )
+      })}
+    </keyParts.Root>
+  )
 }

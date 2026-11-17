@@ -16,6 +16,9 @@ export const de = {
   },
 
   practice: {
+    keyboard: 'Klaviatur',
+    upNext: 'als Nächstes',
+    nextNotes: (labels: string) => `Als Nächstes: ${labels}`,
     back: 'Zurück zur Übersicht',
     hand: 'Hand',
     cleanOf: (n: number, goal: number) => `${n} von ${goal} sauber`,
@@ -39,6 +42,7 @@ export const de = {
     },
     demo: 'Vorspielen',
     demoStop: 'Vorspielen stoppen',
+    view: 'Ansicht',
     noteNames: 'Notennamen',
     fingers: 'Finger',
     restart: 'Von vorn',
@@ -47,6 +51,7 @@ export const de = {
     resultClean: 'Sauber durchgespielt',
     resultWrong: (n: number) => `Durch, mit ${n} ${plural(n, 'falschem Ton', 'falschen Tönen')}`,
     stageDone: (stage: string, next: string) => `${stage} sitzt. Als Nächstes: ${next}.`,
+    stageDoneLast: (stage: string) => `${stage} sitzt. Morgen einmal wiederholen, dann bleibt es.`,
     allDone: 'Beide Hände sitzen. Morgen einmal wiederholen, dann bleibt es.',
     progress: (n: number, goal: number) => `${n} von ${goal} sauberen Durchgängen.`,
     unverified: (n: number) =>
@@ -55,8 +60,8 @@ export const de = {
 
   bench: {
     title: 'Mikrofon gegen MIDI',
-    detected: (n: number, of: number) => `${n} von ${of}`,
-    detectedSuffix: 'erkannt',
+    detected: (n: number, of: number) => `${n} von ${of} erkannt`,
+    latency: (ms: number) => `Verzögerung ${ms} ms`,
     falseAlarms: (n: number) => `${n} ${plural(n, 'Fehlalarm', 'Fehlalarme')}`,
     calibrating: 'Kurz still sein, das Mikrofon misst den Raum.',
     waiting: 'Spiel los. MIDI führt, das Mikrofon wird mitgemessen.',

@@ -87,18 +87,10 @@
   color: #5b4a3f;
 }
 .dialog-close {
+  /* Dialog 18 px Radius, Knopf 6 px eingerückt: 18 − 6 = 12 px, wie alle Icon-Knöpfe */
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 24px;
-  line-height: 1;
-  color: #5b4a3f;
-}
-.dialog-close:hover {
-  background: rgba(36, 26, 23, 0.08);
+  top: 6px;
+  right: 6px;
 }
 .device-list {
   list-style: none;
@@ -160,12 +152,14 @@
   color: var(--ink);
 }
 .otp {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
   position: relative;
 }
 .otp-group {
+  flex: 1;
   display: flex;
   gap: 4px;
 }
@@ -173,8 +167,10 @@
   color: var(--felt);
   font-weight: 800;
 }
+/* Code-Felder teilen sich die Breite, damit links und rechts derselbe Abstand bleibt */
 .otp-slot {
-  width: 34px;
+  flex: 1;
+  min-width: 0;
   height: 46px;
   display: grid;
   place-items: center;
@@ -198,13 +194,6 @@
 @keyframes caret {
   50% {
     opacity: 0;
-  }
-}
-@media (max-width: 380px) {
-  .otp-slot {
-    width: 28px;
-    height: 40px;
-    font-size: 19px;
   }
 }
 

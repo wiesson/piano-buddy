@@ -10,6 +10,8 @@ import { audioContext, getPiano, playNote, stopAll } from '../../audio/audio'
 import type { NoteOn } from '../../input/events'
 import { keyToMidi } from '../../input/keyboard'
 import { t, localized } from '../../i18n'
+import { displayNoteLabel } from '../../i18n/noteNames'
+import { announce } from '@ui-sdk/core'
 import { PianoRoll, type RollView } from './PianoRoll'
 import { StageSwitcher } from './StageSwitcher'
 import { ResultCard } from './ResultCard'
@@ -75,7 +77,10 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
   const input = useCallback((e: NoteOn) => {
     const s = sessionRef.current
     if (!s || demoRef.current || s.finished) return
+    const before = s.index
     s.input(e)
+    // Screenreader: nach jedem geschafften Schritt die nächsten Töne ansagen
+    if (s.index !== before && !s.finished) announce(t.practice.nextNotes([...s.expected].map(displayNoteLabel).join(', ')))
     force((x) => x + 1)
   }, [])
 
@@ -235,7 +240,12 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
       </header>
 
       <main className="stage-area">
-        <PianoRoll view={view} beatsPerBar={lesson.beatsPerBar} onKey={onKey} />
+        <PianoRoll
+          view={view}
+          beatsPerBar={lesson.beatsPerBar}
+          onKey={onKey}
+          expected={[...(sessionRef.current?.expected ?? [])]}
+        />
         {comparing && bench && (
           <BenchPanel
             bench={bench}

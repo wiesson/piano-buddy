@@ -221,3 +221,9 @@
     padding: 18px max(16px, var(--sar)) 6px max(16px, var(--sal));
   }
 }
+
+.mini-count {
+  margin-left: 5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}

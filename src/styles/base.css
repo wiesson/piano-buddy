@@ -101,3 +101,11 @@ button:disabled {
 .icon-button:active {
   background: rgba(243, 235, 221, 0.1);
 }
+/* auf hellem Grund (Dialoge, Popover) */
+.icon-button-ink {
+  color: #5b4a3f;
+}
+.icon-button-ink:hover {
+  color: var(--ink);
+  background: rgba(36, 26, 23, 0.08);
+}

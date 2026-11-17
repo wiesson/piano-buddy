@@ -15,7 +15,7 @@ import { t } from '../i18n'
 import { store } from './store'
 import { useSyncStatus } from './hooks'
 import { toast } from '../ui/shared/Toaster'
-import { DevicesIcon } from '../ui/shared/icons'
+import { CloseIcon, DevicesIcon } from '../ui/shared/icons'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function randomCode() {
@@ -154,8 +154,8 @@ export function DevicesDialog() {
           )}
         </section>
 
-        <DialogClose className="dialog-close" aria-label={t.sync.close}>
-          ×
+        <DialogClose className="icon-button icon-button-ink dialog-close" aria-label={t.sync.close}>
+          <CloseIcon />
         </DialogClose>
       </DialogContent>
     </Dialog>
