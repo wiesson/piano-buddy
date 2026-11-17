@@ -36,7 +36,8 @@ export function useMidiInput(onNote: (n: MidiNote) => void) {
   const noteRef = useRef(onNote)
   noteRef.current = onNote
 
-  const start = useCallback(async () => {
+  /** quiet: automatischer Wiederverbindungsversuch, Fehler dann ohne Meldung */
+  const start = useCallback(async (quiet = false) => {
     if (handleRef.current) return
     setMidi({ state: 'connecting', devices: [] })
     try {
@@ -53,7 +54,7 @@ export function useMidiInput(onNote: (n: MidiNote) => void) {
       handleRef.current = null
       liveRef.current = false
       setMidi({ state: 'off', devices: [] })
-      toast(t.practice.midi.deniedTitle, { description: t.practice.midi.deniedBody, type: 'error' })
+      if (!quiet) toast(t.practice.midi.deniedTitle, { description: t.practice.midi.deniedBody, type: 'error' })
     }
   }, [])
 
@@ -73,7 +74,7 @@ export function useMidiInput(onNote: (n: MidiNote) => void) {
   }, [start, stop])
 
   useEffect(() => {
-    if (getPref() && midiKind()) void start()
+    if (getPref() && midiKind()) void start(true)
     return () => {
       handleRef.current?.stop()
       handleRef.current = null

@@ -466,3 +466,14 @@
 header.bar:has(.stage-badge) .title {
   flex-basis: auto;
 }
+
+/* Quer am Telefon: Messkarte kompakt, damit sie die Tastatur nicht verdeckt */
+@media (max-height: 500px) {
+  .bench {
+    top: 8px;
+    padding: 10px 12px;
+  }
+  .bench-log li:nth-child(n + 4) {
+    display: none;
+  }
+}
