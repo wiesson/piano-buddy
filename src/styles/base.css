@@ -159,3 +159,52 @@ button:disabled {
   stroke: #cdbfa9;
   stroke-width: 0.6;
 }
+
+/* App-Leiste (alle Seiten): links Icon-Knopf, mittig Titel, rechts Icon-Knopf; bleibt oben stehen */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  height: calc(56px + env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  backdrop-filter: saturate(140%) blur(14px);
+  box-shadow: inset 0 -3px 0 var(--felt);
+}
+.appbar-title {
+  min-width: 0;
+  max-width: 100%;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 23px;
+  line-height: 1;
+  color: var(--brand);
+  letter-spacing: 0.01em;
+}
+.appbar-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-top: 3px;
+}
+.appbar-end {
+  justify-self: end;
+}
+
+/* Papier: feine Linie statt Filz */
+.paper .appbar {
+  box-shadow: inset 0 -1px 0 var(--bg-3);
+}
+/* Übe-Seite: Filz nur über den Tasten, die Leiste trägt überall die feine Linie */
+.practice .appbar {
+  box-shadow: inset 0 -1px 0 var(--bg-3);
+}

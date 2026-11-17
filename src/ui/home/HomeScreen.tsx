@@ -6,24 +6,27 @@ import { t, localized } from '../../i18n'
 import { Logo } from '../shared/icons'
 import { Dots } from '../shared/Dots'
 import { AboutDialog } from '../shared/AboutDialog'
+import { AppBar } from '../shared/AppBar'
+import { useThemeColor } from '../shared/useThemeColor'
 
 /** Startseite: App-Leiste wie eine Tastenklappe, darunter der Lernpfad */
 export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; synced: boolean }) {
   const doneAll = (l: Lesson) => stagesFor(l).every((s) => store.cleanCount(l.id, s) >= CLEAN_GOAL)
   const next = LESSONS.find((l) => !doneAll(l))
+  useThemeColor('#f6eedf')
 
   return (
     <div className="home paper">
-      <header className="appbar">
-        <span className="appbar-side">
-          <AboutDialog />
-        </span>
-        <h1 className="appbar-brand">
-          <Logo size={26} />
-          <span>{t.appName}</span>
-        </h1>
-        <span className="appbar-side appbar-end">{synced && <DevicesDialog />}</span>
-      </header>
+      <AppBar
+        left={<AboutDialog />}
+        title={
+          <>
+            <Logo size={26} />
+            <span className="appbar-text">{t.appName}</span>
+          </>
+        }
+        right={synced && <DevicesDialog />}
+      />
 
       <img className="hero" src="/illustrations/hero.jpg" alt="" />
       <p className="lede">{t.home.intro}</p>

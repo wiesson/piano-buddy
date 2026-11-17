@@ -18,8 +18,11 @@ import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
+import { ViewMenu } from './ViewMenu'
+import { AppBar } from '../shared/AppBar'
 import { getPref, setPref } from './prefs'
 import { usePrefersLight } from '../shared/usePrefersLight'
+import { useThemeColor } from '../shared/useThemeColor'
 import { BackIcon } from '../shared/icons'
 
 /**
@@ -51,6 +54,7 @@ export function PracticeScreen({
   const [played, setPlayed] = useState(false)
   // Tag: Papier (hell), Abend: Lack (dunkel) – wie der Modus des Geräts
   const paper = usePrefersLight()
+  useThemeColor(paper ? '#f6eedf' : '#241a17')
   const [demo, setDemo] = useState(false)
   const [result, setResult] = useState<PassResult | null>(null)
   const [, force] = useState(0)
@@ -280,16 +284,26 @@ export function PracticeScreen({
 
   return (
     <div className={`practice ${paper ? 'paper' : ''}`}>
-      <header className="bar">
-        <button className="icon-button back" onClick={onBack} aria-label={t.practice.back}>
-          <BackIcon />
-        </button>
-        <div className="title">
-          <h1>{localized(lesson.title)}</h1>
-          <p className="goal">{localized(lesson.goal)}</p>
-        </div>
+      <AppBar
+        left={
+          <button className="icon-button" onClick={onBack} aria-label={t.practice.back}>
+            <BackIcon />
+          </button>
+        }
+        title={<span className="appbar-text">{localized(lesson.title)}</span>}
+        right={
+          <ViewMenu
+            showNames={showNames}
+            onShowNames={setShowNames}
+            showFingers={showFingers}
+            onShowFingers={setShowFingers}
+          />
+        }
+      />
+      <div className="stage-row">
         <StageSwitcher stages={stages} stage={stage} cleanCount={cleanCount} onChange={setStage} />
-      </header>
+        <p className="stage-goal">{localized(lesson.goal)}</p>
+      </div>
 
       <main className="stage-area">
         <PianoRoll
@@ -331,10 +345,6 @@ export function PracticeScreen({
         onToggleMidi={toggleMidi}
         demo={demo}
         onToggleDemo={toggleDemo}
-        showNames={showNames}
-        onShowNames={setShowNames}
-        showFingers={showFingers}
-        onShowFingers={setShowFingers}
         canRestart={!!s && (s.index > 0 || !!result)}
         onRestart={again}
       />

@@ -73,7 +73,7 @@ export function RestartIcon() {
 /** Ansicht: was auf Tasten und Blöcken steht */
 export function ViewIcon() {
   return (
-    <svg {...iconProps} width={18} height={18}>
+    <svg {...iconProps}>
       <path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
       <circle cx="12" cy="12" r="2.8" />
     </svg>

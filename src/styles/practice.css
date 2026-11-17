@@ -13,29 +13,6 @@
   gap: 10px;
   padding: 10px 14px;
 }
-.bar .title {
-  min-width: 0;
-  flex: 1;
-}
-.bar h1 {
-  font-family: var(--serif);
-  font-weight: 400;
-  color: var(--brand);
-  font-size: 24px;
-  line-height: 1.1;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bar .goal {
-  margin: 2px 0 0;
-  font-size: 14px;
-  color: var(--fg-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .stages {
   position: relative;
   isolation: isolate;
@@ -289,22 +266,12 @@
   .bar {
     padding: 6px 12px;
   }
-  .bar .goal {
-    display: none;
-  }
-  .bar h1 {
-    font-size: 20px;
-  }
   .stage {
     padding: 4px 10px 5px;
     min-width: 64px;
   }
 }
 @media (max-width: 640px) {
-  .bar .goal {
-    white-space: normal;
-    font-size: 13px;
-  }
   .stage {
     min-width: 0;
     padding: 6px 10px 7px;
@@ -317,12 +284,6 @@
   overflow: hidden;
 }
 @media (max-width: 640px) {
-  header.bar {
-    flex-wrap: wrap;
-  }
-  header.bar .title {
-    flex-basis: calc(100% - 60px);
-  }
   .stages {
     width: 100%;
   }
@@ -481,9 +442,6 @@
 .stage-badge.stage-R .dots i.on {
   background: var(--hand-r);
 }
-header.bar:has(.stage-badge) .title {
-  flex-basis: auto;
-}
 
 /* Quer am Telefon: Messkarte kompakt, damit sie die Tastatur nicht verdeckt */
 @media (max-height: 500px) {
@@ -619,20 +577,6 @@ header.bar:has(.stage-badge) .title {
     display: block;
     flex: 1 0 0;
   }
-  /* Kopf hochkant: Zurück und Titel in einer Zeile, Stufenwahl darunter über die volle Breite */
-  header.bar {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 6px 10px;
-    align-items: center;
-  }
-  header.bar .stages,
-  header.bar .stage-badge {
-    grid-column: 1 / -1;
-  }
-  header.bar .stage-badge {
-    justify-self: start;
-  }
 }
 .lane-hint {
   padding: 10px 14px;
@@ -641,12 +585,48 @@ header.bar:has(.stage-badge) .title {
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
-@media (max-width: 640px) {
-  /* Pfeil auf Höhe der Titelzeile, nicht der Mitte von Titel und Zielsatz */
-  header.bar {
-    align-items: start;
+
+/* Übe-Seite: die gemeinsame Leiste liegt im Raster, nicht klebend; Seitenränder kommen von .practice */
+.practice .appbar {
+  position: relative;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 0;
+  height: 56px;
+}
+.practice {
+  grid-template-rows: auto auto 1fr auto;
+}
+/* Stufenwahl und Zielsatz unter der Leiste, mittig */
+.stage-row {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px 14px 10px;
+}
+.stage-row .stages {
+  width: min(100%, 440px);
+}
+.stage-row .stage {
+  flex: 1;
+}
+.stage-goal {
+  margin: 0;
+  max-width: 60ch;
+  text-align: center;
+  font-size: 14px;
+  color: var(--fg-dim);
+  text-wrap: balance;
+}
+/* Quer am Telefon: kompakt, Zielsatz weg, damit die Bahn Platz hat */
+@media (max-height: 500px) {
+  .practice .appbar {
+    height: 48px;
   }
-  header.bar .back {
-    margin-top: -7px;
+  .stage-row {
+    padding: 4px 14px 6px;
+  }
+  .stage-goal {
+    display: none;
   }
 }
