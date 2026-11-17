@@ -7,7 +7,7 @@ because clean repetitions predict progress better than minutes practiced.
 Live: **[piano.wiesson.dev](https://piano.wiesson.dev)**
 (German or English, following your browser; add it to your home screen for the app feel)
 
-![Piano Buddy: gouache illustration of a woman playing an upright piano by a window](public/og.jpg)
+![Piano Buddy: gouache illustration of a woman playing an upright piano by a window](public/og-paper.jpg)
 
 ## What it does
 
