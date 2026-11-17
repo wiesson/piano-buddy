@@ -5,6 +5,7 @@ import { Practice } from './ui/Practice'
 import { audioContext } from './audio/audio'
 import { store } from './sync/store'
 import { DevicesDialog, useStoreVersion } from './sync/Sync'
+import { Logo } from './ui/Logo'
 
 export function App({ synced }: { synced: boolean }) {
   const [lesson, setLesson] = useState<Lesson | null>(null)
@@ -19,27 +20,37 @@ function Home({ onOpen, synced }: { onOpen: (l: Lesson) => void; synced: boolean
 
   return (
     <div className="home">
-      <header className="fallboard">
-        <div className="brand-row">
-          <h1 className="brand">Piano Buddy</h1>
-          {synced && <DevicesDialog />}
-        </div>
-        <p className="lede">
-          Jedes Stück in drei Stufen: erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen
-          Durchgängen.
-        </p>
+      {/* Feste App-Leiste wie eine Tastenklappe: Signet und Schriftzug mittig, Filzstreifen darunter */}
+      <header className="appbar">
+        <span className="appbar-side" />
+        <h1 className="appbar-brand">
+          <Logo size={26} />
+          <span>Piano Buddy</span>
+        </h1>
+        <span className="appbar-side appbar-end">{synced && <DevicesDialog />}</span>
       </header>
+
+      <p className="lede">
+        Jedes Stück in drei Stufen: erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen
+        Durchgängen.
+      </p>
 
       <ol className="path">
         {LESSONS.map((l, i) => {
           const stages = stagesFor(l)
           const isNext = l === next
           return (
-            <li key={l.id} className={`${doneAll(l) ? 'done' : ''} ${isNext ? 'next' : ''}`}>
+            <li key={l.id} className={`step ${doneAll(l) ? 'done' : ''} ${isNext ? 'next' : ''}`}>
               <button className="lesson" onClick={() => onOpen(l)}>
-                <span className="num">{i + 1}</span>
+                <span className="node" aria-hidden>
+                  {doneAll(l) ? '✓' : i + 1}
+                </span>
                 <span className="body">
-                  <span className="name">{l.title}</span>
+                  <span className="name">
+                    <span className="sr-only">{i + 1}. </span>
+                    {l.title}
+                    {isNext && <span className="next-tag">Als Nächstes</span>}
+                  </span>
                   <span className="goal">{l.goal}</span>
                 </span>
                 <span className="mini-stages">
@@ -60,8 +71,8 @@ function Home({ onOpen, synced }: { onOpen: (l: Lesson) => void; synced: boolean
 
       <footer className="hint">
         <p>
-          Stell das iPhone oder iPad aufs Notenpult und tippe im Stück auf „Mikrofon an“. Am Mac in Chrome geht auch
-          MIDI per USB-Kabel. Ohne Klavier spielst du auf dem Bildschirm oder mit der Tastatur (Y–M und Q–I).
+          Stell das iPhone oder iPad aufs Notenpult und tippe im Stück auf „Mikrofon“. Am Mac in Chrome und in der
+          iOS-App geht auch „MIDI“. Ohne Klavier spielst du auf dem Bildschirm oder mit der Tastatur (Y–M und Q–I).
         </p>
       </footer>
     </div>

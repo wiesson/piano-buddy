@@ -53,76 +53,151 @@ button:disabled {
 
 /* ---------- Startseite ---------- */
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .home {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: max(28px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+  min-height: 100%;
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
-.fallboard {
-  padding: 28px 0 24px;
-  border-bottom: 6px solid var(--felt);
-  margin-bottom: 20px;
+
+/* Tastenklappe: bleibt oben stehen, Schriftzug mittig, Filzstreifen als Abschluss */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+  height: calc(56px + env(safe-area-inset-top));
+  background: rgba(36, 26, 23, 0.86);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  backdrop-filter: saturate(140%) blur(14px);
+  box-shadow: inset 0 -3px 0 var(--felt);
 }
-/* Wie der Markenschriftzug auf der Tastenklappe: Serifenschrift in Messing */
-.brand {
+.appbar-brand {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(40px, 9vw, 64px);
+  font-size: 23px;
   line-height: 1;
-  letter-spacing: 0.01em;
   color: var(--brass);
-  margin: 0 0 14px;
+  letter-spacing: 0.01em;
 }
+.appbar-brand span {
+  padding-top: 3px;
+}
+.appbar-end {
+  justify-self: end;
+}
+
 .lede {
-  margin: 0;
-  max-width: 34em;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 22px 20px 10px;
   color: var(--ivory-dim);
 }
+
+/* Lernpfad: eine Linie verbindet die Stücke, der Knoten zeigt den Stand */
 .path {
   list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 2px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 6px 0 0;
+}
+.step {
+  position: relative;
+}
+.step::before {
+  content: '';
+  position: absolute;
+  left: 37px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--lacquer-3);
+}
+.step:first-child::before {
+  top: 32px;
+}
+.step:last-child::before {
+  bottom: auto;
+  height: 32px;
+}
+.step.done::before {
+  background: var(--petrol);
 }
 .lesson {
   width: 100%;
   display: grid;
-  grid-template-columns: 2.2em 1fr auto;
-  gap: 4px 14px;
-  align-items: center;
+  grid-template-columns: 36px 1fr auto;
+  gap: 4px 16px;
+  align-items: start;
   text-align: left;
-  padding: 16px 14px;
-  border-radius: 10px;
+  padding: 14px 20px;
   transition: background 0.15s;
 }
 .lesson:hover {
-  background: var(--lacquer-2);
+  background: rgba(243, 235, 221, 0.03);
 }
-.next .lesson {
-  background: var(--lacquer-2);
-  box-shadow: inset 3px 0 0 var(--brass);
+.lesson:active {
+  background: rgba(243, 235, 221, 0.06);
 }
-.num {
+.node {
+  position: relative;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
   font-family: var(--serif);
-  font-size: 26px;
+  font-size: 17px;
   color: var(--ivory-dim);
-  text-align: center;
+  background: var(--lacquer);
+  box-shadow: inset 0 0 0 2px var(--lacquer-3);
 }
-.next .num {
-  color: var(--brass);
+.step.next .node {
+  background: var(--brass);
+  color: var(--ink);
+  box-shadow: 0 0 0 5px rgba(211, 160, 77, 0.16);
 }
-.done .num {
-  color: var(--petrol);
+.step.done .node {
+  background: var(--petrol);
+  color: var(--ink);
+  box-shadow: none;
+  font-family: var(--sans);
+  font-weight: 800;
 }
 .body {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
+  padding-top: 5px;
 }
 .name {
   font-weight: 800;
   font-size: 19px;
+  line-height: 1.25;
+}
+.next-tag {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brass);
 }
 .lesson .goal {
   color: var(--ivory-dim);
@@ -131,11 +206,12 @@ button:disabled {
 .mini-stages {
   display: flex;
   gap: 4px;
+  padding-top: 7px;
 }
 .mini {
   font-size: 12px;
   font-weight: 600;
-  padding: 3px 7px;
+  padding: 3px 8px;
   border-radius: 99px;
   border: 1px solid var(--lacquer-3);
   color: var(--ivory-dim);
@@ -143,23 +219,18 @@ button:disabled {
 .mini.some {
   border-color: currentColor;
 }
-.mini-L.some,
-.mini-L.full {
+.mini-L.some {
   color: var(--petrol);
 }
-.mini-R.some,
-.mini-R.full {
+.mini-R.some {
   color: var(--brass);
 }
-.mini-LR.some,
-.mini-LR.full {
+.mini-LR.some {
   color: var(--ivory);
 }
 .mini.full {
-  background: currentColor;
-}
-.mini.full {
-  color: var(--ink) !important;
+  color: var(--ink);
+  border-color: transparent;
 }
 .mini-L.full {
   background: var(--petrol);
@@ -171,17 +242,36 @@ button:disabled {
   background: var(--ivory);
 }
 .hint {
-  margin-top: 28px;
+  max-width: 760px;
+  margin: 20px auto 0;
+  padding: 0 20px;
   color: var(--ivory-dim);
   font-size: 15px;
+}
+.hint p {
   max-width: 36em;
 }
 @media (max-width: 560px) {
   .lesson {
-    grid-template-columns: 2em 1fr;
+    grid-template-columns: 36px 1fr;
+    padding: 12px 16px;
+    gap: 2px 14px;
+  }
+  .step::before {
+    left: 33px;
+  }
+  .step:first-child::before {
+    top: 30px;
+  }
+  .step:last-child::before {
+    height: 30px;
   }
   .mini-stages {
     grid-column: 2;
+    padding-top: 6px;
+  }
+  .lede {
+    padding: 18px 16px 6px;
   }
 }
 
@@ -189,6 +279,7 @@ button:disabled {
 
 .practice {
   height: 100%;
+  height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr auto;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -320,8 +411,24 @@ button:disabled {
 }
 
 .tools {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Ränder blenden weich aus, damit klar ist: hier geht es weiter */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.tools::-webkit-scrollbar {
+  display: none;
+}
+.tools > * {
+  flex: none;
+}
+.tools > .spacer {
+  flex: 1 0 8px;
 }
 .spacer {
   flex: 1;
@@ -484,8 +591,8 @@ button:disabled {
   .stage {
     flex: 1;
   }
-  .tools .spacer {
-    display: none;
+  .tools > .spacer {
+    flex: 0 0 0;
   }
   .toggle,
   .ghost,
@@ -498,33 +605,43 @@ button:disabled {
 
 /* ---------- Geräte & Sync (UI SDK: Dialog, OTP Input, Toast) ---------- */
 
-.brand-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
 .sync-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 14px;
-  border-radius: 99px;
-  background: var(--lacquer-2);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   color: var(--ivory-dim);
-  font-size: 15px;
-  font-weight: 600;
 }
-.sync-trigger:hover {
+.sync-trigger:hover,
+.sync-trigger[data-open] {
   color: var(--ivory);
+  background: rgba(243, 235, 221, 0.06);
+}
+.sync-count {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 99px;
+  background: var(--ivory);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 15px;
 }
 .sync-dot {
+  position: absolute;
+  top: 9px;
+  right: 8px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--ivory-dim);
+  box-shadow: 0 0 0 2px var(--lacquer);
 }
 .sync-dot.ok {
   background: var(--petrol);
@@ -533,8 +650,10 @@ button:disabled {
   background: var(--brass);
 }
 .sync-dot.off {
-  background: transparent;
-  outline: 1.5px solid var(--ivory-dim);
+  background: var(--lacquer);
+  box-shadow:
+    0 0 0 2px var(--lacquer),
+    inset 0 0 0 1.5px var(--ivory-dim);
 }
 
 .dialog-backdrop {

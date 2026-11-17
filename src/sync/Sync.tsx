@@ -13,6 +13,7 @@ import { OTPInput, OTPInputGroup, OTPInputSeparator, OTPInputSlot } from '@ui-sd
 import { api } from '../../convex/_generated/api'
 import { store } from './store'
 import { toast } from '../ui/toaster'
+import { DevicesIcon } from '../ui/Logo'
 
 export const useStoreVersion = () => useSyncExternalStore(store.subscribe, store.version)
 
@@ -145,9 +146,10 @@ export function DevicesDialog() {
 
   return (
     <Dialog onOpenChange={(open) => !open && (setShown(null), setError(null))}>
-      <DialogTrigger className="sync-trigger">
+      <DialogTrigger className="sync-trigger" aria-label={count > 1 ? `${count} Geräte gekoppelt` : 'Geräte koppeln'}>
+        <DevicesIcon />
+        {count > 1 && <span className="sync-count">{count}</span>}
         <span className={`sync-dot ${online ? (pending ? 'pending' : 'ok') : 'off'}`} aria-hidden />
-        {count > 1 ? `${count} Geräte` : 'Geräte koppeln'}
       </DialogTrigger>
       <DialogBackdrop className="dialog-backdrop" />
       <DialogContent className="dialog">
