@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   appName: 'Piano Buddy',
   webDir: 'dist',
   server: {
-    url: process.env.CAP_SERVER_URL ?? 'https://piano.wiesson.dev',
+    url: process.env.CAP_SERVER_URL ?? 'https://pianobuddy.fyi',
   },
   ios: {
     contentInset: 'never',

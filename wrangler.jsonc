@@ -3,8 +3,11 @@
   // Reine PWA ohne Server-Code: Workers Static Assets liefern dist/ aus.
   "name": "piano-buddy",
   "compatibility_date": "2026-11-01",
-  // Eigene Domain; piano-buddy.studionordwerk.workers.dev bleibt zusätzlich erreichbar
-  "routes": [{ "pattern": "piano.wiesson.dev", "custom_domain": true }],
+  // pianobuddy.fyi ist die Adresse; piano.wiesson.dev bleibt erreichbar (dort liegt alter Fortschritt im Browser)
+  "routes": [
+    { "pattern": "pianobuddy.fyi", "custom_domain": true },
+    { "pattern": "piano.wiesson.dev", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
