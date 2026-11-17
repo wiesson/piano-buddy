@@ -7,6 +7,13 @@
   font-display: swap;
 }
 @font-face {
+  font-family: 'Geist Mono';
+  src: url('../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Geist Serif';
   src: url('../../node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2') format('woff2');
   font-weight: 400;
@@ -36,6 +43,7 @@
   --felt: #8e2f2b;
   --serif: 'Geist Serif', Georgia, serif;
   --sans: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, Menlo, monospace;
   /* iOS: Notch, Statusleiste, Home-Indikator, Safaris schwebende Leiste */
   /* Helle Flächen in genau zwei Größen: groß (Dialog, Ergebnis) und klein (Messkarte, Toast) */
   --card-radius: 18px;
@@ -149,15 +157,13 @@ button:disabled {
   background: rgba(36, 26, 23, 0.08);
 }
 
-/* Signet: Elfenbeintasten; auf hellem Grund mit feiner Kontur */
-.logo-key {
-  fill: #f3ebdd;
+/* Signet (Pianorollen-P): Balken in der Textfarbe, die aktuelle Note in Messing */
+.logo-note {
+  fill: #d3a04d;
 }
-.paper .logo-key,
-.about .logo-key {
-  fill: #fffcf6;
-  stroke: #cdbfa9;
-  stroke-width: 0.6;
+.paper .logo-note,
+.about .logo-note {
+  fill: #b8791f;
 }
 
 /* App-Leiste (alle Seiten): links Icon-Knopf, mittig Titel, rechts Icon-Knopf; bleibt oben stehen */

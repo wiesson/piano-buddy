@@ -14,13 +14,23 @@ import { CloseIcon, InfoIcon, Logo } from './icons'
 const AUTHOR = { name: 'Arne Wiese', url: 'https://wiesson.dev' }
 const SOURCE = 'https://github.com/wiesson/piano-buddy'
 
-/** Kleines Über-Fenster: wer es gebaut hat, Quellcode, Sprache */
-export function AboutDialog() {
+/**
+ * Kleines Über-Fenster: wer es gebaut hat, Quellcode, Sprache.
+ * Ohne `label` ein Icon-Knopf; mit `label` ein Eintrag mit Icon und Text (Leiste der Startseite).
+ */
+export function AboutDialog({ label, className }: { label?: string; className?: string }) {
   return (
     <Dialog>
-      <DialogTrigger className="icon-button" aria-label={t.about.open}>
-        <InfoIcon />
-      </DialogTrigger>
+      {label ? (
+        <DialogTrigger className={className}>
+          <InfoIcon />
+          {label}
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger className={className ?? 'icon-button'} aria-label={t.about.open}>
+          <InfoIcon />
+        </DialogTrigger>
+      )}
       <DialogBackdrop className="dialog-backdrop" />
       <DialogContent className="dialog about">
         <div className="about-head">

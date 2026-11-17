@@ -9,10 +9,36 @@ export const de = {
   stage: { L: 'Links', R: 'Rechts', LR: 'Beide' } as Record<'L' | 'R' | 'LR', string>,
 
   home: {
-    intro:
-      'Erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen Durchgängen.',
     next: 'Als Nächstes',
-    hint: 'Stell das iPhone oder iPad aufs Notenpult und tippe im Stück auf „Mikrofon“. Am Mac in Chrome und in der iOS-App geht auch „MIDI“. Ohne Klavier übst du die Fingermuster auf der Tastatur: links A S D F G vom kleinen Finger bis zum Daumen, rechts H J K L Ö vom Daumen bis zum kleinen Finger.',
+    headline: 'Klavier lernen, eine Hand nach der anderen.',
+    lede: 'Erst links, dann rechts, dann beide. Die Musik wartet, bis du triffst, und hört über Mikrofon oder MIDI zu. Kostenlos und ohne Konto.',
+    start: 'Erstes Stück starten',
+    continueWith: (title: string) => `Weiter mit ${title}`,
+    practiceAgain: 'Noch einmal üben',
+    practice: 'Üben',
+    how: 'So funktioniert’s',
+    statsNew: (n: number) => `${n} Stücke · Mikrofon oder MIDI · ohne Konto`,
+    stats: (learned: number, total: number, clean: number) =>
+      `${learned} von ${total} Stufen gelernt · ${clean} saubere Durchgänge`,
+    quote: 'Am Klavier zählen nicht die Minuten. Es zählt, wie oft du sauber durchkommst.',
+    trio: [
+      { label: '01 · Links', title: 'Erst die linke Hand', text: 'Bass und Begleitung sitzen, bevor die Melodie dazukommt. In Popsongs spielt links meist ein schlichtes Muster.' },
+      { label: '02 · Rechts', title: 'Dann die rechte', text: 'Die Melodie mit Notennamen und Fingersatz. Die Musik wartet, bis du die richtige Taste triffst.' },
+      { label: '03 · Beide', title: 'Dann beide zusammen', text: 'Drei saubere Durchgänge, und die Stufe ist gelernt. Nicht die Minuten zählen, sondern die Treffer.' },
+    ],
+    pathTitle: 'Von fünf Fingern bis zu vier Akkorden.',
+    pathLede: 'Jede Zeile ein Stück. Die Punkte zeigen deine sauberen Durchgänge je Hand.',
+    pathNote: 'Dein Fortschritt liegt auf diesem Gerät. Mit „Geräte koppeln“ ist er überall gleich.',
+    roll: (bpm: number) => `♩ ${bpm} · beide Hände`,
+    legendL: 'Links',
+    legendR: 'Rechts',
+    needs: [
+      { label: 'Mikrofon', text: 'iPhone oder iPad aufs Notenpult und im Stück „Mikrofon“ tippen. Jedes Klavier geht.' },
+      { label: 'MIDI', text: 'Digitalpiano per USB oder Bluetooth, in Chrome am Mac oder PC und in der iOS-App.' },
+      { label: 'Tastatur', text: 'Ohne Klavier: links A S D F G vom kleinen Finger bis zum Daumen, rechts H J K L Ö.' },
+    ],
+    dock: { path: 'Lernpfad', method: 'Methode', faq: 'Fragen', about: 'Über' },
+    dockLabel: 'Abschnitte',
   },
 
   practice: {

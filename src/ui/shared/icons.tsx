@@ -1,17 +1,16 @@
 /**
- * Signet: drei Elfenbeintasten mit zwei Ebenholztasten, darüber fällt ein Notenblock in Messing
- * auf die mittlere Taste zu. Dieselbe Form trägt das App-Icon.
+ * Signet, das Pianorollen-P: ein P aus Notenbalken auf einem 32er-Raster, wie im MIDI-Editor.
+ * Der Messingbalken ist die Note, die gerade dran ist. Dieselbe Form trägt das App-Icon.
  */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="logo">
-      <rect x="11.5" y="1.5" width="9" height="11" rx="2.5" fill="var(--brand)" />
-      <rect x="2" y="15" width="28" height="2" fill="var(--felt)" />
-      <rect x="2.5" y="17" width="8.4" height="13" rx="1.6" className="logo-key" />
-      <rect x="11.8" y="17" width="8.4" height="13" rx="1.6" className="logo-key" />
-      <rect x="21.1" y="17" width="8.4" height="13" rx="1.6" className="logo-key" />
-      <rect x="8.6" y="17" width="5" height="7.6" rx="1" fill="#120c0a" />
-      <rect x="18.4" y="17" width="5" height="7.6" rx="1" fill="#120c0a" />
+      <rect x="6" y="3" width="16" height="4" rx="2" fill="currentColor" />
+      <rect x="6" y="9" width="5" height="4" rx="2" fill="currentColor" />
+      <rect x="20" y="9" width="6" height="4" rx="2" className="logo-note" />
+      <rect x="6" y="15" width="16" height="4" rx="2" fill="currentColor" />
+      <rect x="6" y="21" width="5" height="4" rx="2" fill="currentColor" />
+      <rect x="6" y="27" width="5" height="4" rx="2" fill="currentColor" />
     </svg>
   )
 }

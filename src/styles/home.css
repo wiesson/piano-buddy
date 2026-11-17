@@ -1,4 +1,9 @@
-/* ---------- Startseite ---------- */
+/* ---------- Startseite ----------
+ * Aufbau nach monet.directory und Kontor (nordwerk/kontor src/features/landing/landing.css):
+ * Bild füllt den ersten Bildschirm, zieht sich beim Scrollen zur Karte zusammen, die Leiste
+ * fährt vom Fuß des Bildes in die Kopfzeile. Hier auf Papier: Schrift in Tinte links auf dem
+ * leeren Papier der Illustration, statt weiß und zentriert.
+ */
 
 .sr-only {
   position: absolute;
@@ -10,117 +15,507 @@
 }
 
 .home {
+  /* etwas heller als das Papier der Illustration, damit die Karte sich abhebt */
+  --bg: #fbf7ef;
+  --pb-side: clamp(12px, 1.4vw, 20px);
+  --pb-space: clamp(88px, 11vw, 144px);
+  --pb-wrap: 1040px;
+  position: relative;
   min-height: 100%;
   padding-bottom: calc(28px + var(--sab));
+  background: var(--bg);
+}
+body:has(.home) {
+  background: #fbf7ef;
 }
 
-.lede {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 22px max(20px, var(--sar)) 10px max(20px, var(--sal));
+.pb-mono {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
   color: var(--fg-dim);
 }
 
-/* Lernpfad: eine Linie verbindet die Stücke, der Knoten zeigt den Stand */
-.path {
-  list-style: none;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 6px 0 0;
+/* ---------- Kopfzeile ---------- */
+.pb-bar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(4rem + var(--sat));
+  padding: var(--sat) max(1.25rem, var(--sar)) 0 max(1.25rem, var(--sal));
 }
-.step {
-  position: relative;
-}
-.step::before {
+/* Glas erst, wenn die Karte steht: die Seite gleitet unter Glas, nicht unter nackte Wörter */
+.pb-bar::before {
   content: '';
   position: absolute;
-  left: calc(max(20px, var(--sal)) + 17px);
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--bg-3);
+  z-index: -1;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  pointer-events: none;
 }
-.step:first-child::before {
-  top: 32px;
+.pb-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+  font-weight: 650;
+  font-size: 18px;
+  letter-spacing: -0.015em;
+  text-decoration: none;
 }
-.step:last-child::before {
-  bottom: auto;
-  height: 32px;
+.pb-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.step.done::before {
-  background: color-mix(in srgb, var(--fg) 45%, transparent);
+.pb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
-.lesson {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  gap: 4px 16px;
-  align-items: start;
-  text-align: left;
-  padding: 14px max(20px, var(--sar)) 14px max(20px, var(--sal));
-  transition: background 0.15s;
-}
-.lesson:hover {
-  background: color-mix(in srgb, var(--fg) 3%, transparent);
-}
-.lesson:active {
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
-}
-.node {
-  position: relative;
-  z-index: 1;
-  width: 36px;
+.pb-btn-sm {
   height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  font-family: var(--serif);
-  font-size: 17px;
-  color: var(--fg-dim);
-  background: var(--bg);
-  box-shadow: inset 0 0 0 2px var(--bg-3);
+  padding: 0 16px;
+  margin-left: 6px;
+  font-size: 14px;
 }
-.step.next .node {
-  background: var(--accent);
-  color: var(--ink);
-  box-shadow: 0 0 0 5px rgba(211, 160, 77, 0.16);
-}
-.step.done .node {
+.pb-btn-primary,
+.pb-bar-cta {
   background: var(--fg);
   color: var(--bg);
-  box-shadow: none;
-  font-family: var(--sans);
-  font-weight: 800;
 }
-.body {
+.pb-btn-primary:hover,
+.pb-bar-cta:hover {
+  background: #45392f;
+}
+.pb-btn-ghost {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+.pb-btn-ghost:hover {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+/* Ab Tablet trägt die Leiste „Über“ und den Übe-Knopf */
+@media (min-width: 768px) {
+  .pb-bar-cta,
+  .pb-bar-about {
+    display: none;
+  }
+}
+
+/* ---------- Leiste: am Fuß des ersten Bildschirms, beim Scrollen mittig in der Kopfzeile ---------- */
+.pb-dock-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+.pb-dock-layer::before {
+  content: '';
+  display: block;
+  height: calc(100svh - 6rem);
+}
+.pb-dock {
+  position: sticky;
+  top: calc(0.625rem + var(--sat));
+  display: flex;
+  justify-content: center;
+  height: 2.75rem;
+}
+.pb-pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.8);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow:
+    0 0 0 1px rgba(43, 36, 32, 0.08),
+    0 8px 24px rgba(43, 36, 32, 0.08);
+  pointer-events: auto;
+}
+/* Innen 18 px Radius bei 4 px Abstand zur 22er-Pille: konzentrisch */
+.pb-pill > a,
+.pb-pill > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.pb-pill > a:hover,
+.pb-pill > button:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+.pb-pill svg {
+  width: 15px;
+  height: 15px;
+  color: var(--fg-dim);
+}
+.pb-pill > .is-lit {
+  margin-left: 2px;
+  background: var(--fg);
+  color: var(--bg);
+}
+.pb-pill > .is-lit:hover {
+  background: #45392f;
+}
+@media (max-width: 767px) {
+  .pb-dock-layer {
+    display: none;
+  }
+}
+
+/* ---------- Erster Bildschirm: die Illustration ---------- */
+.pb-journey {
+  position: relative;
+}
+/* lvh: Blendet Safari seine Leisten aus, wächst der Bildschirm; svh würde darunter Seite zeigen */
+.pb-stage {
+  position: sticky;
+  top: 0;
+  height: 100lvh;
+  overflow: hidden;
+  background: #f5e4cc;
+}
+.pb-stage-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 55%;
+  transform-origin: 70% 50%;
+}
+.pb-journey-content {
+  position: relative;
+  margin-top: -100lvh;
+}
+.pb-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100lvh;
+  padding: 6rem clamp(24px, 7vw, 120px) 8rem;
+  max-width: calc(36rem + 2 * clamp(24px, 7vw, 120px));
+}
+.pb-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 5.4vw, 78px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.pb-lede {
+  max-width: 30rem;
+  margin: 22px 0 0;
+  color: #5d5045;
+  font-size: clamp(16px, 1.3vw, 18px);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.pb-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+.pb-stats {
+  margin-top: 22px;
+}
+/* Telefone sehen einen schmalen Ausschnitt: die Frau am Klavier; die Schrift steht oben auf Papier */
+@media (max-aspect-ratio: 3/4) {
+  .pb-stage-img {
+    object-position: 76% 100%;
+  }
+  .pb-stage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(251, 247, 239, 0.94) 0,
+      rgba(251, 247, 239, 0.82) 42%,
+      rgba(251, 247, 239, 0) 66%
+    );
+  }
+  .pb-intro {
+    justify-content: flex-start;
+    padding-top: calc(6.5rem + var(--sat));
+  }
+}
+
+/* ---------- Das Zusammenziehen (scroll-getrieben; ohne Unterstützung statisch) ---------- */
+@keyframes pb-card {
+  from {
+    clip-path: inset(0 0 0 0 round 0);
+  }
+  to {
+    clip-path: inset(calc(4.5rem + var(--sat)) var(--pb-side) 0.5rem var(--pb-side) round 1.5rem);
+  }
+}
+@keyframes pb-settle {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes pb-glass {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pb-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+    visibility: hidden;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+  }
+}
+@keyframes pb-centre {
+  to {
+    translate: 0 2rem;
+  }
+}
+@keyframes pb-card-words {
+  to {
+    clip-path: inset(2.5rem 0 2.5rem 0);
+  }
+}
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .pb-stage {
+      animation: pb-card linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 32vh;
+    }
+    .pb-stage-img {
+      animation: pb-settle linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 32vh;
+    }
+    .pb-bar::before {
+      animation: pb-glass linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 24vh 32vh;
+    }
+  }
+  /* Ab Tablet stehen die Wörter still, solange die Karte einzieht; Marke und Knöpfe der
+     Kopfzeile kommen in der zweiten Hälfte, die Leiste reitet auf dem Fuß der Karte */
+  @media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
+    .pb-journey-content::after {
+      content: '';
+      display: block;
+      height: 32vh;
+    }
+    .pb-intro {
+      position: sticky;
+      top: 0;
+      animation:
+        pb-centre linear both,
+        pb-card-words linear both;
+      animation-timeline: scroll(root block), scroll(root block);
+      animation-range:
+        0 32vh,
+        0 32vh;
+    }
+    .pb-reveal {
+      animation: pb-reveal linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 16vh 32vh;
+    }
+    .pb-reveal:focus-within {
+      animation: none;
+    }
+    .pb-dock-layer::before {
+      height: calc(100svh + 32vh - 6rem);
+    }
+    .pb-dock {
+      bottom: 3.25rem;
+    }
+  }
+}
+
+/* ---------- Abschnitte ---------- */
+.pb-section {
+  padding: var(--pb-space) max(20px, var(--sar)) 0 max(20px, var(--sal));
+}
+.pb-wrap {
+  max-width: var(--pb-wrap);
+  margin-inline: auto;
+}
+.pb-quote {
+  max-width: 34rem;
+  margin: 0 auto;
+  font-family: var(--serif);
+  font-size: clamp(24px, 2.6vw, 32px);
+  line-height: 1.28;
+  text-align: center;
+  text-wrap: balance;
+}
+.pb-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 48px;
+}
+/* Karte 18 / Abstand 22 (Designregel in base.css) */
+.pb-card {
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.04);
+}
+.pb-h3 {
+  margin: 14px 0 8px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.2;
+}
+.pb-h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.pb-small {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.pb-body {
+  max-width: 30rem;
+  margin: 14px 0 0;
+  color: var(--fg-dim);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.pb-note {
+  margin: 18px 0 0;
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+
+/* Lernpfad: links ein Blick in die App (klebt), rechts die Stücke als Zeitleiste */
+.pb-split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: start;
+  max-width: var(--pb-wrap);
+  margin-inline: auto;
+}
+.pb-split-aside {
+  position: sticky;
+  top: calc(5.5rem + var(--sat));
+}
+.pb-path {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--bg-3);
+}
+.pb-step {
+  border-bottom: 1px solid var(--bg-3);
+}
+.pb-lesson {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  align-items: start;
+  padding: 16px 8px 16px 0;
+  text-align: left;
+  border-radius: 12px;
+  transition: background 0.15s;
+}
+.pb-lesson:hover {
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+}
+.pb-num {
+  padding-top: 3px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.pb-step.done .pb-num {
+  color: var(--hand-l);
+  font-weight: 700;
+}
+.pb-step.next .pb-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+.pb-lesson-body {
   display: grid;
   gap: 3px;
   min-width: 0;
-  padding-top: 5px;
 }
-.name {
-  font-weight: 800;
-  font-size: 19px;
-  line-height: 1.25;
+.pb-lesson-name {
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.3;
+}
+.pb-lesson-goal {
+  color: var(--fg-dim);
+  font-size: 15px;
 }
 .next-tag {
   display: inline-block;
   margin-left: 8px;
-  vertical-align: 2px;
-  font-size: 12px;
-  font-weight: 600;
+  vertical-align: 1px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
   color: var(--accent);
 }
-.lesson .goal {
-  color: var(--fg-dim);
-  font-size: 15px;
-}
-/* Stand je Hand: Name und Punkte, auf breiten Bildschirmen in festen Spalten (L, R, Beide) */
 .mini-stages {
   display: grid;
-  grid-template-columns: repeat(3, 92px);
+  grid-template-columns: repeat(3, 84px);
   gap: 4px;
-  padding-top: 7px;
+  padding-top: 3px;
 }
 .mini {
   display: inline-flex;
@@ -137,30 +532,121 @@
   width: 8px;
   height: 8px;
 }
-.hint {
-  max-width: 760px;
-  margin: 20px auto 0;
-  padding: 0 max(20px, var(--sar)) 0 max(20px, var(--sal));
-  color: var(--fg-dim);
-  font-size: 15px;
+
+/* Blick in die App: Karte 18 / Abstand 22, die Klaviatur innen mit 18 − 22 → eckig */
+.roll-card {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.04);
+  text-align: left;
+  transition: transform 0.2s;
 }
-.hint p {
-  max-width: 36em;
+.roll-card:hover {
+  transform: translateY(-2px);
+}
+.roll-head,
+.roll-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--fg-dim);
+}
+.roll-head span:first-child {
+  color: var(--fg);
+  font-weight: 600;
+}
+.roll-foot {
+  justify-content: flex-start;
+  gap: 18px;
+}
+.roll-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.roll-l {
+  fill: var(--hand-l);
+}
+.roll-r {
+  fill: var(--hand-r);
+}
+.roll-octave {
+  stroke: var(--bg-3);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.roll-felt {
+  fill: var(--felt);
+}
+.roll-white {
+  fill: #fbf7ef;
+  stroke: var(--bg-3);
+  stroke-width: 1;
+}
+.roll-black {
+  fill: var(--fg);
+}
+.roll-legend::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  vertical-align: 0;
+}
+.roll-legend-l::before {
+  background: var(--hand-l);
+}
+.roll-legend-r::before {
+  background: var(--hand-r);
+}
+
+/* Was du brauchst: drei Spalten ohne Karten, feine Linie oben */
+.pb-needs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--bg-3);
+}
+.pb-needs .pb-small {
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .pb-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pb-split-aside {
+    position: static;
+    order: 2;
+    max-width: 420px;
+  }
+}
+@media (max-width: 720px) {
+  .pb-trio,
+  .pb-needs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pb-trio {
+    margin-top: 36px;
+  }
 }
 @media (max-width: 560px) {
-  .lesson {
-    grid-template-columns: 36px 1fr;
-    padding: 12px max(16px, var(--sar)) 12px max(16px, var(--sal));
-    gap: 2px 14px;
+  .pb-section {
+    padding-left: max(16px, var(--sal));
+    padding-right: max(16px, var(--sar));
   }
-  .step::before {
-    left: calc(max(16px, var(--sal)) + 17px);
-  }
-  .step:first-child::before {
-    top: 30px;
-  }
-  .step:last-child::before {
-    height: 30px;
+  .pb-lesson {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 2px 10px;
   }
   .mini-stages {
     grid-column: 2;
@@ -172,55 +658,23 @@
   .mini-empty {
     display: none;
   }
-  .lede {
-    padding: 18px max(16px, var(--sar)) 6px max(16px, var(--sal));
+  .pb-intro {
+    padding-left: 20px;
+    padding-right: 20px;
   }
-}
-
-
-/* Illustrationen wie auf dem Druck */
-.hero {
-  display: block;
-  width: 100%;
-  max-width: 980px;
-  margin: 0 auto;
-  aspect-ratio: 3 / 2;
-  max-height: 52vh;
-  object-fit: cover;
-  object-position: right center;
-  /* Papier des Bildes verschmilzt mit dem Papier der Seite: Ränder laufen weich aus */
-  mix-blend-mode: multiply;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 90%, transparent 100%),
-    linear-gradient(to bottom, transparent 0, #000 10%, #000 70%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 90%, transparent 100%),
-    linear-gradient(to bottom, transparent 0, #000 10%, #000 70%, transparent 100%);
-  mask-composite: intersect;
-}
-.lesson-art {
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 62%, transparent 100%);
-  mask-image: radial-gradient(ellipse at center, #000 62%, transparent 100%);
-  display: block;
-  width: 100%;
-  max-width: 360px;
-  aspect-ratio: 16 / 7;
-  object-fit: cover;
-  margin-top: 8px;
-  border-radius: 8px;
-  mix-blend-mode: multiply;
 }
 
 /* ---------- Häufige Fragen ---------- */
 .faq {
   max-width: 760px;
-  margin: 56px auto 0;
+  margin: var(--pb-space) auto 0;
   padding: 0 max(20px, var(--sar)) 0 max(20px, var(--sal));
 }
 .faq h2 {
-  margin: 0 0 14px;
+  margin: 0 0 22px;
   font-family: var(--serif);
   font-weight: 400;
-  font-size: 30px;
+  font-size: clamp(28px, 3vw, 38px);
   line-height: 1.15;
 }
 .faq-list {
@@ -416,6 +870,7 @@
 
 /* Sprungziele landen unter der App-Leiste, nicht dahinter */
 #path,
+#method,
 #faq,
 .faq details {
   scroll-margin-top: calc(72px + var(--sat));

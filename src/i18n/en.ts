@@ -7,10 +7,36 @@ export const en: Messages = {
   stage: { L: 'Left', R: 'Right', LR: 'Both' },
 
   home: {
-    intro:
-      'Left hand first, then right, then both. A stage is learned after three clean passes.',
     next: 'Up next',
-    hint: 'Put your iPhone or iPad on the music stand and tap "Microphone" in a piece. On a Mac in Chrome and in the iOS app, "MIDI" works too. Without a piano, practice the finger patterns on your keyboard: left A S D F G from little finger to thumb, right H J K L ; from thumb to little finger.',
+    headline: 'Learn piano one hand at a time.',
+    lede: 'Left first, then right, then both. The music waits until you hit the right key and listens through the microphone or MIDI. Free, no account.',
+    start: 'Start the first piece',
+    continueWith: (title: string) => `Continue with ${title}`,
+    practiceAgain: 'Practice again',
+    practice: 'Practice',
+    how: 'How it works',
+    statsNew: (n: number) => `${n} pieces · microphone or MIDI · no account`,
+    stats: (learned: number, total: number, clean: number) =>
+      `${learned} of ${total} stages learned · ${clean} clean passes`,
+    quote: 'At the piano, minutes don’t count. What counts is how often you get through cleanly.',
+    trio: [
+      { label: '01 · Left', title: 'Left hand first', text: 'Bass and accompaniment settle before the melody joins. In pop songs the left hand mostly plays a simple pattern.' },
+      { label: '02 · Right', title: 'Then the right', text: 'The melody, with note names and fingering. The music waits until you hit the right key.' },
+      { label: '03 · Both', title: 'Then both together', text: 'Three clean passes and the stage is learned. Not minutes, but hits.' },
+    ],
+    pathTitle: 'From five fingers to four chords.',
+    pathLede: 'One row per piece. The dots show your clean passes per hand.',
+    pathNote: 'Your progress lives on this device. With “Pair devices” it is the same everywhere.',
+    roll: (bpm: number) => `♩ ${bpm} · both hands`,
+    legendL: 'Left',
+    legendR: 'Right',
+    needs: [
+      { label: 'Microphone', text: 'Put your iPhone or iPad on the music stand and tap “Microphone” in a piece. Any piano works.' },
+      { label: 'MIDI', text: 'Digital piano over USB or Bluetooth, in Chrome on a Mac or PC and in the iOS app.' },
+      { label: 'Keyboard', text: 'No piano: left A S D F G from little finger to thumb, right H J K L ;.' },
+    ],
+    dock: { path: 'Learning path', method: 'Method', faq: 'Questions', about: 'About' },
+    dockLabel: 'Sections',
   },
 
   practice: {
