@@ -24,11 +24,12 @@ export interface RollView {
   showFingers: boolean
 }
 
-const C = {
-  lacquer: '#241a17',
+/** Abend: Lack und Elfenbein */
+const DARK = {
   lane: '#2b201c',
   laneLine: 'rgba(243,235,221,0.06)',
   barLine: 'rgba(243,235,221,0.14)',
+  keyBed: '#120c0a',
   ivory: '#f3ebdd',
   ivoryShade: '#d9cdb8',
   ebony: '#1a1210',
@@ -36,11 +37,33 @@ const C = {
   wrong: '#e0533f',
   L: '#4f9db5',
   R: '#d3a04d',
-  ink: '#241a17',
+  // Schrift auf den Blöcken der linken und rechten Hand
+  onL: '#241a17',
+  onR: '#241a17',
   // Tasten außerhalb des Stücks: leicht grau
   dimIvory: '#d4c9b8',
   dimEbony: '#3a2f2b',
   dimLane: 'rgba(16, 11, 9, 0.38)',
+}
+
+/** Tag: Papier, Petrol und Senf wie in den Gouache-Illustrationen */
+const PAPER: typeof DARK = {
+  lane: '#f6eedf',
+  laneLine: 'rgba(43,36,32,0.06)',
+  barLine: 'rgba(43,36,32,0.14)',
+  keyBed: '#cfbfa5',
+  ivory: '#fffcf6',
+  ivoryShade: '#eadfcc',
+  ebony: '#2b2420',
+  felt: '#d0603f',
+  wrong: '#c2412d',
+  L: '#2f6f7a',
+  R: '#d9a441',
+  onL: '#fffcf6',
+  onR: '#2b2420',
+  dimIvory: '#e9e0d1',
+  dimEbony: '#8b7e71',
+  dimLane: 'rgba(120, 100, 80, 0.10)',
 }
 
 interface Layout {
@@ -151,12 +174,15 @@ export function PianoRoll({
   beatsPerBar,
   onKey,
   expected,
+  paper = false,
 }: {
   view: () => RollView
   beatsPerBar: number
   onKey: (midi: number) => void
   /** Töne des aktuellen Schritts, für Screenreader („als Nächstes“) und den ersten Fokus */
   expected: number[]
+  /** helles Papier statt Lack */
+  paper?: boolean
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const layoutRef = useRef<{ l: Layout; keyTop: number; keyH: number } | null>(null)
@@ -170,6 +196,7 @@ export function PianoRoll({
     let raf = 0
     const font = '"Geist", system-ui, sans-serif'
 
+    const C = paper ? PAPER : DARK
     const draw = () => {
       raf = requestAnimationFrame(draw)
       const dpr = window.devicePixelRatio || 1
@@ -265,7 +292,8 @@ export function PianoRoll({
         const both = v.showNames && showFinger
         const label = Math.min(bw * 0.5, 22, bh / (both ? 2.7 : 1.5))
         if (label >= 7 && (v.showNames || showFinger)) {
-          g.fillStyle = C.ink
+          const onColor = n.hand === 'L' ? C.onL : C.onR
+          g.fillStyle = onColor
           let ly = by + bh - label * 0.85
           if (v.showNames) {
             g.font = `800 ${label}px ${font}`
@@ -277,7 +305,7 @@ export function PianoRoll({
             g.globalAlpha *= 0.75
             g.beginPath()
             g.arc(bx + bw / 2, ly, label * 0.55, 0, Math.PI * 2)
-            g.strokeStyle = C.ink
+            g.strokeStyle = onColor
             g.lineWidth = 1.5
             g.stroke()
             g.fillText(String(n.finger), bx + bw / 2, ly + 1)
@@ -285,6 +313,10 @@ export function PianoRoll({
         }
         g.globalAlpha = 1
       }
+
+      // Tastenbett: dunkel in den Fugen zwischen den Tasten
+      g.fillStyle = C.keyBed
+      g.fillRect(0, keyTop, W, keyH)
 
       // Filzstreifen über der Tastatur
       g.fillStyle = C.felt
@@ -349,7 +381,7 @@ export function PianoRoll({
         if (!black && (dim ? m % 12 === 0 : v.showNames || m % 12 === 0 || hand)) {
           g.font = `${hand ? 800 : 600} ${labelSize}px ${font}`
           // Kontrast auf Elfenbein: C etwa 7:1, übrige etwa 4,6:1; gedimmte Tasten bewusst schwächer
-          g.fillStyle = hand ? C.ink : dim ? '#a69a8a' : m % 12 === 0 ? '#4f4137' : '#6f6052'
+          g.fillStyle = hand ? (hand === 'L' ? C.onL : C.onR) : dim ? '#a69a8a' : m % 12 === 0 ? '#4f4137' : '#6f6052'
           g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), ix + iw / 2, iy + ih / 2 + 1)
         }
       }
@@ -358,7 +390,7 @@ export function PianoRoll({
     }
     draw()
     return () => cancelAnimationFrame(raf)
-  }, [view, beatsPerBar])
+  }, [view, beatsPerBar, paper])
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const lr = layoutRef.current

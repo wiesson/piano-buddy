@@ -19,6 +19,7 @@ import { BenchPanel } from './BenchPanel'
 import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
 import { getPref, setPref } from './prefs'
+import { usePrefersLight } from '../shared/usePrefersLight'
 import { BackIcon } from '../shared/icons'
 
 /**
@@ -48,6 +49,8 @@ export function PracticeScreen({
   const setShowNames = (v: boolean) => (setPref('names', v), setShowNamesState(v))
   const setShowFingers = (v: boolean) => (setPref('fingers', v), setShowFingersState(v))
   const [played, setPlayed] = useState(false)
+  // Tag: Papier (hell), Abend: Lack (dunkel) – wie der Modus des Geräts
+  const paper = usePrefersLight()
   const [demo, setDemo] = useState(false)
   const [result, setResult] = useState<PassResult | null>(null)
   const [, force] = useState(0)
@@ -265,7 +268,7 @@ export function PracticeScreen({
   const s = sessionRef.current
 
   return (
-    <div className="practice">
+    <div className={`practice ${paper ? 'paper' : ''}`}>
       <header className="bar">
         <button className="icon-button back" onClick={onBack} aria-label={t.practice.back}>
           <BackIcon />
@@ -283,6 +286,7 @@ export function PracticeScreen({
           beatsPerBar={lesson.beatsPerBar}
           onKey={onKey}
           expected={[...(sessionRef.current?.expected ?? [])]}
+          paper={paper}
         />
         {!played && !result && micStatus === 'off' && midi.state === 'off' && (
           <p className="lane-hint">{t.practice.noInputHint}</p>

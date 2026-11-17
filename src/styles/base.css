@@ -21,15 +21,19 @@
    * oder Ränder an gerundeten Karten (weder oben noch seitlich): das ist das typische KI-Muster.
    * Beispiele: Segmented Control 12 / 3 / 9, Taste und Einlage in PianoRoll (keyGeometry).
    */
-  --lacquer: #241a17;
-  --lacquer-2: #2f231f;
-  --lacquer-3: #3b2d28;
-  --ivory: #f3ebdd;
-  --ivory-dim: #b9ab98;
-  --felt: #8e2f2b;
-  --brass: #d3a04d;
-  --petrol: #4f9db5;
+  /* Abend: Lack, Elfenbein, Filz, Messing (rechte Hand), Petrol (linke Hand) */
+  --bg: #241a17;
+  --bg-2: #2f231f;
+  --bg-3: #3b2d28;
+  --fg: #f3ebdd;
+  --fg-dim: #b9ab98;
+  --card: #f3ebdd;
   --ink: #241a17;
+  --hand-l: #4f9db5;
+  --hand-r: #d3a04d;
+  --brand: #d3a04d;
+  --accent: #d3a04d;
+  --felt: #8e2f2b;
   --serif: 'Geist Serif', Georgia, serif;
   --sans: 'Geist', system-ui, sans-serif;
   /* iOS: Notch, Statusleiste, Home-Indikator, Safaris schwebende Leiste */
@@ -44,6 +48,27 @@
   --sar: env(safe-area-inset-right, 0px);
   color-scheme: dark;
 }
+/* Tag: Papier wie ein Notenheft, Gouache-Farben (Petrol, Senf, Koralle) */
+.paper {
+  --bg: #f6eedf;
+  --bg-2: #ece1cd;
+  --bg-3: #e1d2b9;
+  --fg: #2b2420;
+  --fg-dim: #75675a;
+  --card: #fffcf6;
+  --ink: #2b2420;
+  --hand-l: #2f6f7a;
+  --hand-r: #c48a2c;
+  --brand: #2f6f7a;
+  --accent: #d0603f;
+  --felt: #d0603f;
+  color-scheme: light;
+  background: var(--bg);
+  color: var(--fg);
+}
+body:has(.paper) {
+  background: #f6eedf;
+}
 
 * {
   box-sizing: border-box;
@@ -55,8 +80,8 @@ body,
   margin: 0;
 }
 body {
-  background: var(--lacquer);
-  color: var(--ivory);
+  background: var(--bg);
+  color: var(--fg);
   font-family: var(--sans);
   font-size: 17px;
   line-height: 1.45;
@@ -75,7 +100,7 @@ button {
   touch-action: manipulation;
 }
 button:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 button:disabled {
@@ -92,18 +117,18 @@ button:disabled {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  color: var(--ivory-dim);
+  color: var(--fg-dim);
   background: transparent;
   transition:
     color 0.15s,
     background 0.15s;
 }
 .icon-button[data-open] {
-  color: var(--ivory);
-  background: rgba(243, 235, 221, 0.06);
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 .icon-button:active {
-  background: rgba(243, 235, 221, 0.1);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
 /* auf hellem Grund (Dialoge, Popover) */
 .icon-button-ink {
@@ -111,8 +136,8 @@ button:disabled {
 }
 @media (hover: hover) {
   .icon-button:hover {
-    color: var(--ivory);
-    background: rgba(243, 235, 221, 0.06);
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
   }
   .icon-button-ink:hover {
     color: var(--ink);
@@ -122,4 +147,15 @@ button:disabled {
 .icon-button-ink[data-open] {
   color: var(--ink);
   background: rgba(36, 26, 23, 0.08);
+}
+
+/* Signet: Elfenbeintasten; auf hellem Grund mit feiner Kontur */
+.logo-key {
+  fill: #f3ebdd;
+}
+.paper .logo-key,
+.about .logo-key {
+  fill: #fffcf6;
+  stroke: #cdbfa9;
+  stroke-width: 0.6;
 }

@@ -13,7 +13,7 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
   const next = LESSONS.find((l) => !doneAll(l))
 
   return (
-    <div className="home">
+    <div className="home paper">
       <header className="appbar">
         <span className="appbar-side">
           <AboutDialog />
@@ -25,6 +25,7 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
         <span className="appbar-side appbar-end">{synced && <DevicesDialog />}</span>
       </header>
 
+      <img className="hero" src="/illustrations/hero.jpg" alt="" />
       <p className="lede">{t.home.intro}</p>
 
       <ol className="path">
@@ -67,6 +68,7 @@ function LessonStep({
             {isNext && <span className="next-tag">{t.home.next}</span>}
           </span>
           <span className="goal">{localized(lesson.goal)}</span>
+          {lesson.illustration && <img className="lesson-art" src={lesson.illustration} alt="" loading="lazy" />}
         </span>
         <span className="mini-stages">
           {(['L', 'R', 'LR'] as const).map((s) =>

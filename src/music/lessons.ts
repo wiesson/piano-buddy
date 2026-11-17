@@ -21,6 +21,8 @@ export interface Lesson {
   bpm: number
   beatsPerBar: number
   notes: ScoreNote[]
+  /** Gouache-Illustration in public/illustrations (optional) */
+  illustration?: string
 }
 
 /**
@@ -53,6 +55,7 @@ const lesson = (l: Omit<Lesson, 'notes'> & { left?: string; right?: string }): L
   goal: l.goal,
   bpm: l.bpm,
   beatsPerBar: l.beatsPerBar,
+  illustration: l.illustration,
   notes: [...(l.left ? voice('L', l.left) : []), ...(l.right ? voice('R', l.right) : [])].sort(
     (a, b) => a.start - b.start || a.midi - b.midi,
   ),
@@ -107,6 +110,7 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'entchen',
+    illustration: '/illustrations/ducklings.jpg',
     title: { de: 'Alle meine Entchen', en: 'All My Little Ducklings' },
     goal: {
       de: 'Das erste Lied. Rechts die Melodie, links ein Ton pro Takt.',
@@ -122,6 +126,7 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'ode',
+    illustration: '/illustrations/ode.jpg',
     title: { de: 'Ode an die Freude', en: 'Ode to Joy' },
     goal: {
       de: 'Beethoven, ganz in der C-Lage. Achte auf die punktierten Stellen.',
@@ -136,6 +141,7 @@ export const LESSONS: Lesson[] = [
   }),
   lesson({
     id: 'vier-akkorde',
+    illustration: '/illustrations/chords.jpg',
     title: { de: 'Vier Akkorde', en: 'Four chords' },
     goal: {
       de: 'a-Moll, F, C, G: die Folge hinter unzähligen Popsongs. Rechts Akkorde, links der Grundton.',

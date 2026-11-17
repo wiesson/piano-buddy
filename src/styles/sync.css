@@ -8,7 +8,7 @@
   height: 15px;
   padding: 0 3px;
   border-radius: 99px;
-  background: var(--ivory);
+  background: var(--fg);
   color: var(--ink);
   font-size: 10px;
   font-weight: 800;
@@ -21,20 +21,20 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ivory-dim);
-  box-shadow: 0 0 0 2px var(--lacquer);
+  background: var(--fg-dim);
+  box-shadow: 0 0 0 2px var(--bg);
 }
 .sync-dot.ok {
-  background: var(--ivory);
+  background: var(--fg);
 }
 .sync-dot.pending {
-  background: var(--brass);
+  background: var(--accent);
 }
 .sync-dot.off {
-  background: var(--lacquer);
+  background: var(--bg);
   box-shadow:
-    0 0 0 2px var(--lacquer),
-    inset 0 0 0 1.5px var(--ivory-dim);
+    0 0 0 2px var(--bg),
+    inset 0 0 0 1.5px var(--fg-dim);
 }
 
 .dialog-backdrop {
@@ -55,7 +55,7 @@
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px - var(--sat) - var(--sab));
   overflow: auto;
-  background: var(--ivory);
+  background: var(--card);
   color: var(--ink);
   border-radius: var(--card-radius);
   padding: var(--card-pad);
@@ -182,7 +182,7 @@
   text-transform: uppercase;
 }
 .otp-slot[data-active] {
-  box-shadow: inset 0 0 0 2px var(--brass);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 .otp-slot[data-fake-caret]::after {
   content: '';
@@ -210,7 +210,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--ivory);
+  background: var(--card);
   color: var(--ink);
   border-radius: var(--small-radius);
   padding: var(--small-pad);
@@ -259,16 +259,11 @@
 .about-head .dialog-title {
   margin: 0;
 }
-/* Signet auf hellem Grund: Elfenbeintasten brauchen eine Kontur */
-.about .logo rect[fill='var(--ivory)'] {
-  stroke: #cdbfa9;
-  stroke-width: 0.6;
-}
 .about a {
   color: var(--ink);
   font-weight: 800;
   text-decoration: underline;
-  text-decoration-color: var(--brass);
+  text-decoration-color: var(--accent);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
@@ -297,7 +292,7 @@
   width: var(--segmented-control-indicator-width);
   height: var(--segmented-control-indicator-height);
   border-radius: 9px;
-  background: var(--ivory);
+  background: var(--card);
   box-shadow: 0 1px 3px rgba(36, 26, 23, 0.2);
   transition: left 200ms, width 200ms;
 }
