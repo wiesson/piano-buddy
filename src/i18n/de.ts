@@ -10,7 +10,7 @@ export const de = {
 
   home: {
     intro:
-      'Jedes Stück in drei Stufen: erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen Durchgängen.',
+      'Erst links, dann rechts, dann beide Hände. Eine Stufe sitzt nach drei sauberen Durchgängen.',
     next: 'Als Nächstes',
     hint: 'Stell das iPhone oder iPad aufs Notenpult und tippe im Stück auf „Mikrofon“. Am Mac in Chrome und in der iOS-App geht auch „MIDI“. Ohne Klavier spielst du auf dem Bildschirm oder mit der Tastatur (Y–M und Q–I).',
   },
@@ -51,8 +51,12 @@ export const de = {
     resultClean: 'Sauber durchgespielt',
     resultWrong: (n: number) => `Durch, mit ${n} ${plural(n, 'falschem Ton', 'falschen Tönen')}`,
     stageDone: (stage: string, next: string) => `${stage} sitzt. Als Nächstes: ${next}.`,
-    stageDoneLast: (stage: string) => `${stage} sitzt. Morgen einmal wiederholen, dann bleibt es.`,
-    allDone: 'Beide Hände sitzen. Morgen einmal wiederholen, dann bleibt es.',
+    stageDoneLast: (stage: string) => `${stage} sitzt.`,
+    allDone: 'Das Stück sitzt mit beiden Händen.',
+    keepPlaying: 'Spiel einfach weiter: Der nächste Ton startet den nächsten Durchgang.',
+    keepPlayingNext: (stage: string) => `Spiel einfach weiter, dann geht es mit ${stage} los.`,
+    nextLesson: 'Nächstes Stück',
+    noInputHint: 'Womit spielst du? Schalte unten Mikrofon oder MIDI ein, oder tipp die Tasten an.',
     progress: (n: number, goal: number) => `${n} von ${goal} sauberen Durchgängen.`,
     unverified: (n: number) =>
       `${plural(n, 'Ein Ton liegt', `${n} Töne liegen`)} eine Oktave oder Duodezime über der linken Hand. Dort hört das Mikrofon die rechte Hand auch, wenn nur links gespielt wird. Mit MIDI wird es genau.`,

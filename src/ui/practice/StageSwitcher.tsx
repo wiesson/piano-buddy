@@ -1,17 +1,7 @@
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import type { Stage } from '../../music/lessons'
-import { CLEAN_GOAL } from '../../practice/goal'
 import { t } from '../../i18n'
-
-function Dots({ stage, clean }: { stage: Stage; clean: number }) {
-  return (
-    <span className={`dots dots-${stage}`} aria-label={t.practice.cleanOf(clean, CLEAN_GOAL)}>
-      {Array.from({ length: CLEAN_GOAL }, (_, i) => (
-        <i key={i} className={i < clean ? 'on' : ''} />
-      ))}
-    </span>
-  )
-}
+import { Dots } from '../shared/Dots'
 
 /**
  * Wahl der Hand (Links, Rechts, Beide) mit Fortschrittspunkten. Hat ein Stück nur eine

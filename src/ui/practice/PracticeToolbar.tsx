@@ -46,6 +46,8 @@ export function PracticeToolbar(p: {
           {t.practice.midi.pairBluetooth}
         </button>
       )}
+      {/* Hochkant: Umbruch nach den Eingängen, zweite Zeile Vorspielen, Ansicht, Neustart */}
+      <span className="tools-break" aria-hidden />
       <button className={`toggle ${p.demo ? 'on' : ''}`} onClick={p.onToggleDemo}>
         {p.demo ? t.practice.demoStop : t.practice.demo}
       </button>

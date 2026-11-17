@@ -8,7 +8,7 @@ export const en: Messages = {
 
   home: {
     intro:
-      'Every piece in three stages: left hand first, then right, then both hands. A stage is learned after three clean passes.',
+      'Left hand first, then right, then both. A stage is learned after three clean passes.',
     next: 'Up next',
     hint: 'Put your iPhone or iPad on the music stand and tap "Microphone" in a piece. On a Mac in Chrome and in the iOS app, "MIDI" works too. Without a piano, play on the screen or with the keyboard (Z–M and Q–I).',
   },
@@ -49,8 +49,12 @@ export const en: Messages = {
     resultClean: 'Clean pass',
     resultWrong: (n: number) => `Finished with ${n} ${plural(n, 'wrong note', 'wrong notes')}`,
     stageDone: (stage: string, next: string) => `${stage} is learned. Up next: ${next}.`,
-    stageDoneLast: (stage: string) => `${stage} is learned. Repeat once tomorrow and it will stick.`,
-    allDone: 'Both hands are learned. Repeat once tomorrow and it will stick.',
+    stageDoneLast: (stage: string) => `${stage} is learned.`,
+    allDone: 'You can play the piece with both hands.',
+    keepPlaying: 'Just keep playing: the next note starts the next pass.',
+    keepPlayingNext: (stage: string) => `Just keep playing to start ${stage}.`,
+    nextLesson: 'Next piece',
+    noInputHint: 'How are you playing? Turn on the microphone or MIDI below, or tap the keys.',
     progress: (n: number, goal: number) => `${n} of ${goal} clean passes.`,
     unverified: (n: number) =>
       `${plural(n, 'One note is', `${n} notes are`)} an octave or a twelfth above the left hand. There the microphone also hears the right hand when only the left is playing. With MIDI it is exact.`,

@@ -4,16 +4,19 @@ import { displayNoteLabel } from '../../i18n/noteNames'
 
 /** Live-Messung „Mikrofon gegen MIDI“, solange beide Eingänge laufen */
 export function BenchPanel({
+  side,
   bench,
   calibrating,
   onReset,
 }: {
+  /** auf der Seite, wo die geübte Hand gerade keine Noten hat */
+  side: 'left' | 'right'
   bench: BenchStats
   calibrating: boolean
   onReset: () => void
 }) {
   return (
-    <aside className="bench" aria-live="polite">
+    <aside className={`bench bench-${side}`} aria-live="polite">
       <p className="bench-head">{t.bench.title}</p>
       <p className="bench-main">
         {bench.played ? (

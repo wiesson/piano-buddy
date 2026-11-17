@@ -18,6 +18,7 @@ import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
+import { getPref, setPref } from './prefs'
 import { BackIcon } from '../shared/icons'
 
 /**
@@ -25,7 +26,15 @@ import { BackIcon } from '../shared/icons'
  * in derselben WaitSession. Laufen MIDI und Mikrofon zugleich, führt MIDI und das Mikrofon
  * wird nur dagegen gemessen.
  */
-export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) {
+export function PracticeScreen({
+  lesson,
+  onBack,
+  onNextLesson,
+}: {
+  lesson: Lesson
+  onBack: () => void
+  onNextLesson?: () => void
+}) {
   const stages = useMemo(() => stagesFor(lesson), [lesson])
   useStoreVersion()
   const cleanCount = useCallback((s: Stage) => store.cleanCount(lesson.id, s), [lesson.id])
@@ -34,8 +43,11 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
   )
   const [micStatus, setMicStatus] = useState<MicStatus>('off')
   const [bench, setBench] = useState<BenchStats | null>(null)
-  const [showNames, setShowNames] = useState(true)
-  const [showFingers, setShowFingers] = useState(true)
+  const [showNames, setShowNamesState] = useState(() => getPref('names', true))
+  const [showFingers, setShowFingersState] = useState(() => getPref('fingers', true))
+  const setShowNames = (v: boolean) => (setPref('names', v), setShowNamesState(v))
+  const setShowFingers = (v: boolean) => (setPref('fingers', v), setShowFingersState(v))
+  const [played, setPlayed] = useState(false)
   const [demo, setDemo] = useState(false)
   const [result, setResult] = useState<PassResult | null>(null)
   const [, force] = useState(0)
@@ -47,6 +59,10 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
   const demoRef = useRef<{ t0: number; bpm: number } | null>(null)
   const micRef = useRef<MicListener | null>(null)
   const benchRef = useRef(new MicBench())
+  const finishedAtRef = useRef(0)
+  // aktuelle Stufe für den Eingabe-Callback (der bleibt stabil, damit MIDI und Mikrofon nicht neu verbinden)
+  const stageRef = useRef(stage)
+  stageRef.current = stage
 
   const onPass = useCallback(
     (r: PassResult) => {
@@ -59,6 +75,7 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
         source: r.source,
         durationMs: Math.round(r.durationMs),
       })
+      finishedAtRef.current = performance.now()
       setResult(r)
     },
     [lesson.id, stage],
@@ -76,13 +93,27 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
 
   const input = useCallback((e: NoteOn) => {
     const s = sessionRef.current
-    if (!s || demoRef.current || s.finished) return
+    if (!s || demoRef.current) return
+    setPlayed(true)
+    if (s.finished) {
+      // Das Klavier ist die Fernbedienung: Der nächste Anschlag startet den nächsten Durchgang,
+      // bei fertiger Stufe die nächste. Frühestens 1,2 s nach dem Ende, sonst zählt der Nachklang.
+      if (performance.now() - finishedAtRef.current < 1200) return
+      const st = stageRef.current
+      const next = stages[stages.indexOf(st) + 1]
+      if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
+        setStage(next)
+        return
+      }
+      s.restart()
+      setResult(null)
+    }
     const before = s.index
     s.input(e)
     // Screenreader: nach jedem geschafften Schritt die nächsten Töne ansagen
     if (s.index !== before && !s.finished) announce(t.practice.nextNotes([...s.expected].map(displayNoteLabel).join(', ')))
     force((x) => x + 1)
-  }, [])
+  }, [lesson.id, stages])
 
   // MIDI: führt die Übung; läuft das Mikrofon mit, ist MIDI die Wahrheit für die Messung
   const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput((n) => {
@@ -102,6 +133,8 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
       },
     })
     micRef.current = mic
+    // Wer das Mikrofon zuletzt an hatte, bekommt es wieder (der Tipp aufs Stück war die Geste)
+    if (getPref('mic', false)) void mic.start()
     return () => mic.stop()
   }, [input, midiLiveRef])
 
@@ -157,8 +190,13 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
 
   const toggleMic = () => {
     const mic = micRef.current!
-    if (mic.status === 'listening' || mic.status === 'calibrating') mic.stop()
-    else void mic.start()
+    if (mic.status === 'listening' || mic.status === 'calibrating') {
+      mic.stop()
+      setPref('mic', false)
+    } else {
+      void mic.start()
+      setPref('mic', true)
+    }
   }
 
   const toggleDemo = () => {
@@ -246,8 +284,12 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
           onKey={onKey}
           expected={[...(sessionRef.current?.expected ?? [])]}
         />
+        {!played && !result && micStatus === 'off' && midi.state === 'off' && (
+          <p className="lane-hint">{t.practice.noInputHint}</p>
+        )}
         {comparing && bench && (
           <BenchPanel
+            side={stage === 'R' ? 'left' : 'right'}
             bench={bench}
             calibrating={micStatus === 'calibrating'}
             onReset={() => (benchRef.current.reset(), setBench(benchRef.current.stats()))}
@@ -261,6 +303,7 @@ export function PracticeScreen({ lesson, onBack }: { lesson: Lesson; onBack: () 
             clean={cleanCount(stage)}
             onAgain={again}
             onNext={setStage}
+            onNextLesson={onNextLesson}
           />
         )}
       </main>

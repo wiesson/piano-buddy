@@ -83,7 +83,7 @@
   height: 32px;
 }
 .step.done::before {
-  background: var(--petrol);
+  background: rgba(243, 235, 221, 0.45);
 }
 .lesson {
   width: 100%;
@@ -121,7 +121,7 @@
   box-shadow: 0 0 0 5px rgba(211, 160, 77, 0.16);
 }
 .step.done .node {
-  background: var(--petrol);
+  background: var(--ivory);
   color: var(--ink);
   box-shadow: none;
   font-family: var(--sans);
@@ -150,43 +150,27 @@
   color: var(--ivory-dim);
   font-size: 15px;
 }
+/* Stand je Hand: Name und Punkte, auf breiten Bildschirmen in festen Spalten (L, R, Beide) */
 .mini-stages {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 92px);
   gap: 4px;
   padding-top: 7px;
 }
 .mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 99px;
-  border: 1px solid var(--lacquer-3);
   color: var(--ivory-dim);
 }
-.mini.some {
-  border-color: currentColor;
+.mini .dots {
+  gap: 4px;
 }
-.mini-L.some {
-  color: var(--petrol);
-}
-.mini-R.some {
-  color: var(--brass);
-}
-.mini-LR.some {
-  color: var(--ivory);
-}
-.mini.full {
-  color: var(--ink);
-  border-color: transparent;
-}
-.mini-L.full {
-  background: var(--petrol);
-}
-.mini-R.full {
-  background: var(--brass);
-}
-.mini-LR.full {
-  background: var(--ivory);
+.mini .dots i {
+  width: 8px;
+  height: 8px;
 }
 .hint {
   max-width: 760px;
@@ -215,15 +199,16 @@
   }
   .mini-stages {
     grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
     padding-top: 6px;
+  }
+  .mini-empty {
+    display: none;
   }
   .lede {
     padding: 18px max(16px, var(--sar)) 6px max(16px, var(--sal));
   }
 }
 
-.mini-count {
-  margin-left: 5px;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.85;
-}

@@ -36,10 +36,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.back {
-  /* optisch bündig: das Chevron steht links im Knopf, der Knopf rückt um den Leerraum heraus */
-  margin-left: -6px;
-}
 .stages {
   position: relative;
   isolation: isolate;
@@ -88,24 +84,25 @@
 }
 .dots {
   display: flex;
-  gap: 4px;
+  gap: 5px;
 }
 .dots i {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--lacquer-3);
-  outline: 1px solid rgba(243, 235, 221, 0.25);
+  background: transparent;
+  outline: 1.5px solid rgba(243, 235, 221, 0.45);
+  outline-offset: -1.5px;
 }
-.stage-L .dots i.on {
+.dots-L i.on {
   background: var(--petrol);
   outline-color: var(--petrol);
 }
-.stage-R .dots i.on {
+.dots-R i.on {
   background: var(--brass);
   outline-color: var(--brass);
 }
-.stage-LR .dots i.on {
+.dots-LR i.on {
   background: var(--ivory);
   outline-color: var(--ivory);
 }
@@ -177,7 +174,8 @@
 .ghost,
 .mic,
 .pill {
-  padding: 9px 14px;
+  min-height: 44px;
+  padding: 9px 16px;
   border-radius: 99px;
   font-size: 15px;
   font-weight: 600;
@@ -185,7 +183,10 @@
   background: var(--lacquer-2);
 }
 .toggle[data-pressed],
-.toggle.on {
+.toggle.on,
+.mic.listening,
+.mic.calibrating,
+.midi.on {
   color: var(--ivory);
   background: var(--lacquer-3);
   box-shadow: inset 0 0 0 1px rgba(243, 235, 221, 0.18);
@@ -198,13 +199,6 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  color: var(--ivory);
-}
-.mic.listening {
-  background: var(--felt);
-}
-.mic.calibrating {
-  background: var(--lacquer-3);
 }
 .mic.denied,
 .mic.error {
@@ -236,8 +230,8 @@
   width: min(440px, calc(100% - 32px));
   background: var(--ivory);
   color: var(--ink);
-  border-radius: 16px;
-  padding: 20px 22px;
+  border-radius: var(--card-radius);
+  padding: var(--card-pad);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   animation: rise 0.28s ease-out;
 }
@@ -249,6 +243,11 @@
 .result-sub {
   margin: 0 0 16px;
   color: #5b4a3f;
+}
+.result-hint {
+  margin: -6px 0 16px;
+  font-size: 14px;
+  color: #6d5a4c;
 }
 .result-note {
   margin: -6px 0 16px;
@@ -303,7 +302,8 @@
 }
 @media (max-width: 640px) {
   .bar .goal {
-    display: none;
+    white-space: normal;
+    font-size: 13px;
   }
   .stage {
     min-width: 0;
@@ -347,19 +347,17 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 9px 14px;
+  min-height: 44px;
+  padding: 9px 16px;
   border-radius: 99px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--ivory);
+  color: var(--ivory-dim);
   background: var(--lacquer-2);
   max-width: 14em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.midi.on {
-  background: var(--lacquer-3);
 }
 .midi-dot {
   flex: none;
@@ -370,8 +368,7 @@
 }
 .midi.on .midi-dot.live {
   outline: none;
-  background: var(--petrol);
-  box-shadow: 0 0 8px var(--petrol);
+  background: var(--ivory);
 }
 .midi.connecting .midi-dot {
   outline-color: var(--brass);
@@ -380,12 +377,11 @@
 .bench {
   position: absolute;
   top: 12px;
-  left: 12px;
   width: min(300px, calc(100% - 24px));
   background: var(--ivory);
   color: var(--ink);
-  border-radius: 14px;
-  padding: 12px 14px;
+  border-radius: var(--small-radius);
+  padding: var(--small-pad);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   font-size: 14px;
 }
@@ -424,10 +420,10 @@
   border-radius: 50%;
 }
 .bench-hit::before {
-  background: var(--petrol);
+  background: var(--ink);
 }
 .bench-missed::before {
-  background: var(--brass);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
 }
 .bench-false::before {
   background: var(--felt);
@@ -463,8 +459,8 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  padding: 6px 12px;
-  border-radius: 99px;
+  padding: 8px 12px;
+  border-radius: 12px;
   background: var(--lacquer-2);
   font-weight: 800;
   font-size: 15px;
@@ -493,7 +489,6 @@ header.bar:has(.stage-badge) .title {
 @media (max-height: 500px) {
   .bench {
     top: 8px;
-    padding: 10px 12px;
   }
   .bench-log li:nth-child(n + 4) {
     display: none;
@@ -559,8 +554,8 @@ header.bar:has(.stage-badge) .title {
   box-shadow: none;
 }
 .popover .toggle-row[data-pressed]::after {
-  background: var(--petrol);
-  box-shadow: inset 0 0 0 4px var(--ivory), 0 0 0 1.5px var(--petrol);
+  background: var(--ink);
+  box-shadow: inset 0 0 0 4px var(--ivory), 0 0 0 1.5px var(--ink);
 }
 
 /* Schmal hochkant: Ansicht nur als Icon, damit alle Knöpfe in eine Zeile passen */
@@ -573,5 +568,85 @@ header.bar:has(.stage-badge) .title {
   }
   .tools {
     gap: 6px;
+  }
+}
+
+.bench-left {
+  left: 12px;
+}
+.bench-right {
+  right: 12px;
+}
+
+/* Hochkant: Leiste in zwei Zeilen statt seitlich wischen; Eingänge zuerst */
+@media (max-width: 640px) {
+  .tools {
+    flex-wrap: wrap;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .tools > .spacer {
+    display: none;
+  }
+}
+
+/* Hinweis in der Bahn, solange kein Eingang läuft */
+.lane-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 32px));
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+  color: var(--ivory-dim);
+  text-wrap: balance;
+  pointer-events: none;
+}
+
+.tools-break {
+  display: none;
+}
+@media (max-width: 640px) {
+  .tools-break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+  .tools > .spacer {
+    display: block;
+    flex: 1 0 0;
+  }
+  /* Kopf hochkant: Zurück und Titel in einer Zeile, Stufenwahl darunter über die volle Breite */
+  header.bar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 6px 10px;
+    align-items: center;
+  }
+  header.bar .stages,
+  header.bar .stage-badge {
+    grid-column: 1 / -1;
+  }
+  header.bar .stage-badge {
+    justify-self: start;
+  }
+}
+.lane-hint {
+  padding: 10px 14px;
+  border-radius: var(--small-radius);
+  background: rgba(36, 26, 23, 0.88);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+@media (max-width: 640px) {
+  /* Pfeil auf Höhe der Titelzeile, nicht der Mitte von Titel und Zielsatz */
+  header.bar {
+    align-items: start;
+  }
+  header.bar .back {
+    margin-top: -7px;
   }
 }

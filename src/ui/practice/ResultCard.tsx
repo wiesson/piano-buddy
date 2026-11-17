@@ -11,6 +11,7 @@ export function ResultCard({
   clean,
   onAgain,
   onNext,
+  onNextLesson,
 }: {
   result: PassResult
   stage: Stage
@@ -18,6 +19,7 @@ export function ResultCard({
   clean: number
   onAgain: () => void
   onNext: (s: Stage) => void
+  onNextLesson?: () => void
 }) {
   const done = clean >= CLEAN_GOAL
   return (
@@ -33,13 +35,29 @@ export function ResultCard({
           : t.practice.progress(clean, CLEAN_GOAL)}
       </p>
       {result.unverified > 0 && <p className="result-note">{t.practice.unverified(result.unverified)}</p>}
+      <p className="result-hint">{done && nextStage ? t.practice.keepPlayingNext(t.stage[nextStage]) : t.practice.keepPlaying}</p>
       <div className="result-actions">
-        <button className="primary" onClick={onAgain}>
-          {t.practice.again}
-        </button>
-        {done && nextStage && (
-          <button className="secondary" onClick={() => onNext(nextStage)}>
-            {t.practice.continueWith(t.stage[nextStage])}
+        {done && nextStage ? (
+          <>
+            <button className="primary" onClick={() => onNext(nextStage)}>
+              {t.practice.continueWith(t.stage[nextStage])}
+            </button>
+            <button className="secondary" onClick={onAgain}>
+              {t.practice.again}
+            </button>
+          </>
+        ) : done && onNextLesson ? (
+          <>
+            <button className="primary" onClick={onNextLesson}>
+              {t.practice.nextLesson}
+            </button>
+            <button className="secondary" onClick={onAgain}>
+              {t.practice.again}
+            </button>
+          </>
+        ) : (
+          <button className="primary" onClick={onAgain}>
+            {t.practice.again}
           </button>
         )}
       </div>

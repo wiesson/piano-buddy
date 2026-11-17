@@ -4,6 +4,7 @@ import { store } from '../../sync/store'
 import { DevicesDialog } from '../../sync/DevicesDialog'
 import { t, localized } from '../../i18n'
 import { Logo } from '../shared/icons'
+import { Dots } from '../shared/Dots'
 import { AboutDialog } from '../shared/AboutDialog'
 
 /** Startseite: App-Leiste wie eine Tastenklappe, darunter der Lernpfad */
@@ -68,15 +69,16 @@ function LessonStep({
           <span className="goal">{localized(lesson.goal)}</span>
         </span>
         <span className="mini-stages">
-          {stagesFor(lesson).map((s) => {
-            const c = store.cleanCount(lesson.id, s)
-            return (
-              <span key={s} className={`mini mini-${s} ${c >= CLEAN_GOAL ? 'full' : c > 0 ? 'some' : ''}`}>
-                {t.stage[s]}
-                {c > 0 && c < CLEAN_GOAL && <span className="mini-count">{`${c}/${CLEAN_GOAL}`}</span>}
+          {(['L', 'R', 'LR'] as const).map((s) =>
+            stagesFor(lesson).includes(s) ? (
+              <span key={s} className={`mini mini-${s}`}>
+                <span className="mini-label">{t.stage[s]}</span>
+                <Dots stage={s} clean={store.cleanCount(lesson.id, s)} />
               </span>
-            )
-          })}
+            ) : (
+              <span key={s} className="mini mini-empty" aria-hidden />
+            ),
+          )}
         </span>
       </button>
     </li>

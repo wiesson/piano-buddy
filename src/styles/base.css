@@ -33,6 +33,11 @@
   --serif: 'Geist Serif', Georgia, serif;
   --sans: 'Geist', system-ui, sans-serif;
   /* iOS: Notch, Statusleiste, Home-Indikator, Safaris schwebende Leiste */
+  /* Helle Flächen in genau zwei Größen: groß (Dialog, Ergebnis) und klein (Messkarte, Toast) */
+  --card-radius: 18px;
+  --card-pad: 22px;
+  --small-radius: 14px;
+  --small-pad: 14px;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
@@ -93,7 +98,6 @@ button:disabled {
     color 0.15s,
     background 0.15s;
 }
-.icon-button:hover,
 .icon-button[data-open] {
   color: var(--ivory);
   background: rgba(243, 235, 221, 0.06);
@@ -105,7 +109,17 @@ button:disabled {
 .icon-button-ink {
   color: #5b4a3f;
 }
-.icon-button-ink:hover {
+@media (hover: hover) {
+  .icon-button:hover {
+    color: var(--ivory);
+    background: rgba(243, 235, 221, 0.06);
+  }
+  .icon-button-ink:hover {
+    color: var(--ink);
+    background: rgba(36, 26, 23, 0.08);
+  }
+}
+.icon-button-ink[data-open] {
   color: var(--ink);
   background: rgba(36, 26, 23, 0.08);
 }

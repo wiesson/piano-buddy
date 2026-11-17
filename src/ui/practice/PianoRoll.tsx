@@ -57,8 +57,9 @@ interface Layout {
 const MAX_KEY_W = 64
 
 function layoutKeys(notes: ScoreNote[], width: number): Layout {
-  let lo = Math.min(...notes.map((n) => n.midi), 60)
-  let hi = Math.max(...notes.map((n) => n.midi), 64)
+  const minWhites = width < 640 ? 7 : 10
+  let lo = notes.length ? Math.min(...notes.map((n) => n.midi)) : 60
+  let hi = notes.length ? Math.max(...notes.map((n) => n.midi)) : 64
   // auf weiße Tasten erweitern, eine weiße Taste Luft
   const down = (m: number) => {
     m--
@@ -90,7 +91,7 @@ function layoutKeys(notes: ScoreNote[], width: number): Layout {
   // abwechselnd links und rechts je eine weiße Taste, damit das Stück in der Mitte bleibt
   let left = 0
   let right = 0
-  while ((n < 10 || width / n > MAX_KEY_W) && (lo > 21 || hi < 108)) {
+  while ((n < minWhites || width / n > MAX_KEY_W) && (lo > 21 || hi < 108)) {
     if ((left <= right && lo > 21) || hi >= 108) {
       lo = down(lo)
       left++
@@ -181,7 +182,9 @@ export function PianoRoll({
       }
       g.setTransform(dpr, 0, 0, dpr, 0, 0)
       const v = view()
-      const l = layoutKeys(v.rangeNotes, W)
+      // Schmal (hochkant am Telefon): nur der Tonumfang der geübten Hand, damit Tasten und
+      // Schrift auf Armlänge lesbar bleiben; breit: das ganze Stück, damit nichts springt
+      const l = layoutKeys(W < 640 ? v.notes : v.rangeNotes, W)
       const keyH = Math.max(90, Math.min(230, H * 0.3, l.keyW * 4.6))
       const keyTop = H - keyH
       const feltH = 6
@@ -256,9 +259,12 @@ export function PianoRoll({
           g.fillStyle = 'rgba(255,255,255,0.35)'
           g.fill()
         }
-        // Beschriftung unten im Block: Notenname und Finger
-        const label = Math.min(bw * 0.5, 22)
-        if (bh > label * 1.4 && (v.showNames || v.showFingers)) {
+        // Beschriftung unten im Block: Notenname und Finger. Die Schrift richtet sich nach der
+        // Blockhöhe, damit auch kurze Viertel ihren Fingersatz zeigen (quer am Telefon).
+        const showFinger = v.showFingers && !!n.finger
+        const both = v.showNames && showFinger
+        const label = Math.min(bw * 0.5, 22, bh / (both ? 2.7 : 1.5))
+        if (label >= 7 && (v.showNames || showFinger)) {
           g.fillStyle = C.ink
           let ly = by + bh - label * 0.85
           if (v.showNames) {
@@ -266,7 +272,7 @@ export function PianoRoll({
             g.fillText(displayNoteName(n.midi), bx + bw / 2, ly)
             ly -= label * 1.15
           }
-          if (v.showFingers && n.finger && bh > label * 2.6) {
+          if (showFinger) {
             g.font = `600 ${label * 0.78}px ${font}`
             g.globalAlpha *= 0.75
             g.beginPath()
