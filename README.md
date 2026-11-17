@@ -1,0 +1,66 @@
+# Piano Buddy
+
+A practice companion for learning piano basics, one hand at a time: every piece in three
+stages, left hand, right hand, then both. A stage counts as learned after three clean passes,
+because clean repetitions predict progress better than minutes practiced.
+
+Live: **[piano-buddy.studionordwerk.workers.dev](https://piano-buddy.studionordwerk.workers.dev)**
+(the interface is German; add it to your home screen for the app feel)
+
+![Practice screen: falling notes over the keyboard, left hand in petrol, right hand in brass](.github/assets/practice.png)
+
+## What it does
+
+- **Wait mode:** the music waits until you hit the right keys. Falling notes with note names
+  and fingering, keyboard zoomed to the piece.
+- **Listens to your piano** through the microphone (works in Safari on iPhone and iPad), or over
+  **MIDI** (Chrome on desktop, or the iOS app via CoreMIDI, USB or Bluetooth).
+- **Microphone vs. MIDI:** with both connected, MIDI drives the lesson and the microphone is
+  measured live against it: detected, missed, false alarms, latency.
+- **Progress on every device:** a local-first practice log syncs through Convex. No account,
+  devices pair with an 8-character code.
+- **Works offline** as a PWA; fonts, icons and the app shell are cached.
+
+<p>
+  <img src=".github/assets/home.png" width="300" alt="Home screen with the learning path">
+  <img src=".github/assets/mic-vs-midi.png" width="520" alt="Microphone measured against MIDI: 6 of 6 detected, 159 ms">
+</p>
+
+## How the microphone part works
+
+It does not transcribe freely. The app knows which notes it expects, so it checks exactly those:
+an FFT per frame, the harmonic series of each expected note, vetoes for octave and twelfth
+errors (a low note's overtones land on higher notes), and onset detection so a ringing note
+doesn't count twice. Frames where an attack has only just entered the window are skipped, because
+the smeared spectrum makes the neighbouring semitone ring along.
+
+Known limit, kept honest in the tests (`it.fails`): when both hands play an octave apart, the
+left hand alone sounds like both. MIDI is exact there.
+
+## Stack
+
+- Vite, React 19, TypeScript, Canvas 2D for the piano roll
+- [UI SDK](https://github.com/vercel-labs/ui) by Vercel Labs (beta): segmented control, toggles,
+  dialog, OTP input, toasts, all styled by hand
+- [Convex](https://convex.dev) for sync, tested with `convex-test`
+- [Capacitor 8](https://capacitorjs.com) shell for iOS with a small CoreMIDI plugin
+  (`ios/App/App/PianoMidi.swift`), because Safari has no Web MIDI
+- [smplr](https://github.com/danigb/smplr) for the piano sound, Geist and Geist Serif for type
+- Hosted on Cloudflare Workers static assets
+
+## Run it
+
+```bash
+pnpm install
+npx convex dev --once   # creates your own Convex dev deployment, writes .env.local
+pnpm dev                # http://localhost:5173
+pnpm dev:lan            # HTTPS on your network, so phones may use the microphone
+pnpm test               # detector, practice rules, sync access rules
+```
+
+Without `VITE_CONVEX_URL` the app runs local-only. Deploy: `pnpm run deploy` (Convex + Wrangler).
+iOS: `npx cap sync ios`, then open `ios/App/App.xcodeproj` in Xcode.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

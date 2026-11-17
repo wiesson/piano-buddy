@@ -7,3 +7,9 @@ dev-dist
 .env.local
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Private Notizen: Recherche, Roadmap (nicht im öffentlichen Repo)
+docs/
+reports/
+research_notes/
+.env.local
