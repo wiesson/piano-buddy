@@ -8,11 +8,15 @@ import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } fro
 import { Toggle } from '@ui-sdk/react/toggle'
 import { MicListener, type MicStatus } from '../audio/mic'
 import { audioContext, getPiano, playNote, stopAll } from '../audio/audio'
-import { connectMidi, keyToMidi, midiSupported, type NoteOn } from '../input/sources'
+import { keyToMidi, type NoteOn } from '../input/sources'
+import { canPairBluetooth, connectMidi, midiKind, showBluetoothPairing, type MidiHandle } from '../input/midi'
+import { MicBench, type BenchStats } from '../practice/bench'
+import { noteLabel } from '../music/notes'
+import { toast } from './toaster'
 import { Roll, type RollView } from './Roll'
 
 const MIC_TEXT: Record<MicStatus, string> = {
-  off: 'Mikrofon an',
+  off: 'Mikrofon',
   starting: 'Mikrofon startet',
   calibrating: 'Kurz still sein',
   listening: 'Hört zu',
@@ -28,7 +32,11 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
     () => stages.find((s) => store.cleanCount(lesson.id, s) < CLEAN_GOAL) ?? stages[stages.length - 1],
   )
   const [micStatus, setMicStatus] = useState<MicStatus>('off')
-  const [midiNames, setMidiNames] = useState<string[]>([])
+  const [midi, setMidi] = useState<{ state: 'off' | 'connecting' | 'on'; devices: string[] }>({
+    state: 'off',
+    devices: [],
+  })
+  const [bench, setBench] = useState<BenchStats | null>(null)
   const [showNames, setShowNames] = useState(true)
   const [showFingers, setShowFingers] = useState(true)
   const [demo, setDemo] = useState(false)
@@ -41,6 +49,9 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
   const beatRef = useRef(0)
   const demoRef = useRef<{ t0: number; bpm: number } | null>(null)
   const micRef = useRef<MicListener | null>(null)
+  const midiRef = useRef<MidiHandle | null>(null)
+  const midiLiveRef = useRef(false)
+  const benchRef = useRef(new MicBench())
 
   const onPass = useCallback(
     (r: PassResult) => {
@@ -80,7 +91,8 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
   useEffect(() => {
     const mic = new MicListener({
       expected: () => sessionRef.current?.expected ?? new Set(),
-      onNote: (midi, tMs) => input({ midi, tMs, source: 'mic' }),
+      // Läuft MIDI mit, steuert MIDI die Übung und das Mikrofon wird nur dagegen gemessen
+      onNote: (m, tMs) => (midiLiveRef.current ? benchRef.current.mic(m, tMs) : input({ midi: m, tMs, source: 'mic' })),
       onStatus: setMicStatus,
       onLevel: (level, heard) => {
         levelRef.current = level
@@ -91,15 +103,83 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
     return () => mic.stop()
   }, [input])
 
-  // MIDI, wo der Browser es kann (Chrome/Edge am Mac). Safari auf iPhone/iPad hat kein Web MIDI.
-  useEffect(() => {
-    if (!midiSupported()) return
-    let off: (() => void) | undefined
-    connectMidi(input, setMidiNames)
-      .then((o) => (off = o))
-      .catch(() => {})
-    return () => off?.()
+  // MIDI: Chrome/Edge per Web MIDI, in der iOS-App per CoreMIDI. Safari kann es nicht.
+  const startMidi = useCallback(async () => {
+    if (midiRef.current) return
+    setMidi({ state: 'connecting', devices: [] })
+    try {
+      midiRef.current = await connectMidi(
+        (n) => {
+          if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
+          input({ midi: n.midi, tMs: n.tMs, source: 'midi' })
+        },
+        (devices) => {
+          midiLiveRef.current = devices.length > 0
+          setMidi({ state: 'on', devices })
+        },
+      )
+      try {
+        localStorage.setItem('pianobuddy.midi', '1')
+      } catch {
+        /* egal */
+      }
+    } catch (e) {
+      console.warn('MIDI', e)
+      midiRef.current = null
+      midiLiveRef.current = false
+      setMidi({ state: 'off', devices: [] })
+      toast('MIDI nicht freigegeben', { description: 'Der Browser hat den Zugriff abgelehnt.', type: 'error' })
+    }
   }, [input])
+
+  const stopMidi = () => {
+    midiRef.current?.stop()
+    midiRef.current = null
+    midiLiveRef.current = false
+    setMidi({ state: 'off', devices: [] })
+    try {
+      localStorage.removeItem('pianobuddy.midi')
+    } catch {
+      /* egal */
+    }
+  }
+
+  // Wer MIDI einmal verbunden hat, bekommt es beim nächsten Stück automatisch wieder
+  useEffect(() => {
+    let wanted = false
+    try {
+      wanted = localStorage.getItem('pianobuddy.midi') === '1'
+    } catch {
+      /* egal */
+    }
+    if (wanted && midiKind()) void startMidi()
+    return () => {
+      midiRef.current?.stop()
+      midiRef.current = null
+      midiLiveRef.current = false
+    }
+  }, [startMidi])
+
+  const toggleMidi = () => {
+    if (midi.state !== 'off') return stopMidi()
+    if (!midiKind())
+      return void toast('Safari kann kein MIDI', {
+        description: 'Am iPhone und iPad geht MIDI in der Piano-Buddy-App, am Mac in Chrome.',
+        duration: 7000,
+      })
+    void startMidi()
+  }
+
+  // Vergleichsmessung sichtbar machen, solange beide laufen
+  const comparing = midi.state === 'on' && midi.devices.length > 0 && (micStatus === 'listening' || micStatus === 'calibrating')
+  useEffect(() => {
+    if (!comparing) return setBench(null)
+    const t = window.setInterval(() => {
+      benchRef.current.tick(performance.now())
+      setBench(benchRef.current.stats())
+    }, 250)
+    return () => clearInterval(t)
+  }, [comparing])
 
   // Computertastatur
   const lowest = Math.min(...lesson.notes.map((n) => n.midi))
@@ -249,6 +329,49 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
 
       <main className="stage-area">
         <Roll view={view} beatsPerBar={lesson.beatsPerBar} onKey={onKey} />
+        {comparing && bench && (
+          <aside className="bench" aria-live="polite">
+            <p className="bench-head">Mikrofon gegen MIDI</p>
+            <p className="bench-main">
+              {bench.played ? (
+                <>
+                  <strong>
+                    {bench.detected} von {bench.played}
+                  </strong>{' '}
+                  erkannt
+                  {bench.medianLatencyMs !== null && <> · {bench.medianLatencyMs} ms</>}
+                  {bench.falseAlarms > 0 && (
+                    <>
+                      {' '}
+                      · {bench.falseAlarms} {bench.falseAlarms === 1 ? 'Fehlalarm' : 'Fehlalarme'}
+                    </>
+                  )}
+                </>
+              ) : micStatus === 'calibrating' ? (
+                'Kurz still sein, das Mikrofon misst den Raum.'
+              ) : (
+                'Spiel los. MIDI führt, das Mikrofon wird mitgemessen.'
+              )}
+            </p>
+            {bench.recent.length > 0 && (
+              <ul className="bench-log">
+                {bench.recent.map((e, i) => (
+                  <li key={i} className={`bench-${e.kind}`}>
+                    {noteLabel(e.midi)}{' '}
+                    {e.kind === 'hit'
+                      ? `erkannt, ${e.latencyMs} ms`
+                      : e.kind === 'missed'
+                        ? 'verpasst'
+                        : `Fehlalarm${e.note ? ` (${e.note})` : ''}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button className="bench-reset" onClick={() => (benchRef.current.reset(), setBench(benchRef.current.stats()))}>
+              Messung zurücksetzen
+            </button>
+          </aside>
+        )}
         {result && (
           <div className="result" role="status">
             <p className="result-head">{result.clean ? 'Sauber durchgespielt' : `Durch, mit ${result.wrong} ${result.wrong === 1 ? 'falschem Ton' : 'falschen Tönen'}`}</p>
@@ -287,7 +410,21 @@ export function Practice({ lesson, onBack }: { lesson: Lesson; onBack: () => voi
           </span>
           {MIC_TEXT[micStatus]}
         </button>
-        {midiNames.length > 0 && <span className="pill">MIDI: {midiNames[0]}</span>}
+        <button className={`midi ${midi.state}`} onClick={toggleMidi} aria-pressed={midi.state !== 'off'}>
+          <span className={`midi-dot ${midi.devices.length ? 'live' : ''}`} aria-hidden />
+          {midi.state === 'off'
+            ? 'MIDI'
+            : midi.state === 'connecting'
+              ? 'MIDI verbindet'
+              : midi.devices.length
+                ? midi.devices[0]
+                : 'Kein Klavier gefunden'}
+        </button>
+        {midi.state === 'on' && !midi.devices.length && canPairBluetooth() && (
+          <button className="ghost" onClick={() => void showBluetoothPairing()}>
+            Bluetooth koppeln
+          </button>
+        )}
         <button className={`toggle ${demo ? 'on' : ''}`} onClick={startDemo}>
           {demo ? 'Vorspielen stoppen' : 'Vorspielen'}
         </button>

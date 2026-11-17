@@ -745,3 +745,109 @@ button:disabled {
   font-size: 14px;
   color: #5b4a3f;
 }
+
+/* ---------- MIDI und Vergleichsmessung ---------- */
+
+.midi {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ivory);
+  background: var(--lacquer-2);
+  max-width: 14em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.midi.on {
+  background: var(--lacquer-3);
+}
+.midi-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  outline: 1.5px solid var(--ivory-dim);
+}
+.midi.on .midi-dot.live {
+  outline: none;
+  background: var(--petrol);
+  box-shadow: 0 0 8px var(--petrol);
+}
+.midi.connecting .midi-dot {
+  outline-color: var(--brass);
+}
+
+.bench {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: min(300px, calc(100% - 24px));
+  background: rgba(243, 235, 221, 0.96);
+  color: var(--ink);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  border-top: 4px solid var(--petrol);
+  font-size: 14px;
+}
+.bench-head {
+  margin: 0 0 2px;
+  font-family: var(--serif);
+  font-size: 17px;
+}
+.bench-main {
+  margin: 0 0 8px;
+  color: #3c2f29;
+}
+.bench-main strong {
+  font-weight: 800;
+  font-size: 18px;
+}
+.bench-log {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.bench-log li {
+  padding-left: 14px;
+  position: relative;
+}
+.bench-log li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.bench-hit::before {
+  background: var(--petrol);
+}
+.bench-missed::before {
+  background: var(--brass);
+}
+.bench-false::before {
+  background: var(--felt);
+}
+.bench-reset {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5b4a3f;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .midi {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}

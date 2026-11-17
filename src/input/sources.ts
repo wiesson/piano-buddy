@@ -10,30 +10,7 @@ export interface NoteOn {
   source: InputSource
 }
 
-// ---- MIDI (Chrome/Edge/Firefox; Safari hat kein Web MIDI) ----
-
-export const midiSupported = () => typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator
-
-export async function connectMidi(onNote: (n: NoteOn) => void, onDevices: (names: string[]) => void) {
-  const access = await navigator.requestMIDIAccess()
-  const bind = () => {
-    const names: string[] = []
-    access.inputs.forEach((input) => {
-      names.push(input.name ?? 'MIDI')
-      input.onmidimessage = (e) => {
-        const d = e.data
-        if (!d || d.length < 3) return
-        const cmd = d[0] & 0xf0
-        // Zeitstempel der Quelle (gleiche Zeitbasis wie performance.now()), nicht die Ankunftszeit
-        if (cmd === 0x90 && d[2] > 0) onNote({ midi: d[1], tMs: e.timeStamp, source: 'midi' })
-      }
-    })
-    onDevices(names)
-  }
-  access.onstatechange = bind
-  bind()
-  return () => access.inputs.forEach((i) => (i.onmidimessage = null))
-}
+// MIDI: siehe midi.ts (Web MIDI und natives iOS-Plugin hinter einer Schnittstelle)
 
 // ---- Computertastatur (physische Tastenposition, funktioniert mit QWERTZ und QWERTY) ----
 // Untere Reihe = tiefe Oktave, obere Reihe = hohe Oktave, wie in Trackern üblich.
