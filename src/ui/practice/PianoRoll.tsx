@@ -20,6 +20,8 @@ export interface RollView {
   flashes: { midi: number; kind: 'hit' | 'wrong'; age: number }[]
   /** gerade per Mikrofon gehört */
   heard: number[]
+  /** wie tief eine Taste gerade gedrückt ist: 1 = eben angeschlagen, 0 = oben */
+  press: (midi: number) => number
   showNames: boolean
   showFingers: boolean
 }
@@ -33,6 +35,9 @@ const DARK = {
   ivory: '#f3ebdd',
   ivoryShade: '#d9cdb8',
   ebony: '#1a1210',
+  // gedrückt: weiße Tasten etwas dunkler, schwarze etwas heller
+  ivoryPressed: '#ddd0bb',
+  ebonyPressed: '#3a2d28',
   felt: '#8e2f2b',
   wrong: '#e0533f',
   L: '#4f9db5',
@@ -55,6 +60,8 @@ const PAPER: typeof DARK = {
   ivory: '#fffcf6',
   ivoryShade: '#eadfcc',
   ebony: '#2b2420',
+  ivoryPressed: '#ece0cc',
+  ebonyPressed: '#4c4038',
   felt: '#d0603f',
   wrong: '#c2412d',
   L: '#2f6f7a',
@@ -138,6 +145,13 @@ function keyRect(l: Layout, m: number) {
   const i = l.whites.indexOf(m - 1)
   const w = l.keyW * 0.6
   return { x: (i + 1) * l.keyW - w / 2, w, black: true }
+}
+
+/** Zwei Hex-Farben mischen (t = 0: a, t = 1: b) */
+function mix(a: string, b: string, t: number) {
+  const p = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16)
+  const c = [0, 1, 2].map((i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t))
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`
 }
 
 /** Radius je Ecke: Zahl oder [oben links, oben rechts, unten rechts, unten links] */
@@ -337,12 +351,17 @@ export function PianoRoll({
         // Taste: oben eckig (verschwindet unter dem Filz), unten gerundet; weiße mit 1 px Fuge
         const kx = black ? x : x + 1
         const kw = black ? w : w - 2
-        const bottom = keyTop + h
+        // Drück-Optik: Die Taste sinkt beim Anschlag ein, die Vorderkante hebt sich und gibt
+        // das dunkle Tastenbett frei; dazu wird sie dunkler (weiß) bzw. heller (schwarz)
+        const pressed = v.press(m)
+        const sink = pressed * (black ? 2.5 : 4)
+        const bottom = keyTop + h - sink
         const hand = handOf(m)
         const flash = flashOf(m)
         const dim = m < l.coreLo || m > l.coreHi
-        g.fillStyle = black ? (dim ? C.dimEbony : C.ebony) : dim ? C.dimIvory : C.ivory
-        roundRect(g, kx, keyTop, kw, h, [0, 0, kg.radius, kg.radius])
+        const base = black ? (dim ? C.dimEbony : C.ebony) : dim ? C.dimIvory : C.ivory
+        g.fillStyle = pressed > 0 ? mix(base, black ? C.ebonyPressed : C.ivoryPressed, pressed) : base
+        roundRect(g, kx, keyTop, kw, h - sink, [0, 0, kg.radius, kg.radius])
         g.fill()
         if (!black) {
           g.fillStyle = C.ivoryShade
@@ -365,7 +384,7 @@ export function PianoRoll({
           const a = Math.max(0, 1 - flash.age / 900)
           g.fillStyle = flash.kind === 'wrong' ? C.wrong : 'rgba(255,255,255,0.9)'
           g.globalAlpha = a * (flash.kind === 'wrong' ? 0.85 : 0.5)
-          roundRect(g, ix, keyTop + kg.inset, iw, h - kg.inset * 2, [kg.inner, kg.inner, kg.inner, kg.inner])
+          roundRect(g, ix, keyTop + kg.inset, iw, h - sink - kg.inset * 2, [kg.inner, kg.inner, kg.inner, kg.inner])
           g.fill()
           g.globalAlpha = 1
         }

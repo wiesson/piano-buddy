@@ -63,6 +63,8 @@ export function PracticeScreen({
   const micRef = useRef<MicListener | null>(null)
   const benchRef = useRef(new MicBench())
   const finishedAtRef = useRef(0)
+  // letzte Anschläge je Taste, für die Drück-Optik
+  const pressRef = useRef(new Map<number, number>())
   // aktuelle Stufe für den Eingabe-Callback (der bleibt stabil, damit MIDI und Mikrofon nicht neu verbinden)
   const stageRef = useRef(stage)
   stageRef.current = stage
@@ -95,6 +97,7 @@ export function PracticeScreen({
   }, [lesson, stage, onPass])
 
   const input = useCallback((e: NoteOn) => {
+    pressRef.current.set(e.midi, performance.now())
     const s = sessionRef.current
     if (!s || demoRef.current) return
     setPlayed(true)
@@ -254,6 +257,14 @@ export function PracticeScreen({
       struck,
       flashes: (s?.feedback ?? []).map((f) => ({ midi: f.midi, kind: f.kind, age: now - f.tMs })),
       heard: heardRef.current,
+      // Vorspielen: klingende Tasten bleiben unten; sonst federt die Taste in ~300 ms zurück
+      press: (m: number) => {
+        if (d) return expected.has(m) ? 1 : 0
+        const at = pressRef.current.get(m)
+        if (at === undefined) return 0
+        const age = now - at
+        return age < 300 ? 1 - (age / 300) ** 2 : 0
+      },
       showNames,
       showFingers,
     }
