@@ -1,0 +1,73 @@
+/* Geist und Geist Serif (Vercel, SIL OFL 1.1), selbst gehostet: laden schnell und gehen offline mit */
+@font-face {
+  font-family: 'Geist';
+  src: url('../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Serif';
+  src: url('../../node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --lacquer: #241a17;
+  --lacquer-2: #2f231f;
+  --lacquer-3: #3b2d28;
+  --ivory: #f3ebdd;
+  --ivory-dim: #b9ab98;
+  --felt: #8e2f2b;
+  --brass: #d3a04d;
+  --petrol: #4f9db5;
+  --ink: #241a17;
+  --serif: 'Geist Serif', Georgia, serif;
+  --sans: 'Geist', system-ui, sans-serif;
+  /* iOS: Notch, Statusleiste, Home-Indikator, Safaris schwebende Leiste */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--lacquer);
+  color: var(--ivory);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

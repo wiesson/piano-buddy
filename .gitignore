@@ -5,3 +5,5 @@ dev-dist
 .tmp
 
 .env.local
+tsconfig.tsbuildinfo
+*.tsbuildinfo

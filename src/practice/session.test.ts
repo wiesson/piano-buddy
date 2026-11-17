@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { LESSONS } from '../music/lessons'
 import { parseNote as n } from '../music/notes'
 import { WaitSession, type PassResult } from './session'
-import type { InputSource } from '../input/sources'
+import type { InputSource } from '../input/events'
 
 const lesson = (id: string) => LESSONS.find((l) => l.id === id)!
 

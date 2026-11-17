@@ -139,8 +139,6 @@ export function stagesFor(l: Lesson): Stage[] {
   return out
 }
 
-export const stageLabel: Record<Stage, string> = { L: 'Links', R: 'Rechts', LR: 'Beide' }
-
 export const notesForStage = (l: Lesson, s: Stage) =>
   s === 'LR' ? l.notes : l.notes.filter((n) => n.hand === s)
 

@@ -1,5 +1,5 @@
 import type { Stage } from '../music/lessons'
-import type { InputSource } from '../input/sources'
+import type { InputSource } from '../input/events'
 
 /**
  * Übungsprotokoll, lokal zuerst: Jeder Durchgang landet sofort im Browser und wird

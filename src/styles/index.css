@@ -1,0 +1,5 @@
+/* Reihenfolge ist Kaskade: Grundlagen, dann Bereiche */
+@import './base.css';
+@import './home.css';
+@import './practice.css';
+@import './sync.css';

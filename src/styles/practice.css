@@ -1,0 +1,468 @@
+/* ---------- Üben ---------- */
+
+.practice {
+  height: 100%;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.bar .title {
+  min-width: 0;
+  flex: 1;
+}
+.bar h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  color: var(--brass);
+  font-size: 24px;
+  line-height: 1.1;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar .goal {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--ivory-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.back {
+  font-size: 34px;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.stages {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  background: var(--lacquer-2);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+}
+/* UI SDK misst das gewählte Element; der Schieber gleitet zur Wahl und trägt die Handfarbe */
+.stage-indicator {
+  position: absolute;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  z-index: -1;
+  top: var(--segmented-control-indicator-top);
+  left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width);
+  height: var(--segmented-control-indicator-height);
+  border-radius: 9px;
+  background: var(--lacquer-3);
+  transition-property: top, left, width, height, box-shadow;
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-indicator {
+    transition: none;
+  }
+}
+.stage {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 6px 14px 7px;
+  border-radius: 9px;
+  font-weight: 800;
+  color: var(--ivory-dim);
+  min-width: 76px;
+}
+.stage[data-checked] {
+  color: var(--ivory);
+}
+.stage:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+.dots {
+  display: flex;
+  gap: 4px;
+}
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lacquer-3);
+  outline: 1px solid rgba(243, 235, 221, 0.25);
+}
+.stage-L .dots i.on {
+  background: var(--petrol);
+  outline-color: var(--petrol);
+}
+.stage-R .dots i.on {
+  background: var(--brass);
+  outline-color: var(--brass);
+}
+.stage-LR .dots i.on {
+  background: var(--ivory);
+  outline-color: var(--ivory);
+}
+
+.stage-area {
+  position: relative;
+  min-height: 0;
+}
+.roll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.tools {
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Ränder blenden weich aus, damit klar ist: hier geht es weiter */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.tools::-webkit-scrollbar {
+  display: none;
+}
+.tools > * {
+  flex: none;
+}
+.tools > .spacer {
+  flex: 1 0 8px;
+}
+.spacer {
+  flex: 1;
+}
+.toggle,
+.ghost,
+.mic,
+.pill {
+  padding: 9px 14px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ivory-dim);
+  background: var(--lacquer-2);
+}
+.toggle[data-pressed],
+.toggle.on {
+  color: var(--ivory);
+  background: var(--lacquer-3);
+  box-shadow: inset 0 0 0 1px rgba(243, 235, 221, 0.18);
+}
+.pill {
+  background: none;
+  border: 1px solid var(--lacquer-3);
+}
+.mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ivory);
+}
+.mic.listening {
+  background: var(--felt);
+}
+.mic.calibrating {
+  background: var(--lacquer-3);
+}
+.mic.denied,
+.mic.error {
+  color: #f0a08f;
+}
+.meter {
+  width: 6px;
+  height: 18px;
+  border-radius: 3px;
+  background: rgba(243, 235, 221, 0.18);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: flex-end;
+}
+.meter-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--ivory);
+  transform-origin: bottom;
+  transform: scaleY(0.12);
+}
+
+.result {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  background: var(--ivory);
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  animation: rise 0.28s ease-out;
+}
+.result-head {
+  font-family: var(--serif);
+  font-size: 24px;
+  margin: 0 0 4px;
+}
+.result-sub {
+  margin: 0 0 16px;
+  color: #5b4a3f;
+}
+.result-note {
+  margin: -6px 0 16px;
+  font-size: 14px;
+  color: #6d5a4c;
+  border-left: 3px solid var(--felt);
+  padding-left: 10px;
+}
+.result-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.primary,
+.secondary {
+  padding: 11px 18px;
+  border-radius: 99px;
+  font-weight: 800;
+}
+.primary {
+  background: var(--ink);
+  color: var(--ivory);
+}
+.secondary {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .result {
+    animation: none;
+  }
+}
+
+@media (max-height: 500px) {
+  .bar {
+    padding: 6px 12px;
+  }
+  .bar .goal {
+    display: none;
+  }
+  .bar h1 {
+    font-size: 20px;
+  }
+  .stage {
+    padding: 4px 10px 5px;
+    min-width: 64px;
+  }
+}
+@media (max-width: 640px) {
+  .bar .goal {
+    display: none;
+  }
+  .stage {
+    min-width: 0;
+    padding: 6px 10px 7px;
+  }
+}
+
+/* Hochkant am Telefon: Stufenwahl in eigener Zeile über die volle Breite */
+.practice {
+  width: 100%;
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  header.bar {
+    flex-wrap: wrap;
+  }
+  header.bar .title {
+    flex-basis: calc(100% - 60px);
+  }
+  .stages {
+    width: 100%;
+  }
+  .stage {
+    flex: 1;
+  }
+  .tools > .spacer {
+    flex: 0 0 0;
+  }
+  .toggle,
+  .ghost,
+  .mic,
+  .pill {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+
+/* ---------- MIDI und Vergleichsmessung ---------- */
+
+.midi {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ivory);
+  background: var(--lacquer-2);
+  max-width: 14em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.midi.on {
+  background: var(--lacquer-3);
+}
+.midi-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  outline: 1.5px solid var(--ivory-dim);
+}
+.midi.on .midi-dot.live {
+  outline: none;
+  background: var(--petrol);
+  box-shadow: 0 0 8px var(--petrol);
+}
+.midi.connecting .midi-dot {
+  outline-color: var(--brass);
+}
+
+.bench {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: min(300px, calc(100% - 24px));
+  background: rgba(243, 235, 221, 0.96);
+  color: var(--ink);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  border-top: 4px solid var(--petrol);
+  font-size: 14px;
+}
+.bench-head {
+  margin: 0 0 2px;
+  font-family: var(--serif);
+  font-size: 17px;
+}
+.bench-main {
+  margin: 0 0 8px;
+  color: #3c2f29;
+}
+.bench-main strong {
+  font-weight: 800;
+  font-size: 18px;
+}
+.bench-log {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.bench-log li {
+  padding-left: 14px;
+  position: relative;
+}
+.bench-log li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.bench-hit::before {
+  background: var(--petrol);
+}
+.bench-missed::before {
+  background: var(--brass);
+}
+.bench-false::before {
+  background: var(--felt);
+}
+.bench-reset {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5b4a3f;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .midi {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+
+/* Handfarbe in den Punkten der gewählten Stufe statt als Unterstreichung */
+.stage[data-checked] .dots-L i {
+  outline-color: var(--petrol);
+}
+.stage[data-checked] .dots-R i {
+  outline-color: var(--brass);
+}
+.stage[data-checked] .dots-LR i {
+  outline-color: var(--ivory);
+}
+
+/* Nur eine Stufe: Etikett statt Umschalter, in der Titelzeile */
+.stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--lacquer-2);
+  font-weight: 800;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.stage-badge .dots i {
+  outline-color: currentColor;
+}
+.stage-badge.stage-L {
+  color: var(--petrol);
+}
+.stage-badge.stage-R {
+  color: var(--brass);
+}
+.stage-badge.stage-L .dots i.on {
+  background: var(--petrol);
+}
+.stage-badge.stage-R .dots i.on {
+  background: var(--brass);
+}
+header.bar:has(.stage-badge) .title {
+  flex-basis: auto;
+}

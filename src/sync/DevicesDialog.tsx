@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { useConvex, useMutation, useQuery } from 'convex/react'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery } from 'convex/react'
 import {
   Dialog,
   DialogBackdrop,
@@ -11,78 +11,11 @@ import {
 } from '@ui-sdk/react/dialog'
 import { OTPInput, OTPInputGroup, OTPInputSeparator, OTPInputSlot } from '@ui-sdk/react/otp-input'
 import { api } from '../../convex/_generated/api'
+import { t } from '../i18n'
 import { store } from './store'
-import { toast } from '../ui/toaster'
-import { DevicesIcon } from '../ui/Logo'
-
-export const useStoreVersion = () => useSyncExternalStore(store.subscribe, store.version)
-
-/**
- * Unsichtbar: meldet das Gerät an, lädt neue Durchgänge hoch und mischt die der anderen
- * Geräte ein. Läuft nur, wenn eine Convex-Adresse konfiguriert ist.
- */
-export function SyncBridge() {
-  const version = useStoreVersion()
-  const dev = store.device()
-  const register = useMutation(api.sync.register)
-  const push = useMutation(api.sync.pushAttempts)
-  const remote = useQuery(api.sync.attempts, dev.registered ? { token: dev.token } : 'skip')
-  const inflight = useRef(false)
-
-  useEffect(() => {
-    if (dev.registered) return
-    register({ token: dev.token, label: dev.label })
-      .then(() => store.setDevice({ registered: true }))
-      .catch((e) => console.warn('Anmelden', e))
-  }, [dev.registered, dev.token, dev.label, register])
-
-  useEffect(() => {
-    if (remote) store.mergeRemote(remote)
-    // Server kennt das Gerät nicht (mehr): neu anmelden, die lokalen Durchgänge gehen wieder hoch
-    if (remote === null) store.setDevice({ registered: false })
-  }, [remote])
-
-  useEffect(() => {
-    if (!dev.registered) return
-    const flush = async () => {
-      if (inflight.current) return
-      const batch = store.unsynced()
-      if (!batch.length) return
-      inflight.current = true
-      try {
-        await push({ token: dev.token, attempts: batch })
-        store.markSynced(batch.map((a) => a.attemptId))
-      } catch (e) {
-        console.warn('Hochladen', e)
-      } finally {
-        inflight.current = false
-      }
-    }
-    void flush()
-    const t = window.setInterval(flush, 15000)
-    window.addEventListener('online', flush)
-    return () => {
-      clearInterval(t)
-      window.removeEventListener('online', flush)
-    }
-  }, [version, dev.registered, dev.token, push])
-
-  return null
-}
-
-/** Verbunden? Wie viele Durchgänge warten noch? */
-export function useSyncStatus() {
-  const convex = useConvex()
-  useStoreVersion()
-  const [online, setOnline] = useState(true)
-  useEffect(() => {
-    const check = () => setOnline(convex.connectionState().isWebSocketConnected)
-    check()
-    const t = window.setInterval(check, 2000)
-    return () => clearInterval(t)
-  }, [convex])
-  return { online, pending: store.unsynced().length }
-}
+import { useSyncStatus } from './hooks'
+import { toast } from '../ui/shared/Toaster'
+import { DevicesIcon } from '../ui/shared/Logo'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function randomCode() {
@@ -90,6 +23,7 @@ function randomCode() {
   return [...bytes].map((b) => CODE_CHARS[b % CODE_CHARS.length]).join('')
 }
 
+/** Geräte koppeln: Code anzeigen (Gerät A) oder eingeben (Gerät B) */
 export function DevicesDialog() {
   const dev = store.device()
   const { online, pending } = useSyncStatus()
@@ -104,8 +38,8 @@ export function DevicesDialog() {
 
   useEffect(() => {
     if (!shown) return
-    const t = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
   }, [shown])
 
   const showCode = async () => {
@@ -116,7 +50,7 @@ export function DevicesDialog() {
       setShown({ code: c, expiresAt })
       setNow(Date.now())
     } catch {
-      setError('Code konnte nicht erstellt werden. Besteht eine Verbindung?')
+      setError(t.sync.codeFailed)
     }
   }
 
@@ -129,13 +63,13 @@ export function DevicesDialog() {
       if (r.ok) {
         store.setDevice({ registered: true })
         setCode('')
-        toast('Gerät gekoppelt', {
-          description: r.moved ? `${r.moved} Durchgänge von diesem Gerät übernommen.` : 'Der Fortschritt ist jetzt auf allen Geräten gleich.',
+        toast(t.sync.pairedToast, {
+          description: r.moved ? t.sync.movedAttempts(r.moved) : t.sync.sameEverywhere,
           type: 'success',
         })
-      } else setError('Der Code stimmt nicht oder ist abgelaufen. Lass dir auf dem anderen Gerät einen neuen zeigen.')
+      } else setError(t.sync.codeInvalid)
     } catch {
-      setError('Keine Verbindung. Versuch es gleich noch einmal.')
+      setError(t.sync.noConnection)
     } finally {
       setBusy(false)
     }
@@ -146,20 +80,16 @@ export function DevicesDialog() {
 
   return (
     <Dialog onOpenChange={(open) => !open && (setShown(null), setError(null))}>
-      <DialogTrigger className="sync-trigger" aria-label={count > 1 ? `${count} Geräte gekoppelt` : 'Geräte koppeln'}>
+      <DialogTrigger className="sync-trigger" aria-label={count > 1 ? t.sync.paired(count) : t.sync.pair}>
         <DevicesIcon />
         {count > 1 && <span className="sync-count">{count}</span>}
         <span className={`sync-dot ${online ? (pending ? 'pending' : 'ok') : 'off'}`} aria-hidden />
       </DialogTrigger>
       <DialogBackdrop className="dialog-backdrop" />
       <DialogContent className="dialog">
-        <DialogTitle className="dialog-title">Fortschritt auf allen Geräten</DialogTitle>
+        <DialogTitle className="dialog-title">{t.sync.title}</DialogTitle>
         <DialogDescription className="dialog-desc">
-          {online
-            ? pending
-              ? `${pending} Durchgänge werden gerade hochgeladen.`
-              : 'Alles synchronisiert.'
-            : 'Gerade offline. Deine Durchgänge bleiben gespeichert und gehen hoch, sobald wieder Netz da ist.'}
+          {online ? (pending ? t.sync.pending(pending) : t.sync.allSynced) : t.sync.offline}
         </DialogDescription>
 
         {devices && devices.length > 0 && (
@@ -167,14 +97,14 @@ export function DevicesDialog() {
             {devices.map((d, i) => (
               <li key={i}>
                 {d.label}
-                {d.self && <span className="device-self">dieses Gerät</span>}
+                {d.self && <span className="device-self">{t.sync.thisDevice}</span>}
               </li>
             ))}
           </ul>
         )}
 
         <section className="pair">
-          <h3>Neues Gerät hinzufügen</h3>
+          <h3>{t.sync.addDevice}</h3>
           {shown && remaining > 0 ? (
             <>
               <p className="pair-code" aria-live="polite">
@@ -182,21 +112,18 @@ export function DevicesDialog() {
                 <span aria-hidden>–</span>
                 {shown.code.slice(4)}
               </p>
-              <p className="pair-hint">
-                Auf dem anderen Gerät „Geräte koppeln“ öffnen und den Code eingeben. Noch {Math.floor(remaining / 60)}:
-                {String(remaining % 60).padStart(2, '0')} Minuten gültig.
-              </p>
+              <p className="pair-hint">{t.sync.codeHint(Math.floor(remaining / 60), remaining % 60)}</p>
             </>
           ) : (
             <button className="secondary-dark" onClick={showCode} disabled={!dev.registered}>
-              Code anzeigen
+              {t.sync.showCode}
             </button>
           )}
         </section>
 
         <section className="pair">
-          <h3>Dieses Gerät verbinden</h3>
-          <p className="pair-hint">Code vom anderen Gerät eingeben:</p>
+          <h3>{t.sync.connectThis}</h3>
+          <p className="pair-hint">{t.sync.enterCode}</p>
           <OTPInput
             className="otp"
             maxLength={8}
@@ -206,7 +133,7 @@ export function DevicesDialog() {
             onValueChange={(v) => setCode(v.toUpperCase())}
             onValueCommit={(v) => void redeem(v)}
             disabled={busy}
-            aria-label="Kopplungscode"
+            aria-label={t.sync.codeLabel}
           >
             <OTPInputGroup className="otp-group">
               {[0, 1, 2, 3].map((i) => (
@@ -227,7 +154,7 @@ export function DevicesDialog() {
           )}
         </section>
 
-        <DialogClose className="dialog-close" aria-label="Schließen">
+        <DialogClose className="dialog-close" aria-label={t.sync.close}>
           ×
         </DialogClose>
       </DialogContent>

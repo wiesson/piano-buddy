@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import type { ScoreNote } from '../music/lessons'
-import { isBlack, noteName } from '../music/notes'
+import type { ScoreNote } from '../../music/lessons'
+import { isBlack, noteName } from '../../music/notes'
 
 export interface RollView {
   notes: ScoreNote[]
@@ -93,7 +93,8 @@ function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number,
   g.roundRect(x, y, w, h, r)
 }
 
-export function Roll({
+/** Fallende Noten über einer Tastatur, gezeichnet in einem Canvas. Tippen auf Tasten spielt sie. */
+export function PianoRoll({
   view,
   beatsPerBar,
   onKey,

@@ -1,5 +1,5 @@
 import { notesForStage, toSteps, type Lesson, type Stage, type Step } from '../music/lessons'
-import type { NoteOn } from '../input/sources'
+import type { NoteOn } from '../input/events'
 
 /**
  * Warte-Modus: Die Noten stehen, bis die richtigen Tasten angeschlagen sind.

@@ -2,9 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { App } from './App'
-import { SyncBridge } from './sync/Sync'
-import { Toasts } from './ui/toaster'
-import './styles.css'
+import { SyncBridge } from './sync/SyncBridge'
+import { Toasts } from './ui/shared/Toaster'
+import './styles/index.css'
 
 // Ohne Convex-Adresse läuft die App rein lokal (Fortschritt nur auf diesem Gerät).
 const url = import.meta.env.VITE_CONVEX_URL as string | undefined
