@@ -870,6 +870,13 @@ body:has(.home) {
 .pk-white.is-demo {
   background: color-mix(in srgb, var(--hand-r) 72%, #fbf7ef);
 }
+/* gehaltene Taste sitzt etwas tiefer, wie eine gedrückte */
+.pk-white.is-hit,
+.pk-white.is-wrong {
+  box-shadow:
+    inset 0 4px 0 rgba(43, 36, 32, 0.08),
+    inset 0 0 0 1px var(--bg-3);
+}
 .pk-black.is-hit,
 .pk-black.is-demo {
   background: color-mix(in srgb, var(--hand-r) 72%, var(--fg));

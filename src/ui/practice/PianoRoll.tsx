@@ -192,7 +192,7 @@ export function PianoRoll({
 }: {
   view: () => RollView
   beatsPerBar: number
-  onKey: (midi: number) => void
+  onKey: (midi: number) => (() => void) | void
   /** Töne des aktuellen Schritts, für Screenreader („als Nächstes“) und den ersten Fokus */
   expected: number[]
   /** helles Papier statt Lack */
@@ -412,7 +412,17 @@ export function PianoRoll({
     return () => cancelAnimationFrame(raf)
   }, [view, beatsPerBar, paper])
 
+  // Gehaltene Tasten je Finger: Loslassen beendet den Ton
+  const held = useRef(new Map<number, () => void>())
+  const release = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    held.current.get(e.pointerId)?.()
+    held.current.delete(e.pointerId)
+  }
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const r = pressAt(e)
+    if (r) held.current.set(e.pointerId, r)
+  }
+  const pressAt = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const lr = layoutRef.current
     if (!lr) return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -429,12 +439,19 @@ export function PianoRoll({
       }
     }
     const i = Math.floor(x / l.keyW)
-    if (l.whites[i] !== undefined) onKey(l.whites[i])
+    if (l.whites[i] !== undefined) return onKey(l.whites[i])
   }
 
   return (
     <div className="roll">
-      <canvas ref={canvas} className="roll-canvas" onPointerDown={onPointerDown} />
+      <canvas
+        ref={canvas}
+        className="roll-canvas"
+        onPointerDown={onPointerDown}
+        onPointerUp={release}
+        onPointerCancel={release}
+        onPointerLeave={release}
+      />
       {keysLayout && <AccessibleKeys layout={keysLayout} expected={expected} onKey={onKey} />}
     </div>
   )
@@ -453,7 +470,7 @@ function AccessibleKeys({
 }: {
   layout: { l: Layout; keyTop: number; keyH: number }
   expected: number[]
-  onKey: (midi: number) => void
+  onKey: (midi: number) => (() => void) | void
 }) {
   const { l, keyTop, keyH } = layout
   const geoW = keyGeometry(l.keyW - 2, false)
@@ -468,7 +485,11 @@ function AccessibleKeys({
       style={{ top: keyTop, height: keyH }}
       aria-label={t.practice.keyboard}
       home={home}
-      onPlay={onKey}
+      // Enter oder Leertaste: ein kurzer Anschlag, kein Halten
+      onPlay={(m: number) => {
+        const r = onKey(m)
+        if (r) window.setTimeout(r, 300)
+      }}
     >
       {keys.map((m) => {
         const { x, w, black } = keyRect(l, m)

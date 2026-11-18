@@ -6,7 +6,7 @@ import { CLEAN_GOAL } from '../../practice/goal'
 import { store } from '../../sync/store'
 import { useStoreVersion } from '../../sync/hooks'
 import { MicListener, type MicStatus } from '../../audio/mic'
-import { audioContext, getPiano, playNote, stopAll } from '../../audio/audio'
+import { audioContext, getPiano, holdNote, playNote, stopAll } from '../../audio/audio'
 import type { NoteOn } from '../../input/events'
 import { keyToMidi } from '../../input/keyboard'
 import { fingerToMidi, keyToFinger } from '../../input/fingerKeys'
@@ -166,6 +166,13 @@ export function PracticeScreen({
   const lowest = Math.min(...lesson.notes.map((n) => n.midi))
   useEffect(() => {
     const base = Math.min(48, Math.floor(lowest / 12) * 12)
+    // Ton klingt, solange die Taste gehalten wird
+    const held = new Map<string, () => void>()
+    const up = (e: KeyboardEvent) => {
+      held.get(e.code)?.()
+      held.delete(e.code)
+    }
+    const releaseAll = () => (held.forEach((r) => r()), held.clear())
     const down = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
       let m: number | null
@@ -175,11 +182,18 @@ export function PracticeScreen({
       } else m = keyToMidi(e.code, base)
       if (m === null) return
       e.preventDefault()
-      if (micRef.current?.status !== 'listening') playNote(m)
+      if (micRef.current?.status !== 'listening' && !held.has(e.code)) held.set(e.code, holdNote(m))
       input({ midi: m, tMs: performance.now(), source: 'keys' })
     }
     window.addEventListener('keydown', down)
-    return () => window.removeEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', releaseAll)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', releaseAll)
+      releaseAll()
+    }
   }, [input, lowest, fingerKeys, stageNotes])
 
   // Display wach halten, solange geübt wird
@@ -197,11 +211,13 @@ export function PracticeScreen({
     getPiano()
   }, [])
 
+  /** Bildschirmtaste gedrückt; gibt das Loslassen zurück (Ton klingt, solange der Finger liegt) */
   const onKey = useCallback(
     (m: number) => {
       audioContext()
-      if (micRef.current?.status !== 'listening') playNote(m)
+      const release = micRef.current?.status !== 'listening' ? holdNote(m) : undefined
       input({ midi: m, tMs: performance.now(), source: 'touch' })
+      return release
     },
     [input],
   )

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { audioContext, getPiano } from '../../audio/audio'
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { audioContext, getPiano, holdNote } from '../../audio/audio'
 import { fingerToMidi, keyToFinger } from '../../input/fingerKeys'
 import { LESSONS, type Lesson } from '../../music/lessons'
 import { isBlack, noteLabel } from '../../music/notes'
@@ -28,15 +28,19 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
   const [step, setStep] = useState(0)
   const [wrong, setWrong] = useState(0)
   const [flash, setFlash] = useState<Record<number, Flash>>({})
+  const [holding, setHolding] = useState(0)
   const [demo, setDemo] = useState<number | null>(null)
   const [sound, setSound] = useState<Sound>('idle')
   const root = useRef<HTMLDivElement>(null)
   const timers = useRef<Record<number, number>>({})
   const demoTimers = useRef<number[]>([])
+  /** Gehaltene Tasten je Finger, Zeiger oder Taste der Computertastatur */
+  const held = useRef(new Map<string, { midi: number; release: () => void }>())
   const stepRef = useRef(0)
   stepRef.current = step
   const done = step >= PHRASE.length
-  const next = done || demo !== null ? null : PHRASE[step]
+  // Wie am Klavier: Das nächste Ziel leuchtet erst, wenn die Hand die Taste loslässt
+  const next = done || demo !== null || holding > 0 ? null : PHRASE[step]
 
   /** Klang erst bei der ersten Berührung laden (einige MB Samples) */
   const warm = useCallback(() => {
@@ -46,21 +50,24 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
     void getPiano().load.then(ready, ready)
   }, [sound])
 
-  const play = useCallback((midi: number, dur = 0.7) => {
+  const play = useCallback((midi: number, dur: number) => {
     const c = audioContext()
-    const p = getPiano()
-    p.start({ note: midi, velocity: 80, duration: dur, time: c.currentTime })
+    getPiano().start({ note: midi, velocity: 80, duration: dur, time: c.currentTime })
   }, [])
 
-  const blink = useCallback((midi: number, kind: Flash) => {
+  const mark = useCallback((midi: number, kind: Flash) => {
     window.clearTimeout(timers.current[midi])
     setFlash((f) => ({ ...f, [midi]: kind }))
+  }, [])
+
+  /** Nach dem Loslassen leuchtet die Taste kurz nach, damit auch ein schneller Tipp sichtbar ist */
+  const unmark = useCallback((midi: number) => {
     timers.current[midi] = window.setTimeout(() => {
       setFlash((f) => {
         const { [midi]: _, ...rest } = f
         return rest
       })
-    }, 260)
+    }, 120)
   }, [])
 
   const stopDemo = useCallback(() => {
@@ -69,25 +76,43 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
     setDemo(null)
   }, [])
 
-  const press = useCallback(
-    (midi: number) => {
+  /** Taste gedrückt: Ton an, Treffer zählt sofort (wie MIDI Note-On) */
+  const down = useCallback(
+    (id: string, midi: number) => {
+      if (held.current.has(id)) return
       warm()
       if (demoTimers.current.length) stopDemo()
-      play(midi)
+      held.current.set(id, { midi, release: holdNote(midi) })
+      setHolding(held.current.size)
       const i = stepRef.current
-      if (i >= PHRASE.length) return blink(midi, 'hit')
+      if (i >= PHRASE.length) return mark(midi, 'hit')
       if (midi === PHRASE[i].midi) {
-        blink(midi, 'hit')
+        mark(midi, 'hit')
         // sofort weiterzählen: zwei schnelle Töne im selben Frame sollen nicht denselben Schritt prüfen
         stepRef.current = i + 1
         setStep(i + 1)
       } else {
-        blink(midi, 'wrong')
+        mark(midi, 'wrong')
         setWrong((w) => w + 1)
       }
     },
-    [warm, stopDemo, play, blink],
+    [warm, stopDemo, mark],
   )
+
+  /** Taste losgelassen: Ton klingt aus, das nächste Ziel erscheint */
+  const up = useCallback(
+    (id: string) => {
+      const h = held.current.get(id)
+      if (!h) return
+      h.release()
+      held.current.delete(id)
+      setHolding(held.current.size)
+      unmark(h.midi)
+    },
+    [unmark],
+  )
+
+  const releaseAll = useCallback(() => [...held.current.keys()].forEach(up), [up])
 
   /** Erst hören, dann spielen: die Phrase im Tempo des Stücks, die Tasten leuchten mit */
   const listen = async () => {
@@ -117,30 +142,36 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
   }
 
   // Fingertasten wie in der App (rechts H J K L Ö), nur solange die Klaviatur zu sehen ist.
-  // Einmal registriert; press kommt über die Ref, sonst ginge beim Neuregistrieren ein Ton verloren.
-  const pressRef = useRef(press)
-  pressRef.current = press
+  // Einmal registriert; down/up kommen über Refs, sonst ginge beim Neuregistrieren ein Ton verloren.
+  const handlers = useRef({ down, up, releaseAll })
+  handlers.current = { down, up, releaseAll }
   useEffect(() => {
     const el = root.current
     if (!el) return
     let visible = false
     const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting), { threshold: 0.4 })
     io.observe(el)
-    const onKey = (e: KeyboardEvent) => {
+    const onDown = (e: KeyboardEvent) => {
       if (!visible || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
-      if ((e.target as HTMLElement).closest('input, textarea, [contenteditable]')) return
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]')) return
       const f = keyToFinger(e.code)
       if (!f || f.hand !== 'R') return
       const at = PHRASE[Math.min(stepRef.current, PHRASE.length - 1)].start
       const midi = fingerToMidi(PHRASE, at, 'R', f.finger)
       if (midi === null) return
       e.preventDefault()
-      pressRef.current(midi)
+      handlers.current.down(`k${e.code}`, midi)
     }
-    window.addEventListener('keydown', onKey)
+    const onUp = (e: KeyboardEvent) => handlers.current.up(`k${e.code}`)
+    const onBlur = () => handlers.current.releaseAll()
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    window.addEventListener('blur', onBlur)
     return () => {
       io.disconnect()
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onDown)
+      window.removeEventListener('keyup', onUp)
+      window.removeEventListener('blur', onBlur)
     }
   }, [])
 
@@ -148,9 +179,23 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
     () => () => {
       demoTimers.current.forEach((id) => window.clearTimeout(id))
       Object.values(timers.current).forEach((id) => window.clearTimeout(id))
+      held.current.forEach((h) => h.release())
     },
     [],
   )
+
+  /** Zeiger und Tastatur-Bedienung (Enter, Leertaste) für eine Taste */
+  const keyEvents = (m: number) => ({
+    onPointerDown: (e: PointerEvent) => (e.preventDefault(), down(`p${e.pointerId}`, m)),
+    onPointerUp: (e: PointerEvent) => up(`p${e.pointerId}`),
+    onPointerCancel: (e: PointerEvent) => up(`p${e.pointerId}`),
+    onPointerLeave: (e: PointerEvent) => up(`p${e.pointerId}`),
+    onClick: (e: MouseEvent) => {
+      if (e.detail !== 0) return
+      down(`a${m}`, m)
+      window.setTimeout(() => up(`a${m}`), 250)
+    },
+  })
 
   const lit = demo !== null ? PHRASE[demo].midi : null
   const keyClass = (m: number) =>
@@ -189,7 +234,7 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
           <li
             key={i}
             style={{ flexGrow: n.dur }}
-            className={i < step ? 'is-done' : i === step && !done && demo === null ? 'is-now' : i === demo ? 'is-demo' : ''}
+            className={i < step ? 'is-done' : i === step && next ? 'is-now' : i === demo ? 'is-demo' : ''}
           >
             {displayNoteName(n.midi)}
           </li>
@@ -203,8 +248,7 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
               type="button"
               className={`pk-white ${keyClass(m)}`}
               aria-label={noteLabel(m)}
-              onPointerDown={(e) => (e.preventDefault(), press(m))}
-              onClick={(e) => e.detail === 0 && press(m)}
+              {...keyEvents(m)}
             >
               {m === next?.midi && next.finger && <span className="pk-finger">{next.finger}</span>}
               <span className="pk-name">{displayNoteName(m)}</span>
@@ -214,8 +258,7 @@ export default function TryPiano({ onOpen }: { onOpen: (l: Lesson) => void }) {
                 type="button"
                 className={`pk-black ${keyClass(m + 1)}`}
                 aria-label={noteLabel(m + 1)}
-                onPointerDown={(e) => (e.preventDefault(), press(m + 1))}
-                onClick={(e) => e.detail === 0 && press(m + 1)}
+                {...keyEvents(m + 1)}
               />
             )}
           </div>

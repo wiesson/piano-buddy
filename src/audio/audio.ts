@@ -32,6 +32,18 @@ export function playNote(midi: number, duration = 0.6, when = 0, velocity = 80) 
   p.start({ note: midi, velocity, duration, time: when ? when : c.currentTime })
 }
 
+/**
+ * Ton klingt, solange die Taste gehalten wird, wie am Klavier: gibt die Funktion zum Loslassen
+ * zurück. Ein kurzer Tipp klingt trotzdem mindestens 150 ms, sonst klingt er abgeschnitten.
+ */
+export function holdNote(midi: number, velocity = 80): () => void {
+  const p = getPiano()
+  const c = audioContext()
+  const t0 = c.currentTime
+  const stop = p.start({ note: midi, velocity, time: t0 })
+  return () => stop(Math.max(c.currentTime, t0 + 0.15))
+}
+
 export function stopAll() {
   piano?.stop()
 }
