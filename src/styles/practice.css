@@ -244,7 +244,8 @@
 }
 .primary {
   background: var(--ink);
-  color: var(--fg);
+  /* Karte ist hell (Papier wie Lack): Schrift in Kartenfarbe, nicht in --fg (auf Papier dunkel) */
+  color: var(--card);
 }
 .secondary {
   background: transparent;

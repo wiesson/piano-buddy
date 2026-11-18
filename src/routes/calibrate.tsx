@@ -8,5 +8,6 @@ function Calibrate() {
   const navigate = useNavigate()
   const router = useRouter()
   const canGoBack = useCanGoBack()
-  return <CalibrateScreen onBack={() => (canGoBack ? router.history.back() : void navigate({ to: '/', replace: true }))} />
+  const { synced } = Route.useRouteContext()
+  return <CalibrateScreen synced={synced} onBack={() => (canGoBack ? router.history.back() : void navigate({ to: '/', replace: true }))} />
 }

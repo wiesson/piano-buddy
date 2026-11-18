@@ -189,6 +189,18 @@ describe('Mikrofon-Erkennung erwarteter Töne', () => {
       expect(midis(o)).not.toContain(f3)
     })
 
+    // Die Kettenreaktion vom Testabend (18 falsche Töne bei „Fünf Finger links“): Ohne Profil wird das
+    // tiefe C3 überhört UND sein Oberton als eigenes, falsches C4 gemeldet. Mit Profil: nur C3.
+    it('ohne Profil: tiefes C3 überhört und als falsches C4 gemeldet; mit Profil nur C3', () => {
+      const c3 = n('C3')
+      const lp = learn([c3, n('D3'), n('C4')])
+      const sig = () => render(1.2, [{ midi: c3, at: 0.4, amp: 0.3, fund: WEAK }])
+      const without = midis(onsets(sig(), [c3]))
+      expect(without).not.toContain(c3)
+      expect(without).toContain(n('C4'))
+      expect(midis(onsets(sig(), [c3], lp))).toEqual([c3])
+    })
+
     it('mit Profil zählt die Oktave darunter nicht als F3', () => {
       const o = onsets(render(1.2, [{ midi: n('F2'), at: 0.4, fund: WEAK }]), [f3], profile)
       expect(midis(o)).not.toContain(f3)

@@ -89,10 +89,24 @@ export function checkTake(take: Take, target: number, cal: Calibration | null): 
   return { ok: true }
 }
 
-/** Hätte der Onset-Detektor den Anschlag erkannt (mit oder ohne Profil)? */
-export function recognizedIn(take: Take, target: number, cal: Calibration | null, profile: ProfileLookup | null) {
+/**
+ * Was hätte der Onset-Detektor aus diesem Anschlag gemacht (mit oder ohne Profil)?
+ * hit: die Taste erkannt. extra: Töne, die er zusätzlich gemeldet hätte, im Üben also falsche Töne.
+ */
+export function evaluateTake(take: Take, target: number, cal: Calibration | null, profile: ProfileLookup | null) {
   const det = new OnsetDetector(() => cal, undefined, undefined, undefined, undefined, () => profile)
   const expected = new Set([target])
-  const all = [...take.pre, ...take.frames]
-  return all.some((f, i) => det.push(f, i * 20, expected).includes(target))
+  let hit = false
+  const extra: number[] = []
+  ;[...take.pre, ...take.frames].forEach((f, i) => {
+    for (const m of det.push(f, i * 20, expected)) {
+      if (m === target) hit = true
+      else if (!extra.includes(m)) extra.push(m)
+    }
+  })
+  return { hit, extra }
 }
+
+/** Hätte der Onset-Detektor den Anschlag erkannt? */
+export const recognizedIn = (take: Take, target: number, cal: Calibration | null, profile: ProfileLookup | null) =>
+  evaluateTake(take, target, cal, profile).hit

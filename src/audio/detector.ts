@@ -167,6 +167,11 @@ export function isSounding(
   cal: Calibration | null,
   opt: DetectOptions = DEFAULT_DETECT,
   profile: ProfileLookup | null = null,
+  /**
+   * Darf das Profil die Prüfung lockern? Für erwartete Töne ja. Für die freie Schätzung fremder
+   * Töne nein: Dort würde Lockern nur mehr falsche Töne melden. Erklären (Oktavsperre) darf es immer.
+   */
+  relax = true,
 ): boolean {
   if (!inRange(m)) return false
   const s = S(f, m)
@@ -181,7 +186,7 @@ export function isSounding(
   const a1 = A(f, m, 1)
   const a2 = A(f, m, 2)
   // Eingelernt: Wie klingt dieser Ton auf diesem Klavier mit diesem Mikrofon? (profile.ts)
-  const own = profile?.(m) ?? null
+  const own = relax ? (profile?.(m) ?? null) : null
 
   // Teiltonreihe: wie ein Durchschnittsklavier ODER wie beim Einlernen gemessen. Das Profil lockert
   // nur, es verschärft nie: Ein schlecht aufgenommenes Profil kann die Erkennung nicht verschlechtern.
@@ -273,15 +278,17 @@ export function heardNotes(
   cal: Calibration | null,
   opt: DetectOptions = DEFAULT_DETECT,
   profile: ProfileLookup | null = null,
+  /** Töne, von denen feststeht, dass sie klingen (erwartet und erkannt): Ihre Obertöne sind keine eigenen Töne */
+  sounding: readonly number[] = [],
 ): number[] {
   const out: number[] = []
   const empty = new Set<number>()
   for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
-    if (!isSounding(f, m, empty, cal, opt, profile)) continue
+    if (!isSounding(f, m, empty, cal, opt, profile, false)) continue
     // lokales Maximum gegenüber Halbton-Nachbarn
     if (S(f, m) < S(f, m - 1) || S(f, m) < S(f, m + 1)) continue
     // von bereits gefundenem tieferem Ton erklärt?
-    const explained = out.some((k) =>
+    const explained = [...sounding, ...out].some((k) =>
       PARTIALS.some(([d, h]) => m - k === d && A(f, m, 1) < A(f, k, h) * 1.5),
     )
     if (!explained) out.push(m)
@@ -326,7 +333,8 @@ export class OnsetDetector {
     const n = MAX_MIDI - MIN_MIDI + 1
     const onsets: number[] = []
     const profile = this.profile()
-    const heard = new Set(heardNotes(f, cal, this.opt, profile))
+    const soundingExpected = [...expected].filter((m) => isSounding(f, m, expected, cal, this.opt, profile))
+    const heard = new Set(heardNotes(f, cal, this.opt, profile, soundingExpected))
     for (let j = 0; j < n; j++) {
       const m = j + MIN_MIDI
       let min = Infinity
@@ -334,7 +342,7 @@ export class OnsetDetector {
       const s = f.salience[j]
       const rising = this.filled === 0 ? false : s > min * this.rise
       // Erwartete Töne prüfen wir gezielt, alle anderen nur, wenn sie frei gehört werden.
-      const sounding = expected.has(m) ? isSounding(f, m, expected, cal, this.opt, profile) : heard.has(m)
+      const sounding = expected.has(m) ? soundingExpected.includes(m) : heard.has(m)
       // Bestätigung über mehrere Frames: erwartete Töne 2, fremde Töne 3. Frames, in denen der
       // Anschlag erst am Fensterende liegt, zählen nie: Dort ist das Spektrum verschmiert und der
       // Halbton-Nachbar „klingt“ mit. Das kostet ~90 ms, Fehlalarme kosten mehr als späte Meldungen.

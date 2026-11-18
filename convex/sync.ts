@@ -24,7 +24,7 @@ async function findDevice(ctx: QueryCtx, token: string) {
     .unique()
 }
 
-async function requireDevice(ctx: QueryCtx, token: string) {
+export async function requireDevice(ctx: QueryCtx, token: string) {
   const d = await findDevice(ctx, token)
   if (!d) throw new Error('Unbekanntes Gerät')
   return d

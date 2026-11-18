@@ -32,6 +32,16 @@ export default defineSchema({
     codeHash: v.string(),
     expiresAt: v.number(),
   }).index('by_codeHash', ['codeHash']),
+  // Mikrofon-Messungen, die jemand ausdrücklich schickt (Lernmodus → „Messung senden“), damit die
+  // Erkennung besser wird. Messwerte und Aufnahme liegen als Dateien im Speicher.
+  micReports: defineTable({
+    profileId: v.id('profiles'),
+    createdAt: v.number(),
+    kind: v.string(),
+    summary: v.string(),
+    dataId: v.id('_storage'),
+    audioId: v.optional(v.id('_storage')),
+  }).index('by_created', ['createdAt']),
   attempts: defineTable({ profileId: v.id('profiles'), ...attemptFields })
     .index('by_profile', ['profileId', 'at'])
     .index('by_profile_attempt', ['profileId', 'attemptId']),

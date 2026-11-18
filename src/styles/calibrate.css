@@ -259,3 +259,101 @@
 .calib .appbar {
   position: relative;
 }
+
+.calib-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip-mode {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 99px;
+  background: var(--bg-2);
+  color: var(--fg-dim);
+  font-size: 14px;
+  font-weight: 600;
+}
+.chip-mode.on {
+  color: var(--fg);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+/* Die Tonleiter als Reihe: je Anschlag ein Feld mit Ergebnis */
+.calib-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.calib-strip li {
+  display: grid;
+  place-items: center;
+  gap: 0;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  color: var(--fg-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.1;
+}
+.calib-strip li i {
+  font-style: normal;
+  font-weight: 700;
+  min-height: 1.1em;
+}
+.calib-strip li.now {
+  box-shadow: inset 0 0 0 2px var(--fg);
+  color: var(--fg);
+}
+.calib-strip li.ok {
+  background: color-mix(in srgb, var(--hand-l) 28%, var(--bg-2));
+  color: var(--fg);
+}
+.calib-strip li.miss {
+  background: color-mix(in srgb, var(--hand-r) 30%, var(--bg-2));
+  color: var(--fg);
+}
+.calib-strip li.extra,
+.calib-strip li.unsure {
+  background: color-mix(in srgb, var(--felt) 30%, var(--bg-2));
+  color: var(--fg);
+}
+.calib-status-ok {
+  color: var(--hand-l);
+}
+.calib-status-miss {
+  color: var(--hand-r);
+}
+.calib-status-extra,
+.calib-status-unsure {
+  color: var(--felt);
+}
+.calib-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.calib-compare > div {
+  display: grid;
+  gap: 4px;
+  padding: var(--small-pad);
+  border-radius: var(--small-radius);
+  background: var(--bg-2);
+}
+.calib-big {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.calib-send {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding-top: 8px;
+  border-top: 1px solid var(--bg-3);
+}
