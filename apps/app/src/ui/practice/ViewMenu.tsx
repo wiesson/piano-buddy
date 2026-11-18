@@ -33,11 +33,16 @@ export function ViewMenu(p: {
         <p className="menu-label">{t.practice.viewMode}</p>
         <ViewSwitch value={p.mode} onChange={p.onMode} />
         <span className="menu-sep" aria-hidden="true" />
-        {p.mode === 'sheet' && (
-          <Toggle className="toggle toggle-row" pressed={p.sheetKeys} onPressedChange={p.onSheetKeys}>
-            {t.practice.keyboard}
-          </Toggle>
-        )}
+        {/* Immer da, damit das Menü beim Wechsel der Ansicht nicht springt; abschaltbar ist die
+            Klaviatur nur bei den Noten, sonst gehört sie fest dazu */}
+        <Toggle
+          className="toggle toggle-row"
+          pressed={p.mode === 'sheet' ? p.sheetKeys : true}
+          disabled={p.mode !== 'sheet'}
+          onPressedChange={p.onSheetKeys}
+        >
+          {t.practice.keyboard}
+        </Toggle>
         <Toggle className="toggle toggle-row" pressed={p.showNames} onPressedChange={p.onShowNames}>
           {t.practice.noteNames}
         </Toggle>

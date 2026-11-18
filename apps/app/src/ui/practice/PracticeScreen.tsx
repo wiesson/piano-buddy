@@ -22,10 +22,12 @@ import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 
 // Notenansicht mit VexFlow: eigener Chunk, lädt erst beim Umschalten
-const SheetView = lazy(() => import('./SheetView'))
+const loadSheetView = () => import('./SheetView')
+const SheetView = lazy(loadSheetView)
 import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
 import { ViewMenu } from './ViewMenu'
+import { swapModules } from './swapModules'
 import { AppBar } from '@piano/ui/shared/AppBar'
 import { getPref, getPrefValue, setPref, setPrefValue } from './prefs'
 import { VIEW_MODES, type ViewMode } from './ViewSwitch'
@@ -78,10 +80,25 @@ export function PracticeScreen({
   const [mode, setModeState] = useState<ViewMode>(() =>
     getPrefValue('view', VIEW_MODES, getPref('sheet', false) ? 'sheet' : 'roll'),
   )
-  const setMode = (v: ViewMode) => (setPrefValue('view', v), setModeState(v))
   const sheet = mode === 'sheet'
   const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys2', false))
-  const setSheetKeys = (v: boolean) => (setPref('sheetkeys2', v), setSheetKeysState(v))
+  // Module der Ansicht: Notenband (beides, Noten), Bahn mit Klaviatur (fallend, beides; bei
+  // Noten nur die Klaviatur und nur auf Wunsch)
+  const hasBand = mode !== 'roll'
+  const hasKeys = !sheet || sheetKeys
+  // Notenansicht vorab laden, damit der erste Wechsel ohne Ladepause gleitet
+  useEffect(() => {
+    const id = window.setTimeout(loadSheetView, 1500)
+    return () => window.clearTimeout(id)
+  }, [])
+  const setMode = (v: ViewMode) => {
+    setPrefValue('view', v)
+    swapModules(() => setModeState(v))
+  }
+  const setSheetKeys = (v: boolean) => {
+    setPref('sheetkeys2', v)
+    swapModules(() => setSheetKeysState(v))
+  }
   // Diagnose: jede Übung mit Mikrofon samt Aufnahme senden (nur auf ausdrücklichen Schalter)
   const upload = useReportUpload()
   const [diagnostics, setDiagnosticsState] = useState(() => getPref('diagnostics', false))
@@ -474,12 +491,19 @@ export function PracticeScreen({
       </div>
 
       <main className="stage-area">
-        {mode === 'both' ? (
-          <div className="sheet-stage both">
-            <Suspense fallback={<div className="sheet-view" />}>
-              <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} forceBand />
-            </Suspense>
-            <div className="sheet-roll">
+        {/* Feste Plätze wie ein kleiner Modulkatalog: Notenband oben, Klaviatur unten, beide
+            immer gleich groß; nur die Bahn dazwischen nimmt den Rest. Ein Wechsel der Ansicht
+            blendet Module ein und aus (animiert), statt die Seite neu zu ordnen. */}
+        <div className={`stage-grid${hasBand ? ' has-band' : ''}`}>
+          {hasBand && (
+            <div className="stage-band">
+              <Suspense fallback={<div className="sheet-view" />}>
+                <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} forceBand />
+              </Suspense>
+            </div>
+          )}
+          {hasKeys && (
+            <div className="stage-roll">
               <PianoRoll
                 view={view}
                 beatsPerBar={lesson.beatsPerBar}
@@ -488,35 +512,10 @@ export function PracticeScreen({
                 paper={paper}
               />
             </div>
-          </div>
-        ) : sheet ? (
-          <div className={`sheet-stage${sheetKeys ? '' : ' no-keys'}`}>
-            <Suspense fallback={<div className="sheet-view" />}>
-              <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} forceBand />
-            </Suspense>
-            {sheetKeys && (
-              <div className="sheet-keys">
-                <PianoRoll
-                  view={view}
-                  beatsPerBar={lesson.beatsPerBar}
-                  onKey={onKey}
-                  expected={[...(sessionRef.current?.expected ?? [])]}
-                  paper={paper}
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          <PianoRoll
-            view={view}
-            beatsPerBar={lesson.beatsPerBar}
-            onKey={onKey}
-            expected={[...(sessionRef.current?.expected ?? [])]}
-            paper={paper}
-          />
-        )}
+          )}
+        </div>
         {!played && !result && micStatus === 'off' && midi.state === 'off' && (
-          <p className={`lane-hint lane-hint-${sheet && !sheetKeys ? 'band' : mode}`}>
+          <p className={`lane-hint${hasBand ? ' lane-hint-band' : ''}`}>
             {sheet && !sheetKeys ? t.practice.noInputHintNoKeys : t.practice.noInputHint}
           </p>
         )}

@@ -85,7 +85,27 @@ interface Layout {
   coreHi: number
   whites: number[]
   keyW: number
+  /** Index der weißen Taste am linken Rand (fortlaufend über die ganze Klaviatur, auch krumm) */
+  start: number
 }
+
+/** Fortlaufender Index der weißen Tasten (C-1 = 0) und zurück: die Spur der Kamera */
+const WHITE_OF = [0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6]
+const WHITE_SEMIS = [0, 2, 4, 5, 7, 9, 11]
+const whiteIndex = (m: number) => Math.floor(m / 12) * 7 + WHITE_OF[m % 12]
+const whiteAt = (i: number) => Math.floor(i / 7) * 12 + WHITE_SEMIS[((i % 7) + 7) % 7]
+
+/**
+ * Höhe der Klaviatur: hängt nur von der Fensterhöhe ab, nicht vom Platz der Ansicht. So steht sie
+ * in allen Ansichten (fallend, beides, Noten) und bei jeder Hand gleich groß an derselben Stelle.
+ */
+export function keyboardHeight() {
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight
+  return Math.round(Math.max(90, Math.min(200, vh * 0.2)))
+}
+const FELT_H = 6
+/** Kamera-Fahrt beim Wechsel des Tastenausschnitts (Zeitkonstante; nach ~4τ angekommen) */
+const CAMERA_TAU = 110
 
 /** Breiter werden weiße Tasten nicht: auf breiten Bildschirmen kommen statt dessen Tasten dazu */
 const MAX_KEY_W = 64
@@ -137,18 +157,30 @@ function layoutKeys(notes: ScoreNote[], width: number): Layout {
   }
   const whites: number[] = []
   for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m)
-  return { lo, hi, coreLo, coreHi, whites, keyW: width / whites.length }
+  return { lo, hi, coreLo, coreHi, whites, keyW: width / whites.length, start: whiteIndex(lo) }
+}
+
+/** Ausschnitt einer Kamera-Stellung (linker Rand, Zahl der weißen Tasten) über dem Ziel-Layout */
+function cameraLayout(target: Layout, start: number, count: number, width: number): Layout {
+  const first = Math.max(whiteIndex(21), Math.floor(start))
+  const last = Math.min(whiteIndex(108), Math.ceil(start + count) - 1)
+  const whites: number[] = []
+  for (let i = first; i <= last; i++) whites.push(whiteAt(i))
+  return {
+    ...target,
+    lo: whites[0],
+    hi: whites[whites.length - 1],
+    whites,
+    keyW: width / count,
+    start,
+  }
 }
 
 /** x-Position und Breite einer Taste */
 function keyRect(l: Layout, m: number) {
-  if (!isBlack(m)) {
-    const i = l.whites.indexOf(m)
-    return { x: i * l.keyW, w: l.keyW, black: false }
-  }
-  const i = l.whites.indexOf(m - 1)
+  if (!isBlack(m)) return { x: (whiteIndex(m) - l.start) * l.keyW, w: l.keyW, black: false }
   const w = l.keyW * 0.6
-  return { x: (i + 1) * l.keyW - w / 2, w, black: true }
+  return { x: (whiteIndex(m - 1) + 1 - l.start) * l.keyW - w / 2, w, black: true }
 }
 
 /** Zwei Hex-Farben mischen (t = 0: a, t = 1: b) */
@@ -207,6 +239,8 @@ export function PianoRoll({
   // Gleiche Lage wie die Zeichnung, als React-Zustand für die zugänglichen Tasten-Knöpfe
   const [keysLayout, setKeysLayout] = useState<{ l: Layout; keyTop: number; keyH: number } | null>(null)
   const layoutSig = useRef('')
+  // Kamera: weicher Übergang, wenn der Ausschnitt wechselt (andere Hand, anderes Stück)
+  const camera = useRef<{ start: number; count: number; w: number; t: number } | null>(null)
 
   useEffect(() => {
     const el = canvas.current!
@@ -229,16 +263,34 @@ export function PianoRoll({
       const v = view()
       // Schmal (hochkant am Telefon): nur der Tonumfang der geübten Hand, damit Tasten und
       // Schrift auf Armlänge lesbar bleiben; breit: das ganze Stück, damit nichts springt
-      const l = layoutKeys(W < 640 ? v.notes : v.rangeNotes, W)
-      const feltH = 6
-      const keyH = v.keysOnly ? H - feltH : Math.max(90, Math.min(230, H * 0.3, l.keyW * 4.6))
+      const target = layoutKeys(W < 640 ? v.notes : v.rangeNotes, W)
+      const now = performance.now()
+      const cam = camera.current
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      if (!cam || cam.w !== W || reduced) {
+        camera.current = { start: target.start, count: target.whites.length, w: W, t: now }
+      } else {
+        const k = 1 - Math.exp(-Math.min(64, now - cam.t) / CAMERA_TAU)
+        cam.start += (target.start - cam.start) * k
+        cam.count += (target.whites.length - cam.count) * k
+        cam.t = now
+        if (Math.abs(cam.start - target.start) < 0.004 && Math.abs(cam.count - target.whites.length) < 0.004) {
+          cam.start = target.start
+          cam.count = target.whites.length
+        }
+      }
+      const c = camera.current!
+      const l = cameraLayout(target, c.start, c.count, W)
+      const feltH = FELT_H
+      const keyH = Math.min(keyboardHeight(), H - feltH)
       const keyTop = H - keyH
       const laneBottom = keyTop - feltH
       layoutRef.current = { l, keyTop, keyH }
-      const sig = `${W}x${H}:${l.lo}-${l.hi}:${l.coreLo}-${l.coreHi}`
+      // Für die zugänglichen Knöpfe zählt das Ziel; sie sind unsichtbar und stehen gleich dort
+      const sig = `${W}x${H}:${target.lo}-${target.hi}:${target.coreLo}-${target.coreHi}:${keyH}`
       if (sig !== layoutSig.current) {
         layoutSig.current = sig
-        setKeysLayout({ l, keyTop, keyH })
+        setKeysLayout({ l: target, keyTop, keyH })
       }
 
       // „jetzt“ ist eine Note, deren Zeitspanne die aktuelle Position enthält
@@ -246,7 +298,9 @@ export function PianoRoll({
       const geoW = keyGeometry(l.keyW - 2, false)
       const geoB = keyGeometry(l.keyW * 0.6, true)
 
-      // Bahn; außerhalb des Tonumfangs des Stücks leicht abgedunkelt
+      // Bahn; außerhalb des Tonumfangs des Stücks leicht abgedunkelt. Nur Klaviatur (unter den
+      // Noten): die Bahn bleibt leer, der Seitengrund scheint durch
+      g.clearRect(0, 0, W, laneBottom)
       if (!v.keysOnly) {
       g.fillStyle = C.lane
       g.fillRect(0, 0, W, laneBottom)
@@ -358,6 +412,9 @@ export function PianoRoll({
       const blackH = keyH * 0.62
       const whiteInlayH = Math.max(12, keyH - blackH - geoW.inset * 2)
       const labelSize = Math.min(l.keyW * 0.42, 20, whiteInlayH * 0.56)
+      // auch ohne Bahn (nur Klaviatur) mittig beschriften
+      g.textAlign = 'center'
+      g.textBaseline = 'middle'
       const drawKey = (m: number) => {
         const { x, w, black } = keyRect(l, m)
         const h = black ? blackH : keyH
@@ -452,8 +509,8 @@ export function PianoRoll({
         if (x >= r.x && x <= r.x + r.w) return onKey(m)
       }
     }
-    const i = Math.floor(x / l.keyW)
-    if (l.whites[i] !== undefined) return onKey(l.whites[i])
+    const m = whiteAt(Math.floor(x / l.keyW + l.start))
+    if (m >= l.lo && m <= l.hi) return onKey(m)
   }
 
   return (

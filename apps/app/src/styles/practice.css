@@ -620,21 +620,6 @@
 }
 
 /* ---------- Notenansicht: Notenblatt auf dem Pult, Klaviatur darunter (ausblendbar) ---------- */
-.sheet-stage {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) clamp(96px, 20dvh, 180px);
-}
-.sheet-stage.no-keys {
-  /* Ohne Klaviatur: nur das Band, oben, so hoch wie ein Klaviersystem (VexFlow skaliert nach Höhe) */
-  --band-h: clamp(220px, 36dvh, 300px);
-  grid-template-rows: var(--band-h);
-  align-content: start;
-}
-.sheet-keys {
-  position: relative;
-}
 /* Das Blatt ist in beiden Themen Papier, wie Noten auf dem Pult */
 .sheet-view {
   --sheet: #fffcf6;
@@ -810,12 +795,6 @@
   color: var(--fg);
 }
 /* Beides: Notenzeile oben, fallende Noten mit Klaviatur darunter */
-.sheet-stage.both {
-  grid-template-rows: minmax(180px, 38%) minmax(0, 1fr);
-}
-.sheet-roll {
-  position: relative;
-}
 @media (prefers-reduced-motion: reduce) {
   .view-switch-indicator {
     transition: none;
@@ -823,16 +802,6 @@
 }
 
 /* Hinweis „Womit spielst du?“ nicht über die Notenzeile legen */
-.lane-hint.lane-hint-both {
-  top: calc(38% + 16px);
-}
-.lane-hint.lane-hint-sheet {
-  top: auto;
-  bottom: clamp(110px, 22dvh, 200px);
-}
-.lane-hint.lane-hint-band {
-  top: calc(clamp(220px, 36dvh, 300px) + 16px);
-}
 @media (max-width: 640px) {
   .view-switch-item {
     padding: 0 10px;
@@ -861,6 +830,8 @@
 .more-menu {
   min-width: 250px;
   color: var(--ink);
+  /* eigene Ebene im Ansichtswechsel, sonst gleitet das Notenband über das offene Menü */
+  view-transition-name: pb-menu;
 }
 .menu-label {
   margin: 4px 12px 2px;
@@ -898,4 +869,80 @@
 }
 .menu-item:hover {
   background: rgba(36, 26, 23, 0.06);
+}
+
+/* Übe-Seite als fester Modulkatalog: Notenband oben (feste Höhe), Bahn mit Klaviatur darunter.
+   Die Klaviatur hat in jeder Ansicht dieselbe Höhe (keyboardHeight in PianoRoll), nur die Bahn
+   dazwischen nimmt, was übrig ist. Beim Wechsel gleiten die Module (View Transitions). */
+.stage-area {
+  --band-h: clamp(190px, 26dvh, 280px);
+}
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+.stage-grid.has-band {
+  grid-template-rows: var(--band-h) minmax(0, 1fr);
+}
+.stage-band {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  view-transition-name: pb-band;
+}
+.stage-roll {
+  position: relative;
+  min-height: 0;
+  view-transition-name: pb-roll;
+}
+.lane-hint.lane-hint-band {
+  top: calc(var(--band-h) + 16px);
+}
+
+/* Übergang: Die Bahn wird oben beschnitten statt gestaucht, die Klaviatur unten bleibt stehen;
+   das Band gleitet von oben herein bzw. hinaus. */
+::view-transition-group(pb-roll) {
+  overflow: clip;
+}
+::view-transition-old(pb-roll),
+::view-transition-new(pb-roll) {
+  height: 100%;
+  width: 100%;
+  object-fit: none;
+  object-position: center bottom;
+}
+::view-transition-group(pb-band),
+::view-transition-group(pb-roll) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-new(pb-band):only-child {
+  animation: pb-band-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+::view-transition-old(pb-band):only-child {
+  animation: pb-band-out 220ms ease-in both;
+}
+::view-transition-group(pb-menu) {
+  z-index: 10;
+}
+.popover .toggle-row[data-disabled] {
+  opacity: 0.45;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+@keyframes pb-band-in {
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+@keyframes pb-band-out {
+  to {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
 }
