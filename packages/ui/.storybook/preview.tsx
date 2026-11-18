@@ -1,6 +1,7 @@
 import type { Decorator, Preview } from '@storybook/react-vite'
 import '../src/styles/base.css'
 import '../src/styles/home.css'
+import '../src/styles/dialogs.css'
 import '../../../apps/app/src/styles/practice.css'
 import '../../../apps/app/src/styles/calibrate.css'
 

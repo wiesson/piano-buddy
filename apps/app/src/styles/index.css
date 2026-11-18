@@ -2,6 +2,6 @@
 @import '@piano/ui/styles/base.css';
 @import '@piano/ui/styles/home.css';
 @import './practice.css';
-@import './sync.css';
+@import '@piano/ui/styles/dialogs.css';
 @import './calibrate.css';
 @import './app-home.css';

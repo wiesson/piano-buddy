@@ -217,3 +217,29 @@ button:disabled {
 .practice .appbar {
   box-shadow: inset 0 -1px 0 var(--bg-3);
 }
+
+/* Fortschrittspunkte je Stufe (Dots): Lernpfad, Stufenwahl, Startseiten */
+.dots {
+  display: flex;
+  gap: 5px;
+}
+.dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  outline: 1.5px solid color-mix(in srgb, var(--fg) 45%, transparent);
+  outline-offset: -1.5px;
+}
+.dots-L i.on {
+  background: var(--hand-l);
+  outline-color: var(--hand-l);
+}
+.dots-R i.on {
+  background: var(--hand-r);
+  outline-color: var(--accent);
+}
+.dots-LR i.on {
+  background: var(--fg);
+  outline-color: var(--fg);
+}
