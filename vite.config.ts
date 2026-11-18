@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import { VitePWA } from 'vite-plugin-pwa'
 import { seo } from './scripts/seo'
@@ -10,6 +11,8 @@ const lan = process.env.LAN === '1'
 
 export default defineConfig({
   plugins: [
+    // Dateibasierte Routen in src/routes; erzeugt src/routeTree.gen.ts, Seiten als eigene Chunks
+    tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
     seo(),
     lan && basicSsl(),

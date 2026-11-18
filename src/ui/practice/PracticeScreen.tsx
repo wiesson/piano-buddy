@@ -33,19 +33,29 @@ import { BackIcon } from '../shared/icons'
  */
 export function PracticeScreen({
   lesson,
+  initialStage,
+  onStageChange,
   onBack,
   onNextLesson,
 }: {
   lesson: Lesson
+  /** Stufe aus der Adresse; ohne sie die erste, die noch nicht sitzt */
+  initialStage?: Stage
+  onStageChange?: (s: Stage) => void
   onBack: () => void
   onNextLesson?: () => void
 }) {
   const stages = useMemo(() => stagesFor(lesson), [lesson])
   useStoreVersion()
   const cleanCount = useCallback((s: Stage) => store.cleanCount(lesson.id, s), [lesson.id])
-  const [stage, setStage] = useState<Stage>(
-    () => stages.find((s) => store.cleanCount(lesson.id, s) < CLEAN_GOAL) ?? stages[stages.length - 1],
+  const [stage, setStage] = useState<Stage>(() =>
+    initialStage && stages.includes(initialStage)
+      ? initialStage
+      : (stages.find((s) => store.cleanCount(lesson.id, s) < CLEAN_GOAL) ?? stages[stages.length - 1]),
   )
+  const stageChange = useRef(onStageChange)
+  stageChange.current = onStageChange
+  useEffect(() => stageChange.current?.(stage), [stage])
   const [micStatus, setMicStatus] = useState<MicStatus>('off')
   const [bench, setBench] = useState<BenchStats | null>(null)
   const [showNames, setShowNamesState] = useState(() => getPref('names', true))
