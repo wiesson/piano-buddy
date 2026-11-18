@@ -196,6 +196,8 @@ export const en: Messages = {
 
   bench: {
     title: 'Microphone vs. MIDI',
+    chip: 'Mic test',
+    close: 'Collapse measurement',
     detected: (n: number, of: number) => `${n} of ${of} detected`,
     latency: (ms: number) => `Latency ${ms} ms`,
     falseAlarms: (n: number) => `${n} ${plural(n, 'false alarm', 'false alarms')}`,

@@ -44,7 +44,9 @@ function Play() {
       onStageChange={(s) => void navigate({ to: '.', search: { stage: s }, replace: true })}
       // Kam man von der Startseite, zurück dorthin (mit Scroll-Position); sonst zur Startseite
       onBack={() => (canGoBack ? router.history.back() : void navigate({ to: '/', replace: true }))}
-      onNextLesson={next ? () => void navigate({ to: '/play/$lessonId', params: { lessonId: next.id } }) : undefined}
+      // Nächstes Stück ersetzt den Eintrag ebenso: „Zurück“ führt nach mehreren Stücken
+      // hintereinander direkt ins Hauptmenü, nicht durch jedes Stück rückwärts
+      onNextLesson={next ? () => void navigate({ to: '/play/$lessonId', params: { lessonId: next.id }, replace: true }) : undefined}
       onCalibrate={() => void navigate({ to: '/calibrate' })}
     />
   )

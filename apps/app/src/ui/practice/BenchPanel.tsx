@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import type { BenchStats } from '@piano/core/practice/bench'
 import { t } from '@piano/core/i18n'
 import { displayNoteLabel } from '@piano/core/i18n/noteNames'
 
-/** Live-Messung „Mikrofon gegen MIDI“, solange beide Eingänge laufen */
+/**
+ * Live-Messung „Mikrofon gegen MIDI“, solange beide Eingänge laufen. Zugeklappt nur ein kleiner
+ * Chip am Rand, damit die Messung beim Üben nicht im Weg ist; aufgeklappt die Einzelheiten.
+ */
 export function BenchPanel({
   side,
   bench,
@@ -15,9 +19,22 @@ export function BenchPanel({
   calibrating: boolean
   onReset: () => void
 }) {
+  const [open, setOpen] = useState(false)
+  if (!open)
+    return (
+      <button type="button" className={`bench-chip bench-${side}`} aria-expanded={false} onClick={() => setOpen(true)}>
+        {t.bench.chip}
+        {bench.played > 0 && <strong>{` ${bench.detected}/${bench.played}`}</strong>}
+      </button>
+    )
   return (
     <aside className={`bench bench-${side}`} aria-live="polite">
-      <p className="bench-head">{t.bench.title}</p>
+      <div className="bench-top">
+        <p className="bench-head">{t.bench.title}</p>
+        <button type="button" className="bench-close" aria-expanded onClick={() => setOpen(false)} aria-label={t.bench.close}>
+          ×
+        </button>
+      </div>
       <p className="bench-main">
         {bench.played ? (
           <>

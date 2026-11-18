@@ -322,6 +322,37 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   font-size: 14px;
 }
+.bench-chip {
+  position: absolute;
+  top: 12px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.bench-chip strong {
+  color: var(--fg);
+}
+.bench-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bench-close {
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px 0 0;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  color: #6d5a4c;
+}
 .bench-head {
   margin: 0 0 2px;
   font-family: var(--serif);

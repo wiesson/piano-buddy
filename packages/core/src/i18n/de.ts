@@ -198,6 +198,8 @@ export const de = {
 
   bench: {
     title: 'Mikrofon gegen MIDI',
+    chip: 'Mikrofon-Test',
+    close: 'Messung zuklappen',
     detected: (n: number, of: number) => `${n} von ${of} erkannt`,
     latency: (ms: number) => `Verzögerung ${ms} ms`,
     falseAlarms: (n: number) => `${n} ${plural(n, 'Fehlalarm', 'Fehlalarme')}`,
