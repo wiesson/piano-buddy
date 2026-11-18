@@ -1,0 +1,261 @@
+/* Lernmodus fürs Mikrofon: folgt dem Gerät wie der Übe-Screen (Lack oder Papier) */
+.calib {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--bg);
+  color: var(--fg);
+}
+.calib-main {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+.calib-card,
+.calib-run {
+  display: grid;
+  gap: 16px;
+}
+.calib-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(26px, 5vw, 34px);
+  line-height: 1.15;
+}
+.calib-text {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.calib-tips {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.calib-tips li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+}
+.calib-tips li::before {
+  content: '·';
+  color: var(--hand-r);
+  font-weight: 800;
+}
+.calib-hands {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.calib-hand {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--small-radius);
+  background: var(--bg-2);
+  color: var(--fg-dim);
+  font-weight: 600;
+  text-align: left;
+}
+.calib-hand small {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+}
+.calib-hand.on {
+  color: var(--fg);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.calib-small {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.calib-link {
+  padding: 0;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.calib-primary {
+  justify-self: start;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 99px;
+  background: var(--fg);
+  color: var(--bg);
+  font-weight: 650;
+}
+.calib-mono {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+.calib-note {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 10vw, 60px);
+  line-height: 1;
+}
+.calib-note-L {
+  color: var(--hand-l);
+}
+.calib-note-R {
+  color: var(--hand-r);
+}
+.calib-takes {
+  display: flex;
+  gap: 8px;
+}
+.calib-take {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--fg-dim);
+  transition: background 0.15s;
+}
+.calib-take.on {
+  background: var(--fg);
+  box-shadow: none;
+}
+.calib-status {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.calib-status-other,
+.calib-status-quiet {
+  color: var(--felt);
+}
+.calib-status-strike {
+  color: var(--fg-dim);
+}
+/* Klaviatur der aktuellen Hand */
+.calib-keys {
+  position: relative;
+  height: 96px;
+  margin-top: 4px;
+  border-top: 2px solid var(--felt);
+}
+.ck-white,
+.ck-black {
+  position: absolute;
+  top: 2px;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ck-white {
+  bottom: 0;
+  border-radius: 0 0 5px 5px;
+  background: #f3ebdd;
+  box-shadow: inset 0 0 0 1px rgba(36, 26, 23, 0.25);
+  color: #241a17;
+}
+.ck-black {
+  z-index: 1;
+  height: 58%;
+  border-radius: 0 0 4px 4px;
+  background: #1a1210;
+  color: #f3ebdd;
+}
+.ck-white.is-off {
+  background: #d9cfbf;
+}
+.ck-white.is-done {
+  background: color-mix(in srgb, var(--fg-dim) 22%, #f3ebdd);
+}
+.ck-white.is-target.is-L,
+.ck-black.is-target.is-L {
+  background: var(--hand-l);
+  color: #fff;
+}
+.ck-white.is-target.is-R,
+.ck-black.is-target.is-R {
+  background: var(--hand-r);
+  color: #241a17;
+}
+.calib-live {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.calib-level {
+  flex: 0 0 120px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-2);
+}
+.calib-level span {
+  display: block;
+  height: 100%;
+  background: var(--fg-dim);
+  transform-origin: left;
+  transform: scaleX(0.02);
+}
+.calib-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.calib-actions a.ghost {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.calib-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 400;
+  color: var(--fg-dim);
+}
+.calib-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.calib-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+.calib-list .calib-mono {
+  margin-left: auto;
+}
+.calib-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.calib-dot-L {
+  background: var(--hand-l);
+}
+.calib-dot-R {
+  background: var(--hand-r);
+}
+.calib .appbar {
+  position: relative;
+}

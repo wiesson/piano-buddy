@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CalibrateRouteImport } from './routes/calibrate'
 import { Route as PlayLessonIdRouteImport } from './routes/play.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalibrateRoute = CalibrateRouteImport.update({
+  id: '/calibrate',
+  path: '/calibrate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayLessonIdRoute = PlayLessonIdRouteImport.update({
@@ -25,27 +31,31 @@ const PlayLessonIdRoute = PlayLessonIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calibrate': typeof CalibrateRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calibrate': typeof CalibrateRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calibrate': typeof CalibrateRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/play/$lessonId'
+  fullPaths: '/' | '/calibrate' | '/play/$lessonId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/play/$lessonId'
-  id: '__root__' | '/' | '/play/$lessonId'
+  to: '/' | '/calibrate' | '/play/$lessonId'
+  id: '__root__' | '/' | '/calibrate' | '/play/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalibrateRoute: typeof CalibrateRoute
   PlayLessonIdRoute: typeof PlayLessonIdRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calibrate': {
+      id: '/calibrate'
+      path: '/calibrate'
+      fullPath: '/calibrate'
+      preLoaderRoute: typeof CalibrateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/play/$lessonId': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalibrateRoute: CalibrateRoute,
   PlayLessonIdRoute: PlayLessonIdRoute,
 }
 export const routeTree = rootRouteImport

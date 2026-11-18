@@ -1,60 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { NoteAnalyzer, OnsetDetector, calibrate, type Frame } from './detector'
-import { midiToFreq, parseNote as n } from '../music/notes'
-
-// Synthetischer Klavierton: Teiltöne mit Inharmonizität, schnelle Ansprache, exponentielles Abklingen.
-const SR = 48000
-const FFT = 8192
-const HOP = 1024
-
-function render(
-  durS: number,
-  events: { midi: number; at: number; amp?: number; dur?: number }[],
-  noise = 0.002,
-  seed = 1,
-) {
-  const out = new Float32Array(Math.round(durS * SR))
-  let x = seed
-  const rnd = () => ((x = (x * 1103515245 + 12345) % 2 ** 31) / 2 ** 31) * 2 - 1
-  for (let i = 0; i < out.length; i++) out[i] = rnd() * noise
-  for (const e of events) {
-    const f0 = midiToFreq(e.midi)
-    const start = Math.round(e.at * SR)
-    const amp = e.amp ?? 0.2
-    // Taste losgelassen: der Dämpfer stoppt die Saite (ohne Pedal) innerhalb von ~0,1 s
-    const release = e.dur ?? 0.5
-    for (let h = 1; h <= 10; h++) {
-      const f = h * f0 * Math.sqrt(1 + 0.0004 * h * h)
-      if (f > SR / 2) break
-      // tiefe Töne haben schwache Grundtöne, hohe Teiltöne fallen ab
-      const a = (amp / h ** 0.9) * (h === 1 && e.midi < 48 ? 0.4 : 1)
-      const tau = 1.2 / h ** 0.5
-      for (let i = start; i < out.length; i++) {
-        const t = (i - start) / SR
-        const damp = t > release ? Math.exp(-(t - release) / 0.03) : 1
-        out[i] += a * Math.sin(2 * Math.PI * f * t) * Math.exp(-t / tau) * Math.min(1, t / 0.004) * damp
-      }
-    }
-  }
-  return out
-}
-
-function frames(sig: Float32Array) {
-  const an = new NoteAnalyzer(SR, FFT)
-  const res: { t: number; f: Frame }[] = []
-  for (let end = FFT; end <= sig.length; end += HOP) {
-    res.push({ t: (end / SR) * 1000, f: an.analyze(sig.subarray(end - FFT, end)) })
-  }
-  return res
-}
+import { OnsetDetector, calibrate } from './detector'
+import { lookupFrom, mergeTakes, takeShape, type ProfileLookup } from './profile'
+import { parseNote as n } from '../music/notes'
+import { frames, render } from './testSignal'
 
 /** expected: feste Menge oder Funktion der Zeit (wie im Warte-Modus, wo der Schritt weiterspringt) */
-function onsets(sig: Float32Array, expected: number[] | ((tMs: number) => number[])) {
+function onsets(
+  sig: Float32Array,
+  expected: number[] | ((tMs: number) => number[]),
+  profile: ProfileLookup | null = null,
+) {
   const fs = frames(sig)
   // Die ersten 0,15 s sind Stille: daraus kalibrieren wie die App
   const quiet = fs.filter((x) => x.t < 180).map((x) => x.f)
   const cal = calibrate(quiet)
-  const det = new OnsetDetector(() => cal)
+  const det = new OnsetDetector(() => cal, undefined, undefined, undefined, undefined, () => profile)
   const expAt = (t: number) => new Set(typeof expected === 'function' ? expected(t) : expected)
   const out: { midi: number; t: number }[] = []
   for (const { t, f } of fs) for (const m of det.push(f, t, expAt(t))) out.push({ midi: m, t })
@@ -187,4 +147,51 @@ describe('Mikrofon-Erkennung erwarteter Töne', () => {
       expect(midis(o)).toEqual(played.map(n))
     })
   }
+
+  // Lernmodus: Ein Mikrofon, das Grundtöne kaum aufnimmt (Handy vor Digitalpiano-Lautsprechern).
+  // Die feste Regel hält das F3 für die Oktave darüber; mit eingelerntem Profil zählt es.
+  describe('mit eingelerntem Klangprofil', () => {
+    const WEAK = 0.05
+    const f3 = n('F3')
+    /** Zwei Anschläge einlernen wie im Lernmodus: Frames ab dem Anschlag, Teiltonform mitteln */
+    const learn = (midis: number[]) => {
+      const notes: Record<number, ReturnType<typeof mergeTakes> & object> = {}
+      for (const m of midis) {
+        const takes = [0.4, 0.45].map((amp) => {
+          const fs = frames(render(1.2, [{ midi: m, at: 0.4, amp, fund: WEAK }]))
+          return takeShape(fs.filter((x) => x.t > 450 && x.t < 1000).map((x) => x.f), m)!
+        })
+        notes[m] = mergeTakes(takes)!
+      }
+      return lookupFrom({ name: 'Test', createdAt: '', notes })
+    }
+    const profile = learn([n('D3'), n('E3'), f3, n('G3'), n('A3'), n('F2'), n('F4')])
+
+    it('ohne Profil fällt der Ton mit schwachem Grundton durch (Ausgangslage)', () => {
+      const o = onsets(render(1.2, [{ midi: f3, at: 0.4, fund: WEAK }]), [f3])
+      expect(midis(o)).not.toContain(f3)
+    })
+
+    it('mit Profil wird er erkannt', () => {
+      const o = onsets(render(1.2, [{ midi: f3, at: 0.4, amp: 0.3, fund: WEAK }]), [f3], profile)
+      expect(midis(o)).toEqual([f3])
+    })
+
+    for (const d of [-2, -1, 1, 2]) {
+      it(`mit Profil zählt der Nachbar ${d > 0 ? '+' : ''}${d} nicht als F3`, () => {
+        const o = onsets(render(1.2, [{ midi: f3 + d, at: 0.4, fund: WEAK }]), [f3], profile)
+        expect(midis(o)).not.toContain(f3)
+      })
+    }
+
+    it('mit Profil zählt die Oktave darüber nicht als F3', () => {
+      const o = onsets(render(1.2, [{ midi: n('F4'), at: 0.4, fund: WEAK }]), [f3], profile)
+      expect(midis(o)).not.toContain(f3)
+    })
+
+    it('mit Profil zählt die Oktave darunter nicht als F3', () => {
+      const o = onsets(render(1.2, [{ midi: n('F2'), at: 0.4, fund: WEAK }]), [f3], profile)
+      expect(midis(o)).not.toContain(f3)
+    })
+  })
 })

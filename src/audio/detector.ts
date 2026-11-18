@@ -1,5 +1,6 @@
 import { RealFFT, hann } from './fft'
 import { midiToFreq } from '../music/notes'
+import type { ProfileLookup } from './profile'
 
 /**
  * Erkennung erwarteter Klaviertöne aus einem Mikrofon-Signal.
@@ -13,7 +14,7 @@ import { midiToFreq } from '../music/notes'
 
 export const MIN_MIDI = 33 // A1
 export const MAX_MIDI = 100 // E7
-const HARMONICS = 6
+export const HARMONICS = 6
 const CENTS = 40
 /** Inharmonizität einer Klaviersaite, grober Mittelwert für die Mittellage */
 const INHARM_B = 0.0004
@@ -123,6 +124,12 @@ const SUBS: [number, number][] = [
   [24, 4],
 ]
 
+/**
+ * Für die freie Schätzung zusätzlich der 5. und 6. Teilton (große Dezime plus Oktave, Duodezime
+ * plus Oktave): Bei schwachem Grundton klingen sie sonst wie eigene, falsche Töne.
+ */
+const PARTIALS: [number, number][] = [...SUBS, [28, 5], [31, 6]]
+
 export interface Calibration {
   /** Ruhe-Salienz je Note (Raumrauschen, Lüfter, Brummen) */
   noise: Float64Array
@@ -159,6 +166,7 @@ export function isSounding(
   expected: ReadonlySet<number>,
   cal: Calibration | null,
   opt: DetectOptions = DEFAULT_DETECT,
+  profile: ProfileLookup | null = null,
 ): boolean {
   if (!inRange(m)) return false
   const s = S(f, m)
@@ -172,7 +180,61 @@ export function isSounding(
 
   const a1 = A(f, m, 1)
   const a2 = A(f, m, 2)
+  // Eingelernt: Wie klingt dieser Ton auf diesem Klavier mit diesem Mikrofon? (profile.ts)
+  const own = profile?.(m) ?? null
 
+  // Teiltonreihe: wie ein Durchschnittsklavier ODER wie beim Einlernen gemessen. Das Profil lockert
+  // nur, es verschärft nie: Ein schlecht aufgenommenes Profil kann die Erkennung nicht verschlechtern.
+  if (!harmonicSeries(f, m, a1, a2)) {
+    if (!own) return false
+    const shape: number[] = []
+    for (let h = 1; h <= HARMONICS; h++) shape.push(A(f, m, h))
+    if (similarity(shape, own.shape) < 0.75) return false
+  }
+
+  // Ein deutlich lauterer Nachbarton (bis zwei Halbtöne) verschmiert ins Fenster, vor allem
+  // direkt nach dem Anschlag. Dann ist m nur Übersprechen. Ausnahme: der Nachbar ist selbst erwartet.
+  for (const d of [-2, -1, 1, 2]) {
+    const nb = m + d
+    if (!inRange(nb) || expected.has(nb)) continue
+    if (S(f, nb) * 0.6 > s) return false
+  }
+  // Gespielt wurde die Oktave darüber: Dann fehlt der Grundton, nur der 2. Teilton ist da.
+  // Mit Profil gilt das Verhältnis dieses Klaviers: Ist der Grundton hier immer schwach,
+  // darf er es auch beim Üben sein, nur nicht viel schwächer als beim Einlernen.
+  let octaveRatio = m < 48 ? 0.08 : 0.25
+  if (own && own.shape[1] > 0) octaveRatio = Math.min(octaveRatio, (own.shape[0] / own.shape[1]) * 0.3)
+  if (a2 > 0 && a1 < a2 * octaveRatio) return false
+
+  // Gespielt wurde ein tieferer Ton, dessen Oberton hier liegt.
+  for (const [d, h] of SUBS) {
+    const sub = m - d
+    if (!inRange(sub) || expected.has(sub)) continue
+    // Der Unterton kann selbst nur Oberton eines erwarteten, noch tieferen Tons sein
+    // (G2 erwartet → Energie auf G3 → darf G4 nicht sperren).
+    if (SUBS.some(([d2]) => expected.has(sub - d2))) continue
+    const subFund = A(f, sub, 1)
+    // Ein echter tiefer Ton hat auch Teiltöne, die NICHT auf m fallen (z. B. die Quinte darüber).
+    const otherH = h === 2 ? 3 : 2
+    const subOther = A(f, sub, otherH)
+    const subOwn = profile?.(sub)
+    if (subOwn && subOwn.shape[otherH - 1] > 0.05) {
+      // Mit Profil des tiefen Tons: Aus seinem eigenen Teilton schätzen, wie laut er klingt, und
+      // daraus, wie viel Energie er auf m legt. Erklärt das fast alles, wurde nur er gespielt.
+      // Das greift auch, wenn sein Grundton auf diesem Klavier kaum zu hören ist.
+      const gain = subOther / subOwn.shape[otherH - 1]
+      if (a1 <= gain * subOwn.shape[h - 1] * 2.5) return false
+      continue
+    }
+    if (subFund > a1 * 0.35 && subOther > a1 * 0.2) return false
+  }
+  return true
+}
+
+/**
+ * Feste Regel ohne Profil: Ein echter Ton hat eine Teiltonreihe wie ein Durchschnittsklavier.
+ */
+function harmonicSeries(f: Frame, m: number, a1: number, a2: number) {
   // Ein echter Ton hat eine Teiltonreihe: Von den ersten drei Teiltönen müssen mindestens
   // zwei deutlich da sein. Sonst ist es nur ein zufällig passender Oberton eines anderen Tons
   // (z. B. der 6. Teilton von A1 liegt genau auf E4) oder Übersprechen des Nachbartons.
@@ -186,47 +248,41 @@ export function isSounding(
     if (A(f, m, h) > peak * 0.1) supported++
   }
   if (supported < Math.min(2, available)) return false
-  if (Math.max(a1, a2) < peak * 0.25) return false
+  return Math.max(a1, a2) >= peak * 0.25
+}
 
-  // Ein deutlich lauterer Nachbarton (bis zwei Halbtöne) verschmiert ins Fenster, vor allem
-  // direkt nach dem Anschlag. Dann ist m nur Übersprechen. Ausnahme: der Nachbar ist selbst erwartet.
-  for (const d of [-2, -1, 1, 2]) {
-    const nb = m + d
-    if (!inRange(nb) || expected.has(nb)) continue
-    if (S(f, nb) * 0.6 > s) return false
+/** Ähnlichkeit zweier Teiltonformen, 0..1 (Kosinus) */
+export function similarity(a: ArrayLike<number>, b: ArrayLike<number>) {
+  let ab = 0
+  let aa = 0
+  let bb = 0
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    ab += a[i] * b[i]
+    aa += a[i] * a[i]
+    bb += b[i] * b[i]
   }
-  // Gespielt wurde die Oktave darüber: Dann fehlt der Grundton, nur der 2. Teilton ist da.
-  if (a2 > 0 && a1 < a2 * (m < 48 ? 0.08 : 0.25)) return false
-
-  // Gespielt wurde ein tieferer Ton, dessen Oberton hier liegt.
-  for (const [d, h] of SUBS) {
-    const sub = m - d
-    if (!inRange(sub) || expected.has(sub)) continue
-    // Der Unterton kann selbst nur Oberton eines erwarteten, noch tieferen Tons sein
-    // (G2 erwartet → Energie auf G3 → darf G4 nicht sperren).
-    if (SUBS.some(([d2]) => expected.has(sub - d2))) continue
-    const subFund = A(f, sub, 1)
-    // Ein echter tiefer Ton hat auch Teiltöne, die NICHT auf m fallen (z. B. die Quinte darüber).
-    const subOther = h === 2 ? A(f, sub, 3) : A(f, sub, 2)
-    if (subFund > a1 * 0.35 && subOther > a1 * 0.2) return false
-  }
-  return true
+  return aa && bb ? ab / Math.sqrt(aa * bb) : 0
 }
 
 /**
  * Freie Schätzung für die Anzeige „gehört“: alle Töne, die deutlich klingen und
  * nicht nur Obertöne eines tieferen Tons sind.
  */
-export function heardNotes(f: Frame, cal: Calibration | null, opt: DetectOptions = DEFAULT_DETECT): number[] {
+export function heardNotes(
+  f: Frame,
+  cal: Calibration | null,
+  opt: DetectOptions = DEFAULT_DETECT,
+  profile: ProfileLookup | null = null,
+): number[] {
   const out: number[] = []
   const empty = new Set<number>()
   for (let m = MIN_MIDI; m <= MAX_MIDI; m++) {
-    if (!isSounding(f, m, empty, cal, opt)) continue
+    if (!isSounding(f, m, empty, cal, opt, profile)) continue
     // lokales Maximum gegenüber Halbton-Nachbarn
     if (S(f, m) < S(f, m - 1) || S(f, m) < S(f, m + 1)) continue
     // von bereits gefundenem tieferem Ton erklärt?
     const explained = out.some((k) =>
-      SUBS.some(([d, h]) => m - k === d && A(f, m, 1) < A(f, k, h) * 1.5),
+      PARTIALS.some(([d, h]) => m - k === d && A(f, m, 1) < A(f, k, h) * 1.5),
     )
     if (!explained) out.push(m)
   }
@@ -252,6 +308,8 @@ export class OnsetDetector {
     private rise = 2.2,
     historyFrames = 10,
     private refractoryMs = 120,
+    /** Eingelernte Klangprofile (Lernmodus), sonst feste Regeln */
+    private profile: () => ProfileLookup | null = () => null,
   ) {
     const n = MAX_MIDI - MIN_MIDI + 1
     this.hist = Array.from({ length: historyFrames }, () => new Float64Array(n))
@@ -267,7 +325,8 @@ export class OnsetDetector {
     const cal = this.cal()
     const n = MAX_MIDI - MIN_MIDI + 1
     const onsets: number[] = []
-    const heard = new Set(heardNotes(f, cal, this.opt))
+    const profile = this.profile()
+    const heard = new Set(heardNotes(f, cal, this.opt, profile))
     for (let j = 0; j < n; j++) {
       const m = j + MIN_MIDI
       let min = Infinity
@@ -275,7 +334,7 @@ export class OnsetDetector {
       const s = f.salience[j]
       const rising = this.filled === 0 ? false : s > min * this.rise
       // Erwartete Töne prüfen wir gezielt, alle anderen nur, wenn sie frei gehört werden.
-      const sounding = expected.has(m) ? isSounding(f, m, expected, cal, this.opt) : heard.has(m)
+      const sounding = expected.has(m) ? isSounding(f, m, expected, cal, this.opt, profile) : heard.has(m)
       // Bestätigung über mehrere Frames: erwartete Töne 2, fremde Töne 3. Frames, in denen der
       // Anschlag erst am Fensterende liegt, zählen nie: Dort ist das Spektrum verschmiert und der
       // Halbton-Nachbar „klingt“ mit. Das kostet ~90 ms, Fehlalarme kosten mehr als späte Meldungen.

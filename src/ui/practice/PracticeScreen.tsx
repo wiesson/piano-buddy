@@ -5,6 +5,7 @@ import { MicBench, type BenchStats } from '../../practice/bench'
 import { CLEAN_GOAL } from '../../practice/goal'
 import { store } from '../../sync/store'
 import { useStoreVersion } from '../../sync/hooks'
+import { lookupFrom, loadProfile } from '../../audio/profile'
 import { MicListener, type MicStatus } from '../../audio/mic'
 import { audioContext, getPiano, holdNote, playNote, stopAll } from '../../audio/audio'
 import type { NoteOn } from '../../input/events'
@@ -37,6 +38,7 @@ export function PracticeScreen({
   onStageChange,
   onBack,
   onNextLesson,
+  onCalibrate,
 }: {
   lesson: Lesson
   /** Stufe aus der Adresse; ohne sie die erste, die noch nicht sitzt */
@@ -44,6 +46,8 @@ export function PracticeScreen({
   onStageChange?: (s: Stage) => void
   onBack: () => void
   onNextLesson?: () => void
+  /** Mikrofon einlernen (Lernmodus) */
+  onCalibrate?: () => void
 }) {
   const stages = useMemo(() => stagesFor(lesson), [lesson])
   useStoreVersion()
@@ -144,7 +148,10 @@ export function PracticeScreen({
 
   // Mikrofon
   useEffect(() => {
+    // Eingelerntes Klangprofil (Lernmodus), sonst feste Regeln
+    const profile = lookupFrom(loadProfile())
     const mic = new MicListener({
+      profile: () => profile,
       expected: () => sessionRef.current?.expected ?? new Set(),
       onNote: (m, tMs) => (midiLiveRef.current ? benchRef.current.mic(m, tMs) : input({ midi: m, tMs, source: 'mic' })),
       onStatus: setMicStatus,
@@ -382,6 +389,7 @@ export function PracticeScreen({
         onToggleDemo={toggleDemo}
         canRestart={!!s && (s.index > 0 || !!result)}
         onRestart={again}
+        onCalibrate={onCalibrate}
       />
     </div>
   )

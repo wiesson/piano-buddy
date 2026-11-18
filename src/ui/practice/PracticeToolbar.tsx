@@ -16,6 +16,7 @@ export function PracticeToolbar(p: {
   onToggleDemo: () => void
   canRestart: boolean
   onRestart: () => void
+  onCalibrate?: () => void
 }) {
   const listening = p.micStatus === 'listening' || p.micStatus === 'calibrating'
   const midiLabel =
@@ -35,6 +36,11 @@ export function PracticeToolbar(p: {
         <span className={`midi-dot ${p.midi.devices.length ? 'live' : ''}`} aria-hidden />
         {midiLabel}
       </button>
+      {listening && p.onCalibrate && (
+        <button className="ghost" onClick={p.onCalibrate}>
+          {t.practice.mic.calibrate}
+        </button>
+      )}
       {p.midi.state === 'on' && !p.midi.devices.length && canPairBluetooth() && (
         <button className="ghost" onClick={() => void showBluetoothPairing()}>
           {t.practice.midi.pairBluetooth}

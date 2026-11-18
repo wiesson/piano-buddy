@@ -1,5 +1,6 @@
 import { audioContext, setAudioSession } from './audio'
 import { NoteAnalyzer, OnsetDetector, calibrate, heardNotes, type Calibration, type Frame } from './detector'
+import type { ProfileLookup } from './profile'
 
 export type MicStatus = 'off' | 'starting' | 'calibrating' | 'listening' | 'denied' | 'error'
 
@@ -13,6 +14,10 @@ export interface MicCallbacks {
   onStatus: (s: MicStatus) => void
   /** Pegel 0..1 und frei gehörte Töne, für die Anzeige */
   onLevel?: (level: number, heard: number[]) => void
+  /** Eingelernte Klangprofile; ohne sie gelten die festen Regeln */
+  profile?: () => ProfileLookup | null
+  /** Jeder analysierte Frame nach der Ruhemessung (Lernmodus) */
+  onFrame?: (frame: Frame, tMs: number) => void
 }
 
 export class MicListener {
@@ -49,7 +54,8 @@ export class MicListener {
       this.analyser.smoothingTimeConstant = 0
       this.source.connect(this.analyser)
       const analyzer = new NoteAnalyzer(ctx.sampleRate, this.analyser.fftSize)
-      const onset = new OnsetDetector(() => this.cal)
+      const profile = this.cb.profile ?? (() => null)
+      const onset = new OnsetDetector(() => this.cal, undefined, undefined, undefined, undefined, profile)
       const buf = new Float32Array(this.analyser.fftSize)
       this.calFrames = []
       this.calUntil = performance.now() + CALIBRATION_MS
@@ -68,14 +74,25 @@ export class MicListener {
           }
           return
         }
+        this.cb.onFrame?.(frame, now)
         for (const m of onset.push(frame, now, this.cb.expected())) this.cb.onNote(m, now)
-        this.cb.onLevel?.(Math.min(1, frame.rms * 8), heardNotes(frame, this.cal))
+        this.cb.onLevel?.(Math.min(1, frame.rms * 8), heardNotes(frame, this.cal, undefined, profile()))
       }, HOP_MS)
     } catch (e) {
       console.warn('Mikrofon', e)
       this.stop()
       this.set(e instanceof DOMException && e.name === 'NotAllowedError' ? 'denied' : 'error')
     }
+  }
+
+  /** Ruhemessung des Raums (nach dem Start), für den Lernmodus */
+  get calibration() {
+    return this.cal
+  }
+
+  /** Der Mikrofon-Strom, z. B. für einen Mitschnitt */
+  get mediaStream() {
+    return this.stream
   }
 
   /** Neu kalibrieren, z. B. wenn es im Raum lauter geworden ist */

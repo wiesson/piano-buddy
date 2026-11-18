@@ -45,6 +45,7 @@ function Play() {
       // Kam man von der Startseite, zurück dorthin (mit Scroll-Position); sonst zur Startseite
       onBack={() => (canGoBack ? router.history.back() : void navigate({ to: '/', replace: true }))}
       onNextLesson={next ? () => void navigate({ to: '/play/$lessonId', params: { lessonId: next.id } }) : undefined}
+      onCalibrate={() => void navigate({ to: '/calibrate' })}
     />
   )
 }

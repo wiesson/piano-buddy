@@ -98,8 +98,8 @@ export const FAQ: FaqItem[] = [
     id: 'mic',
     q: { en: 'How reliable is the microphone?', de: 'Wie zuverlässig ist das Mikrofon?' },
     a: {
-      en: 'Good for one hand. It knows which notes to expect and checks exactly those, including their overtones. One limit is physics: when both hands play an octave apart, the left hand alone sounds like both. Piano Buddy marks those notes as unverified. With MIDI every note is exact.',
-      de: 'Gut für eine Hand. Es weiß, welche Töne kommen sollen, und prüft genau diese samt ihren Obertönen. Eine Grenze ist Physik: Spielen beide Hände im Oktavabstand, klingt die linke Hand allein wie beide. Piano Buddy markiert solche Töne als ungeprüft. Mit MIDI ist jeder Ton exakt.',
+      en: 'Good for one hand. It knows which notes to expect and checks exactly those, including their overtones. One limit is physics: when both hands play an octave apart, the left hand alone sounds like both. Piano Buddy marks those notes as unverified. If a note is missed, calibrate the microphone: strike each key twice and the app learns how your piano sounds through your device. With MIDI every note is exact.',
+      de: 'Gut für eine Hand. Es weiß, welche Töne kommen sollen, und prüft genau diese samt ihren Obertönen. Eine Grenze ist Physik: Spielen beide Hände im Oktavabstand, klingt die linke Hand allein wie beide. Piano Buddy markiert solche Töne als ungeprüft. Überhört es einen Ton, lern das Mikrofon ein: jede Taste zweimal anschlagen, und die App lernt, wie dein Klavier über dein Gerät klingt. Mit MIDI ist jeder Ton exakt.',
     },
   },
   {
