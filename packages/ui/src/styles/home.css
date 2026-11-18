@@ -100,16 +100,20 @@ body:has(.home) {
   background: var(--fg);
   color: var(--bg);
 }
-.pb-btn-primary:hover,
-.pb-bar-cta:hover {
-  background: #45392f;
+@media (hover: hover) {
+  .pb-btn-primary:hover,
+  .pb-bar-cta:hover {
+    background: #45392f;
+  }
 }
 .pb-btn-ghost {
   color: var(--fg);
   background: color-mix(in srgb, var(--fg) 7%, transparent);
 }
-.pb-btn-ghost:hover {
-  background: color-mix(in srgb, var(--fg) 12%, transparent);
+@media (hover: hover) {
+  .pb-btn-ghost:hover {
+    background: color-mix(in srgb, var(--fg) 12%, transparent);
+  }
 }
 /* Ab Tablet trägt die Leiste „Über“ und den Übe-Knopf */
 @media (min-width: 768px) {
@@ -168,9 +172,11 @@ body:has(.home) {
   white-space: nowrap;
   transition: background 0.15s;
 }
-.pb-pill > a:hover,
-.pb-pill > button:hover {
-  background: color-mix(in srgb, var(--fg) 7%, transparent);
+@media (hover: hover) {
+  .pb-pill > a:hover,
+  .pb-pill > button:hover {
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+  }
 }
 .pb-pill svg {
   width: 15px;
@@ -182,8 +188,10 @@ body:has(.home) {
   background: var(--fg);
   color: var(--bg);
 }
-.pb-pill > .is-lit:hover {
-  background: #45392f;
+@media (hover: hover) {
+  .pb-pill > .is-lit:hover {
+    background: #45392f;
+  }
 }
 @media (max-width: 767px) {
   .pb-dock-layer {
@@ -471,8 +479,10 @@ body:has(.home) {
   border-radius: 12px;
   transition: background 0.15s;
 }
-.pb-lesson:hover {
-  background: color-mix(in srgb, var(--fg) 3%, transparent);
+@media (hover: hover) {
+  .pb-lesson:hover {
+    background: color-mix(in srgb, var(--fg) 3%, transparent);
+  }
 }
 .pb-num {
   padding-top: 3px;
@@ -545,8 +555,10 @@ body:has(.home) {
   text-align: left;
   transition: transform 0.2s;
 }
-.roll-card:hover {
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .roll-card:hover {
+    transform: translateY(-2px);
+  }
 }
 .roll-head,
 .roll-foot {
@@ -638,8 +650,10 @@ body:has(.home) {
   text-align: left;
   transition: transform 0.2s;
 }
-.pb-song:hover {
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .pb-song:hover {
+    transform: translateY(-2px);
+  }
 }
 .pb-song img {
   display: block;
@@ -959,8 +973,10 @@ body:has(.home) {
 .faq summary::-webkit-details-marker {
   display: none;
 }
-.faq summary:hover {
-  color: var(--brand);
+@media (hover: hover) {
+  .faq summary:hover {
+    color: var(--brand);
+  }
 }
 .faq-chevron {
   flex: none;
@@ -1016,9 +1032,11 @@ body:has(.home) {
   flex: none;
   transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.nordwerk-strip:hover .nordwerk-mark,
-.nordwerk-strip:focus-visible .nordwerk-mark {
-  transform: rotate(90deg);
+@media (hover: hover) {
+  .nordwerk-strip:hover .nordwerk-mark,
+  .nordwerk-strip:focus-visible .nordwerk-mark {
+    transform: rotate(90deg);
+  }
 }
 .footer-grid {
   display: grid;
@@ -1059,15 +1077,19 @@ body:has(.home) {
   text-decoration: none;
   transition: color 0.15s;
 }
-.site-footer a:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .site-footer a:hover {
+    color: var(--fg);
+  }
 }
 /* .site-footer a darf die Leiste nicht umfärben */
 .site-footer .nordwerk-strip {
   color: #8d9089;
 }
-.site-footer .nordwerk-strip:hover {
-  color: #e9eae5;
+@media (hover: hover) {
+  .site-footer .nordwerk-strip:hover {
+    color: #e9eae5;
+  }
 }
 .footer-bottom {
   display: flex;

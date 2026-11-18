@@ -5,3 +5,5 @@
 @import '@piano/ui/styles/dialogs.css';
 @import './calibrate.css';
 @import './app-home.css';
+/* zuletzt: App-Verhalten statt Website (Auswahl, Long Press, Druckgefühl) */
+@import './native.css';

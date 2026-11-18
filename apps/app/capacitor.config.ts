@@ -12,6 +12,8 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'never',
     backgroundColor: '#241a17',
+    // Langer Druck auf einen Link öffnet keine Safari-Vorschau
+    allowsLinkPreview: false,
   },
 }
 

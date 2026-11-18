@@ -96,8 +96,10 @@
   background: var(--bg);
   text-align: left;
 }
-.today-item:hover {
-  background: var(--bg-2);
+@media (hover: hover) {
+  .today-item:hover {
+    background: var(--bg-2);
+  }
 }
 .today-kind {
   font-family: var(--mono);
