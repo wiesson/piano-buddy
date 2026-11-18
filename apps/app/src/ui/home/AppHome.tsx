@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { LESSONS, type Lesson } from '@piano/core/music/lessons'
 import { lessonDone, nextLesson, totals } from '@piano/core/practice/progress'
@@ -17,6 +18,7 @@ import { Today } from './Today'
  */
 export function AppHome({ synced }: { synced: boolean }) {
   useThemeColor('#fbf7ef')
+  useRememberedScroll()
   const navigate = useNavigate()
   const next = nextLesson()
   const { total, learned, clean } = totals()
@@ -81,4 +83,46 @@ export function AppHome({ synced }: { synced: boolean }) {
       </main>
     </div>
   )
+}
+
+const SCROLL_KEY = 'pianobuddy.homeScroll'
+
+/**
+ * Die Startseite bleibt, wo man war. Der Router merkt sich die Position nur für die Sitzung; iOS
+ * beendet die App im Hintergrund aber gern, und „Zurück“ ohne Verlauf legt eine neue Startseite
+ * an. Deshalb zusätzlich dauerhaft merken und wiederherstellen, wenn der Router oben anfängt.
+ */
+function useRememberedScroll() {
+  useEffect(() => {
+    let saved = 0
+    try {
+      saved = Number(localStorage.getItem(SCROLL_KEY)) || 0
+    } catch {
+      /* ohne Speicher eben oben */
+    }
+    // Erst nach der Wiederherstellung des Routers prüfen (zwei Bilder später)
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
+        if (window.scrollY < 8 && saved > 0) window.scrollTo(0, saved)
+      })
+    })
+    let pending = 0
+    const onScroll = () => {
+      if (pending) return
+      pending = requestAnimationFrame(() => {
+        pending = 0
+        try {
+          localStorage.setItem(SCROLL_KEY, String(Math.round(window.scrollY)))
+        } catch {
+          /* egal */
+        }
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      cancelAnimationFrame(pending)
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
 }

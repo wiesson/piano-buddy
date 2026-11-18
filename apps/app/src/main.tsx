@@ -8,6 +8,17 @@ import { ReportUploadProvider } from './diagnostics/upload'
 import { Toasts } from '@piano/ui/shared/Toaster'
 import './styles/index.css'
 
+// App statt Website: kein Kontextmenü (Rechtsklick, langer Druck), außer in Eingabefeldern.
+// Der leere touchstart-Lauscher lässt iOS :active beim Antippen sofort zeigen.
+document.addEventListener('contextmenu', (e) => {
+  const el = e.target as HTMLElement | null
+  if (!el?.closest('input, textarea, [contenteditable="true"]')) e.preventDefault()
+})
+document.addEventListener('touchstart', () => {}, { passive: true })
+
+// Entwicklung: UI-SDK-Agenten-Brücke für Tests und Erkundung (window.pianoAgent)
+if (import.meta.env.DEV) void import('./diagnostics/agent')
+
 // Ohne Convex-Adresse läuft die App rein lokal (Fortschritt nur auf diesem Gerät).
 const url = import.meta.env.VITE_CONVEX_URL as string | undefined
 const convex = url ? new ConvexReactClient(url) : null

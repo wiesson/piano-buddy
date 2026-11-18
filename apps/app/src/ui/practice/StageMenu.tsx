@@ -107,6 +107,7 @@ export function StageMenu({
                   </span>
                 ))}
               </span>
+              {' '}
               <small className="stage-row-sub">
                 {clean >= CLEAN_GOAL ? t.stages.sits : t.stages.cleanOf(clean, CLEAN_GOAL)}
                 {d ? ` ${t.stages.review(whenOf(d))}` : ''}
@@ -119,6 +120,7 @@ export function StageMenu({
         <button type="button" className="menu-item listen-row" onClick={() => (setOpen(false), onToggleDemo())} aria-pressed={demo}>
           <span className="toggle-text">
             {demo ? t.stages.listenStop : t.stages.listen}
+            {' '}
             <small>{t.stages.listenHint}</small>
           </span>
         </button>

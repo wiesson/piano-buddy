@@ -1,6 +1,6 @@
 import { Toggle } from '@ui-sdk/react/toggle'
 import type { MicStatus } from '@piano/core/audio/mic'
-import { MoreIcon } from '@piano/ui/shared/icons'
+import { MicIcon, MidiIcon, MoreIcon } from '@piano/ui/shared/icons'
 import { t } from '@piano/core/i18n'
 import { canPairBluetooth, showBluetoothPairing } from '../../input/midi'
 import { MicMeter } from './MicMeter'
@@ -10,9 +10,11 @@ import { ViewSwitch, type ViewMode } from './ViewSwitch'
 
 /**
  * „…“ oben rechts: alles, was man nicht ständig braucht, in Gruppen. Ansicht, Eingang (MIDI und
- * Mikrofon, früher als Knöpfe in der unteren Leiste), Metronom, was auf den Noten steht, und
- * unter „Mehr“ Seltenes (Klaviatur unter den Noten, Fingertasten, Mikrofon einlernen, Diagnose).
- * Ein Punkt am Knopf zeigt, dass ein Eingang läuft.
+ * Mikrofon), Metronom, was auf den Noten steht, und unter „Mehr“ Seltenes (Fingertasten,
+ * Mikrofon einlernen, Diagnose).
+ *
+ * Der Eingang steht fest am Knopf, als Zeichen ohne Text: MIDI-Buchse (durchgestrichen, wenn
+ * eingeschaltet, aber kein Klavier da ist) und Mikrofon. So sieht man immer, was zuhört.
  */
 export function SettingsMenu(p: {
   mode: ViewMode
@@ -30,31 +32,46 @@ export function SettingsMenu(p: {
   onShowFingers: (v: boolean) => void
   fingerKeys: boolean
   onFingerKeys: (v: boolean) => void
-  sheetKeys: boolean
-  onSheetKeys: (v: boolean) => void
   onCalibrate?: () => void
   diagnostics: boolean
   onDiagnostics?: (v: boolean) => void
 }) {
   const listening = p.micStatus === 'listening' || p.micStatus === 'calibrating'
   const midiLive = p.midi.state === 'on' && p.midi.devices.length > 0
+  const midiLost = p.midi.state === 'on' && !p.midi.devices.length
+  // Nur was man wissen muss: welches Klavier, oder dass keins da ist
   const midiText =
-    p.midi.state === 'off'
-      ? t.settings.midiHint
-      : p.midi.state === 'connecting'
-        ? t.practice.midi.connecting
-        : p.midi.devices.length
-          ? `${p.midi.devices.join(', ')} · ${t.settings.midiHint}`
+    p.midi.state === 'connecting'
+      ? t.practice.midi.connecting
+      : p.midi.state === 'on'
+        ? p.midi.devices.length
+          ? p.midi.devices.join(', ')
           : t.practice.midi.noDevice
+        : null
+  const inputLabel = [
+    p.midi.state !== 'off' ? (midiLive ? t.settings.inputMidiLive : t.settings.inputMidiLost) : '',
+    listening ? t.settings.inputMic : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
   return (
     <PracticeSheet
       title={t.settings.title}
       triggerClassName="icon-button more-trigger"
-      triggerLabel={t.settings.title}
+      triggerLabel={inputLabel ? `${t.settings.title} (${inputLabel})` : t.settings.title}
       trigger={
         <>
+          {p.midi.state !== 'off' && (
+            <span className={`input-icon${midiLost ? ' lost' : ''}`}>
+              <MidiIcon lost={midiLost} />
+            </span>
+          )}
+          {listening && (
+            <span className="input-icon">
+              <MicIcon />
+            </span>
+          )}
           <MoreIcon />
-          {(midiLive || listening) && <span className="input-dot" aria-hidden="true" />}
         </>
       }
     >
@@ -72,7 +89,8 @@ export function SettingsMenu(p: {
                 <span className={`midi-dot ${midiLive ? 'live' : ''}`} aria-hidden="true" />
                 MIDI
               </span>
-              <small>{midiText}</small>
+              {' '}
+              {midiText && <small>{midiText}</small>}
             </span>
           </Toggle>
           {p.midi.state === 'on' && !p.midi.devices.length && canPairBluetooth() && (
@@ -86,7 +104,6 @@ export function SettingsMenu(p: {
                 <MicMeter levelRef={p.levelRef} active={listening} />
                 {p.micStatus === 'off' ? t.practice.mic.off : t.practice.mic[p.micStatus]}
               </span>
-              <small>{t.settings.micHint}</small>
             </span>
           </Toggle>
         </div>
@@ -98,6 +115,7 @@ export function SettingsMenu(p: {
           <Toggle className="toggle toggle-row" pressed={p.metronome} onPressedChange={p.onMetronome}>
             <span className="toggle-text">
               {t.settings.metronome}
+              {' '}
               <small>{t.settings.metronomeHint}</small>
             </span>
           </Toggle>
@@ -119,18 +137,10 @@ export function SettingsMenu(p: {
       <div className="set-group">
         <p className="set-label">{t.settings.more}</p>
         <div className="set-rows">
-          {/* Immer da, damit nichts springt; abschaltbar ist die Klaviatur nur bei den Noten */}
-          <Toggle
-            className="toggle toggle-row"
-            pressed={p.mode === 'sheet' ? p.sheetKeys : true}
-            disabled={p.mode !== 'sheet'}
-            onPressedChange={p.onSheetKeys}
-          >
-            {t.settings.keyboardUnderSheet}
-          </Toggle>
           <Toggle className="toggle toggle-row" pressed={p.fingerKeys} onPressedChange={p.onFingerKeys}>
             <span className="toggle-text">
               {t.practice.fingerKeys}
+              {' '}
               <small>{t.practice.fingerKeysHint}</small>
             </span>
           </Toggle>
@@ -143,6 +153,7 @@ export function SettingsMenu(p: {
             <Toggle className="toggle toggle-row" pressed={p.diagnostics} onPressedChange={p.onDiagnostics}>
               <span className="toggle-text">
                 {t.practice.diagnostics}
+                {' '}
                 <small>{t.practice.diagnosticsHint}</small>
               </span>
             </Toggle>

@@ -310,8 +310,10 @@
   color: #5b4a3f;
   text-align: left;
 }
-.popover .toggle-row:hover {
-  background: rgba(36, 26, 23, 0.06);
+@media (hover: hover) {
+  .popover .toggle-row:hover {
+    background: rgba(36, 26, 23, 0.06);
+  }
 }
 .popover .toggle-row::after {
   content: '';
@@ -543,8 +545,10 @@
   font-weight: 600;
   color: var(--ink);
 }
-.menu-item:hover {
-  background: rgba(36, 26, 23, 0.06);
+@media (hover: hover) {
+  .menu-item:hover {
+    background: rgba(36, 26, 23, 0.06);
+  }
 }
 
 /* Übe-Seite als fester Modulkatalog: Notenband oben (feste Höhe), Bahn mit Klaviatur darunter.
@@ -562,6 +566,10 @@
 .stage-grid.has-band {
   grid-template-rows: var(--band-h) minmax(0, 1fr);
 }
+/* „Noten“: Das Blatt ist die flexible Fläche, die Klaviatur unten so hoch wie in jeder Ansicht */
+.stage-grid.has-band.sheet-only {
+  grid-template-rows: minmax(0, 1fr) var(--keys-h);
+}
 .stage-band {
   position: relative;
   display: grid;
@@ -575,6 +583,11 @@
 }
 .lane-hint.lane-hint-band {
   top: calc(var(--band-h) + 16px);
+}
+/* „Noten“: unten über der Klaviatur, damit der Satz keine Notenzeile verdeckt */
+.lane-hint.lane-hint-sheet {
+  top: auto;
+  bottom: calc(var(--keys-h) + 16px);
 }
 
 /* Übergang: Die Bahn wird oben beschnitten statt gestaucht, die Klaviatur unten bleibt stehen;
@@ -744,19 +757,28 @@
   box-shadow: 9px 0 0 var(--hand-r);
 }
 
-/* „…“ mit Punkt, solange ein Eingang läuft */
+/* „…“ mit dem Eingang als Zeichen davor (MIDI-Buchse, Mikrofon), fest an seinem Platz */
 .more-trigger {
   position: relative;
+  width: auto;
+  min-width: 44px;
+  padding: 0 10px;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.input-dot {
-  position: absolute;
-  top: 9px;
-  right: 8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #6fa55a;
-  box-shadow: 0 0 0 2px var(--bg);
+.input-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--fg);
+}
+.input-icon svg {
+  width: 19px;
+  height: 19px;
+}
+.input-icon.lost {
+  color: var(--accent);
 }
 .midi-dot.live {
   outline: none;
@@ -912,7 +934,8 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 94dvh;
+  /* So hoch wie der Inhalt (ein Rastpunkt), höchstens fast der ganze Bildschirm */
+  max-height: 94dvh;
   padding-bottom: env(safe-area-inset-bottom);
   border-radius: 28px 28px 0 0;
   background: var(--bg);
@@ -1221,4 +1244,21 @@ body:has(.sheet[data-expanded]) .practice {
   .ladder-indicator {
     transition: none;
   }
+}
+
+/* Vorspielen: kleiner Stopp-Chip oben in der Bahn (jede Taste oder ein Tipp beendet es auch) */
+.demo-stop {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }

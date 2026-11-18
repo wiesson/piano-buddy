@@ -24,6 +24,7 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showBluetooth", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
     ]
 
     private var client = MIDIClientRef()
@@ -76,6 +77,15 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             self.connected.removeAll()
             log.info("stop")
+            call.resolve()
+        }
+    }
+
+    /// Display beim Üben anlassen (Leerlauf-Timer aus); der Wake Lock der WebView greift nicht verlässlich
+    @objc func keepAwake(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = on
             call.resolve()
         }
     }

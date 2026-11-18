@@ -24,6 +24,7 @@ interface PianoMidiPlugin {
   start(): Promise<{ devices: string[] }>
   stop(): Promise<void>
   showBluetooth(): Promise<void>
+  keepAwake(o: { on: boolean }): Promise<void>
   /** t: Anschlag, sent: Absenden, beides Host-Zeit in ms (fehlt in älteren App-Versionen) */
   addListener(event: 'noteOn', fn: (d: { note: number; velocity: number; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
   addListener(event: 'noteOff', fn: (d: { note: number; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
@@ -41,6 +42,19 @@ export function midiKind(): MidiKind {
 /** Bluetooth-MIDI koppeln (nur iOS-App: Apples eigener Dialog) */
 export const canPairBluetooth = () => midiKind() === 'native'
 export const showBluetoothPairing = () => PianoMidi.showBluetooth()
+
+/**
+ * Display beim Üben anlassen. Im Browser genügt der Wake Lock; die iOS-App schaltet zusätzlich
+ * den Leerlauf-Timer ab, weil der Wake Lock in der WebView nicht verlässlich greift.
+ */
+export const keepAwake = async (on: boolean) => {
+  if (midiKind() !== 'native') return
+  try {
+    await PianoMidi.keepAwake({ on })
+  } catch {
+    /* ältere App-Version ohne diese Methode */
+  }
+}
 
 export async function connectMidi(
   onNote: (n: MidiNote) => void,

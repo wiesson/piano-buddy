@@ -4,7 +4,6 @@ import {
   DrawerBackdrop,
   DrawerClose,
   DrawerContent,
-  DrawerHandle,
   DrawerTitle,
   DrawerTrigger,
 } from '@ui-sdk/react/drawer'
@@ -27,9 +26,10 @@ function usePhone() {
 }
 
 /**
- * Einstellungen und Stufen der Übe-Seite. Am Telefon ein Sheet wie bei iOS: mittlerer Rastpunkt,
- * darüber bleibt die Übe-Ansicht sichtbar und bedienbar (keine Abdunklung); aufgezogen wird es
- * modal und die Seite tritt zurück. Am Desktop ein Popover am Knopf.
+ * Einstellungen und Stufen der Übe-Seite. Am Telefon ein Sheet wie bei iOS, genau so hoch wie
+ * sein Inhalt (höchstens fast der ganze Bildschirm): ein einziger Rastpunkt, also zieht ein Wisch
+ * nie das Blatt auf, statt zu scrollen. Die Übe-Ansicht darüber bleibt sichtbar und bedienbar
+ * (keine Abdunklung). Am Desktop ein Popover am Knopf.
  *
  * HIG: Sheets für abgegrenzte, seltene Aufgaben (Einstellungen, Stufe wählen). Was man oft hin
  * und her schaltet (Tempo) und das Ergebnis bleiben auf der Seite.
@@ -69,8 +69,8 @@ export function PracticeSheet({
   return (
     // Ins body, nicht in die Kopfzeile: Sonst erbt das Sheet Überschrift und Serifenschrift
     <Drawer
-      snapPoints={[0.56, 0.94]}
-      modalAbove={0.56}
+      snapPoints={['content']}
+      modalAbove="content"
       open={open}
       onOpenChange={onOpenChange}
       container={typeof document === 'undefined' ? null : document.body}
@@ -80,7 +80,8 @@ export function PracticeSheet({
       </DrawerTrigger>
       <DrawerBackdrop className="sheet-backdrop" />
       <DrawerContent className={`sheet${paper ? ' paper' : ''}`}>
-        <DrawerHandle className="sheet-handle" aria-label={t.settings.resize} />
+        {/* Ein Rastpunkt: Griff nur als Zeichen, kein Knopf (Ziehen nach unten schließt) */}
+        <span className="sheet-handle" aria-hidden="true" />
         <div className="sheet-head">
           <DrawerTitle className="sheet-title">{title}</DrawerTitle>
           <DrawerClose className="icon-button sheet-close" aria-label={t.settings.close}>

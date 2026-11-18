@@ -90,6 +90,32 @@ export function MoreIcon() {
   )
 }
 
+/** MIDI: Buchse mit fünf Kontakten; durchgestrichen, wenn eingeschaltet, aber kein Klavier da ist */
+export function MidiIcon({ lost = false }: { lost?: boolean }) {
+  return (
+    <svg {...iconProps}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="7.6" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="16.4" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="8.9" cy="8.9" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15.1" cy="8.9" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none" />
+      <path d="M10.5 17h3" />
+      {lost && <path d="M4 20 20 4" />}
+    </svg>
+  )
+}
+
+/** Mikrofon */
+export function MicIcon() {
+  return (
+    <svg {...iconProps}>
+      <rect x="9" y="3.5" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" />
+    </svg>
+  )
+}
+
 /** Schließen */
 export function CloseIcon() {
   return (

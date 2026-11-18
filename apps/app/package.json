@@ -11,6 +11,7 @@
     "preview": "vp preview --port 5198",
     "typecheck": "tsc -p tsconfig.json",
     "test": "echo 'Tests der App-Logik liegen in @piano/core'",
+    "test:flows": "node --test e2e/interaction.e2e.mjs",
     "deploy:worker": "wrangler deploy"
   },
   "dependencies": {

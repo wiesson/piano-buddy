@@ -142,7 +142,10 @@ export function ResultCard({
             {secondary.label}
           </button>
         )}
-        <span className="result-hint">{t.tempo.keepPlaying}</span>
+        {/* Warte-Modus mit gelernter Stufe: Der nächste Ton wechselt zur nächsten Stufe, das sagen wir an */}
+        <span className="result-hint">
+          {!tempoRun && done && nextStage ? t.practice.keepPlayingNext(t.stage[nextStage]) : t.tempo.keepPlaying}
+        </span>
       </div>
     </div>
   )

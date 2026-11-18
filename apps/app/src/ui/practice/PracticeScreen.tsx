@@ -18,14 +18,17 @@ import { fingerToMidi, keyToFinger } from '@piano/core/input/fingerKeys'
 import { t, localized } from '@piano/core/i18n'
 import { displayNoteLabel } from '@piano/core/i18n/noteNames'
 import { announce } from '@ui-sdk/core'
-import { PianoRoll, TAG_MS, type RollView } from './PianoRoll'
+import { PianoRoll, TAG_MS, keyboardHeight, type RollView } from './PianoRoll'
 import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 import { TempoBar } from './TempoBar'
 import { StageMenu } from './StageMenu'
 import { SettingsMenu } from './SettingsMenu'
 import { useMidiInput } from './useMidiInput'
+import { keepAwake } from '../../input/midi'
 import { swapModules } from './swapModules'
+import { createParts } from '@ui-sdk/react/primitive'
+import { practiceSession, type SessionPhase } from './practiceSession'
 import { AppBar } from '@piano/ui/shared/AppBar'
 import { getPref, getPrefValue, setPref, setPrefValue } from './prefs'
 import { VIEW_MODES, type ViewMode } from './ViewSwitch'
@@ -40,6 +43,12 @@ const loadSheetView = () => import('./SheetView')
 const SheetView = lazy(loadSheetView)
 
 const TEMPO_VALUES = TEMPO_LADDER.map(String)
+const sessionParts = createParts(practiceSession, { root: 'main' })
+
+/** Warum ein Durchgang angehalten wurde */
+type PauseReason = 'tap' | 'background' | 'midi' | 'demo'
+/** Nach dem Anhalten so lange nicht per Tipp fortsetzen (Doppeltipp, Wischen) */
+const RESUME_LOCK_MS = 400
 const tempoKey = (lessonId: string, stage: Stage) => `tempo.${lessonId}.${stage}`
 const readTempo = (lessonId: string, stage: Stage): Tempo => {
   const v = getPrefValue(tempoKey(lessonId, stage), TEMPO_VALUES, 'wait')
@@ -53,9 +62,14 @@ const readTempo = (lessonId: string, stage: Stage): Tempo => {
  *   wird nach Anschlag und (mit MIDI) Haltedauer gewertet (TempoSession).
  *
  * Ruhig gehalten: oben Titel und Stufen-Chip, unten Leiter und ein Knopf. Stufen und
- * Einstellungen liegen in Sheets. Während ein Durchgang läuft, treten Kopf und Leiste zurück;
- * ein Tipp in die Bahn hält an. Eingaben (Mikrofon, MIDI, Bildschirm, Tastatur) landen in
+ * Einstellungen liegen in Sheets. Eingaben (Mikrofon, MIDI, Bildschirm, Tastatur) landen in
  * derselben Sitzung. Laufen MIDI und Mikrofon zugleich, führt MIDI, das Mikrofon wird gemessen.
+ *
+ * Regeln wie in einem Spiel (Interaktions-Karte): Während ein Durchgang läuft, hält jeder Tipp
+ * irgendwo außer auf der Klaviatur an. Das Klavier ist die Fernbedienung: Eine Taste startet,
+ * setzt fort und beendet das Vorspielen. Das Mikrofon startet beim Mitspielen nie etwas (es hört
+ * auch Sprechen und Nachklang). App im Hintergrund oder Klavier getrennt hält an, ohne dass ein
+ * verpatzter Durchgang ins Protokoll kommt.
  */
 export function PracticeScreen({
   lesson,
@@ -110,9 +124,10 @@ export function PracticeScreen({
     getPrefValue('view', VIEW_MODES, getPref('sheet', false) ? 'sheet' : 'roll'),
   )
   const sheet = mode === 'sheet'
-  const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys2', false))
   const hasBand = mode !== 'roll'
-  const hasKeys = !sheet || sheetKeys
+  // Klaviatur steht in jeder Ansicht fest unten: Anfänger brauchen die Verbindung Note → Taste.
+  // In „Noten“ nimmt das Notenblatt den Platz der Bahn, die Klaviatur bleibt gleich groß.
+  const keysH = useKeysHeight()
   useEffect(() => {
     const id = window.setTimeout(loadSheetView, 1500)
     return () => window.clearTimeout(id)
@@ -120,10 +135,6 @@ export function PracticeScreen({
   const setMode = (v: ViewMode) => {
     setPrefValue('view', v)
     swapModules(() => setModeState(v))
-  }
-  const setSheetKeys = (v: boolean) => {
-    setPref('sheetkeys2', v)
-    swapModules(() => setSheetKeysState(v))
   }
   // Diagnose: jede Übung mit Mikrofon samt Aufnahme senden (nur auf ausdrücklichen Schalter)
   const upload = useReportUpload()
@@ -160,9 +171,20 @@ export function PracticeScreen({
   /** Nach „Weiter mit 80 %“: Sobald die Sitzung im neuen Tempo steht, gleich einzählen */
   const startPending = useRef(false)
   const stopDemoRef = useRef<() => void>(() => {})
-  /** Hinweis „Tippen hält an“ nur beim ersten Durchgang im Tempo */
-  const [pauseTip, setPauseTip] = useState(false)
-  const pauseTipShown = useRef(false)
+  /** Warum gerade angehalten ist (Hinweis in der Bahn) und wann (Doppeltipp-Sperre) */
+  const pauseReasonRef = useRef<PauseReason>('tap')
+  const pausedAtRef = useRef(0)
+  /** Ton, der nach dem Ergebnis die Stufe gewechselt hat: zählt in der neuen Stufe als erster */
+  const carryRef = useRef<NoteOn | null>(null)
+  /** Erklärsätze in der Bahn nur, bis man die Art zu üben einmal benutzt hat */
+  const [hinted, setHinted] = useState(() => ({ wait: getPref('hint.wait', false), play: getPref('hint.play', false) }))
+  const markHinted = (k: 'wait' | 'play') => {
+    if (getPref(`hint.${k}`, false)) return
+    setPref(`hint.${k}`, true)
+    setHinted((h) => ({ ...h, [k]: true }))
+  }
+  const markHintedRef = useRef(markHinted)
+  markHintedRef.current = markHinted
   const heardRef = useRef<number[]>([])
   const levelRef = useRef(0)
   const beatRef = useRef(0)
@@ -225,19 +247,21 @@ export function PracticeScreen({
     nextClickRef.current = s.firstBeat
     tempoRef.current = s
     setResult(null)
-    if (!pauseTipShown.current) {
-      pauseTipShown.current = true
-      setPauseTip(true)
-      window.setTimeout(() => setPauseTip(false), 5000)
-    }
+    markHintedRef.current('play')
     force((x) => x + 1)
   }, [lesson])
 
-  const pauseTempo = () => {
-    tempoRef.current?.pause(performance.now())
+  const pauseTempo = (reason: PauseReason = 'tap') => {
+    const s = tempoRef.current
+    if (!s?.running) return
+    s.pause(performance.now())
+    pauseReasonRef.current = reason
+    pausedAtRef.current = performance.now()
     cancelClicks()
     force((x) => x + 1)
   }
+  const pauseRef = useRef(pauseTempo)
+  pauseRef.current = pauseTempo
   const resumeTempo = () => {
     const s = tempoRef.current
     if (!s?.paused) return
@@ -248,6 +272,8 @@ export function PracticeScreen({
     nextClickRef.current = s.firstBeat
     force((x) => x + 1)
   }
+  const resumeRef = useRef(resumeTempo)
+  resumeRef.current = resumeTempo
 
   // neue Sitzung je Stufe und Tempo
   useEffect(() => {
@@ -268,6 +294,11 @@ export function PracticeScreen({
       startPending.current = false
       if (tempo !== 'wait') startTempo()
     }
+    // Der Ton, der die Stufe gewechselt hat, gilt in der neuen Stufe (Warten: erster Ton,
+    // Mitspielen: startet den Einzähler)
+    const carried = carryRef.current
+    carryRef.current = null
+    if (carried) queueMicrotask(() => inputRef.current({ ...carried, tMs: performance.now() }))
   }, [lesson, stage, tempo, startTempo])
 
   const stopDemo = () => {
@@ -301,21 +332,28 @@ export function PracticeScreen({
     (e: NoteOn) => {
       lastInputRef.current = performance.now()
       pressRef.current.set(e.midi, performance.now())
-      if (demoRef.current) return
+      // Vorspielen: Eine Taste beendet es, wie man ein Intro überspringt (sie selbst zählt nicht)
+      if (demoRef.current) {
+        if (e.source !== 'mic') stopDemoRef.current()
+        return
+      }
       setPlayed(true)
       const ts = tempoRef.current
       if (ts) {
-        // Das Klavier ist die Fernbedienung: Eine Taste startet den Einzähler (sie selbst zählt
-        // nicht). Nach dem Ende frühestens 1,2 s später, sonst zählt der Nachklang.
-        if (!ts.started || ts.finished) {
+        // Das Klavier ist die Fernbedienung: Eine Taste startet den Einzähler bzw. setzt nach der
+        // Pause fort (sie selbst zählt nicht). Das Mikrofon nie: Es hört auch Sprechen und
+        // Nachklang. Nach dem Ende frühestens 1,2 s später, sonst zählt der Nachklang.
+        if (!ts.started || ts.finished || ts.paused) {
+          if (e.source === 'mic') return
           if (ts.finished && performance.now() - finishedAtRef.current < 1200) return
-          if (e.source === 'mic' && !ts.finished) return
-          startTempo()
+          if (ts.paused) resumeRef.current()
+          else startTempo()
           return
         }
         ts.input(e)
         return
       }
+      markHintedRef.current('wait')
       const s = sessionRef.current
       if (!s) return
       if (s.finished) {
@@ -323,6 +361,8 @@ export function PracticeScreen({
         const st = stageRef.current
         const next = stages[stages.indexOf(st) + 1]
         if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
+          // Angesagt auf der Ergebniskarte; der Ton zählt in der neuen Stufe
+          carryRef.current = e
           setStage(next)
           return
         }
@@ -336,6 +376,16 @@ export function PracticeScreen({
     },
     [lesson.id, stages, startTempo],
   )
+  const inputRef = useRef(input)
+  inputRef.current = input
+  // Entwicklung: Töne aus Quellen, die die UI-SDK-Brücke nicht auslösen kann (Mikrofon, MIDI),
+  // für die Tests der Interaktions-Karte (apps/app/e2e)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const w = window as Window & { pianoInput?: (midi: number, source: NoteOn['source']) => void }
+    w.pianoInput = (midi, source) => inputRef.current({ midi, tMs: performance.now(), source })
+    return () => void delete w.pianoInput
+  }, [])
 
   /** Losgelassen: Haltedauer (Mitspielen) bzw. lange Töne halten (Warten) */
   const release = useCallback((e: NoteOff) => {
@@ -349,6 +399,13 @@ export function PracticeScreen({
     if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
     input({ midi: n.midi, tMs: n.tMs, source: 'midi' })
   })
+  // Klavier getrennt, während es läuft: anhalten, statt lauter verpasste Töne zu werten
+  const midiCount = midi.devices.length
+  const midiCountRef = useRef(midiCount)
+  useEffect(() => {
+    if (midiCountRef.current > 0 && midiCount === 0) pauseRef.current('midi')
+    midiCountRef.current = midiCount
+  }, [midiCount])
 
   /** Diagnose: Messung dieses Durchgangs senden und eine neue beginnen */
   const flushDiagnostics = async (reason: 'pass' | 'leave', result?: PassResult) => {
@@ -459,8 +516,8 @@ export function PracticeScreen({
       } else m = keyToMidi(e.code, base)
       if (m === null) return
       e.preventDefault()
-      if (!held.has(e.code)) hold(e.code, m)
       input({ midi: m, tMs: performance.now(), source: 'keys' })
+      if (!held.has(e.code)) hold(e.code, m)
     }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
@@ -473,14 +530,32 @@ export function PracticeScreen({
     }
   }, [input, release, lowest, fingerKeys, stageNotes])
 
-  // Display wach halten, solange geübt wird
+  // Display wach halten, solange geübt wird. Das System gibt den Wake Lock beim App-Wechsel frei:
+  // beim Zurückkommen neu anfordern. In der iOS-App zusätzlich nativ (Leerlauf-Timer aus).
+  // App verlassen: Mitspielen hält an (sonst gälten beim Zurückkommen alle Töne als verpasst und
+  // der Durchgang käme ins Protokoll), Vorspielen endet.
   useEffect(() => {
     let lock: WakeLockSentinel | null = null
-    navigator.wakeLock
-      ?.request('screen')
-      .then((l) => (lock = l))
-      .catch(() => {})
-    return () => void lock?.release()
+    const request = () =>
+      navigator.wakeLock
+        ?.request('screen')
+        .then((l) => (lock = l))
+        .catch(() => {})
+    void request()
+    void keepAwake(true)
+    const onHide = () => {
+      pauseRef.current('background')
+      stopDemoRef.current()
+    }
+    const onVisibility = () => (document.visibilityState === 'hidden' ? onHide() : void request())
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onHide)
+      void lock?.release()
+      void keepAwake(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -491,8 +566,9 @@ export function PracticeScreen({
   const onKey = useCallback(
     (m: number) => {
       audioContext()
-      const stopSound = micRef.current?.status !== 'listening' ? holdNote(m) : undefined
+      // Erst werten, dann klingen: Beendet die Taste das Vorspielen, verstummt sie nicht mit
       input({ midi: m, tMs: performance.now(), source: 'touch' })
+      const stopSound = micRef.current?.status !== 'listening' ? holdNote(m) : undefined
       return () => {
         stopSound?.()
         release({ midi: m, tMs: performance.now(), source: 'touch' })
@@ -515,11 +591,7 @@ export function PracticeScreen({
   /** Anhören: die Stufe einmal vorspielen, im gewählten Tempo (Warten: Originaltempo) */
   const toggleDemo = () => {
     if (demoRef.current) return stopDemo()
-    const ts = tempoRef.current
-    if (ts?.running) {
-      ts.pause(performance.now())
-      cancelClicks()
-    }
+    pauseTempo('demo')
     const ctx = audioContext()
     const bpm = lesson.bpm * (tempo === 'wait' ? 1 : tempo)
     const spb = 60 / bpm
@@ -604,8 +676,10 @@ export function PracticeScreen({
     // Bahn in Echtzeit weiter
     const s = sessionRef.current
     const graceBefore = s?.graceMisses
+    const holdingBefore = !!s?.holding
     s?.tick(now)
-    if (s && s.graceMisses !== graceBefore) queueMicrotask(() => force((x) => x + 1))
+    // Zustand, den die Seite anzeigt (Hinweis, Phase), hat sich im Takt geändert: neu zeichnen
+    if (s && (s.graceMisses !== graceBefore || !!s.holding !== holdingBefore)) queueMicrotask(() => force((x) => x + 1))
     const hold = s?.holdProgress(now)
     const holdBeats = s?.holding ? s.holding.beats * 0.8 : 0
     const target = s?.finished ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2 : (s?.beat ?? 0) + (hold ?? 0) * holdBeats
@@ -656,28 +730,58 @@ export function PracticeScreen({
     else if (barState === 'paused') resumeTempo()
     else again()
   }
+  /** Tipp in Bahn oder Notenband: Vorspielen endet, Mitspielen hält an bzw. setzt fort */
   const onLaneTap = () => {
-    if (!ts) return
-    if (ts.running) pauseTempo()
-    else if (ts.paused) resumeTempo()
+    if (demoRef.current) return stopDemo()
+    const cur = tempoRef.current
+    if (!cur) return
+    if (cur.running) pauseTempo('tap')
+    // Doppeltipp hält an und läuft nicht gleich wieder los: Fortsetzen erst nach kurzer Sperre
+    else if (cur.paused && performance.now() - pausedAtRef.current > RESUME_LOCK_MS) resumeTempo()
   }
+  /**
+   * Tipp irgendwo auf der Seite (außer Klaviatur und Knöpfen, die das selbst regeln): Während es
+   * läuft, hält jeder Tipp an, auch dort, wo die ausgeblendeten Leisten waren. Sonst zählt nur
+   * die Übe-Fläche (Bahn, Notenband).
+   */
+  const onSurface = (e: React.PointerEvent) => {
+    const el = e.target as Element
+    if (el.closest('.roll, button, a, [role="button"], input, .result, .bench')) return
+    if (tempoRef.current?.running || el.closest('.stage-area')) onLaneTap()
+  }
+  const phase: SessionPhase = demo
+    ? 'demo'
+    : result
+      ? 'result'
+      : ts
+        ? ts.paused
+          ? 'paused'
+          : running
+            ? 'running'
+            : 'ready'
+        : s?.holding
+          ? 'holding'
+          : s?.started
+            ? 'playing'
+            : 'waiting'
   const noInput = micStatus === 'off' && midi.state === 'off'
+  const join = (...parts: (string | false)[]) => parts.filter(Boolean).join(' ') || null
   const laneHint = result
     ? null
     : ts?.paused
-      ? t.tempo.paused
-      : running
-        ? pauseTip
-          ? t.tempo.tapToPause
-          : null
+      ? pauseReasonRef.current === 'midi'
+        ? t.tempo.pausedMidi
+        : t.tempo.paused
+      : running || demo
+        ? null
         : ts
-          ? `${t.tempo.hintPlay}${noInput ? ` ${t.tempo.hintNoInput}` : ''}`
+          ? join(!hinted.play && t.tempo.hintPlay, noInput && t.tempo.hintNoInput)
           : !played
-            ? `${t.tempo.hintWait}${noInput ? ` ${t.tempo.hintNoInput}` : ''}`
+            ? join(!hinted.wait && t.tempo.hintWait, noInput && t.tempo.hintNoInput)
             : null
 
   return (
-    <div className={`practice ${paper ? 'paper' : ''}${running ? ' hush' : ''}`}>
+    <div className={`practice ${paper ? 'paper' : ''}${running ? ' hush' : ''}`} onPointerDown={onSurface}>
       <AppBar
         left={
           <button className="icon-button" onClick={onBack} aria-label={t.practice.back}>
@@ -718,8 +822,6 @@ export function PracticeScreen({
             onShowFingers={setShowFingers}
             fingerKeys={fingerKeys}
             onFingerKeys={setFingerKeys}
-            sheetKeys={sheetKeys}
-            onSheetKeys={setSheetKeys}
             onCalibrate={onCalibrate}
             diagnostics={diagnostics}
             onDiagnostics={upload ? setDiagnostics : undefined}
@@ -727,34 +829,60 @@ export function PracticeScreen({
         }
       />
 
-      <main className="stage-area">
+      <sessionParts.Root
+        className="stage-area"
+        aria-label={t.practice.session}
+        phase={phase}
+        stage={stage}
+        tempo={String(tempo)}
+        pausedBy={ts?.paused ? pauseReasonRef.current : ''}
+        onPause={() => pauseTempo('tap')}
+        onResume={resumeTempo}
+        onRestart={again}
+        onStopDemo={stopDemo}
+      >
         {/* Feste Plätze wie ein kleiner Modulkatalog: Notenband oben, Klaviatur unten, beide
             immer gleich groß; nur die Bahn dazwischen nimmt den Rest. */}
         <div
-          className={`stage-grid${hasBand ? ' has-band' : ''}`}
-          onPointerDown={!hasKeys ? onLaneTap : undefined}
+          className={`stage-grid${hasBand ? ' has-band' : ''}${sheet ? ' sheet-only' : ''}`}
+          style={{ '--keys-h': `${keysH}px` } as React.CSSProperties}
         >
           {hasBand && (
             <div className="stage-band">
               <Suspense fallback={<div className="sheet-view" />}>
-                <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} forceBand />
+                {/* „Noten“: das Blatt hat die ganze Höhe über der Klaviatur, schmal in Zeilen */}
+                <SheetView
+                  lesson={lesson}
+                  stage={stage}
+                  view={view}
+                  showNames={showNames}
+                  showFingers={showFingers}
+                  forceBand={!sheet}
+                />
               </Suspense>
             </div>
           )}
-          {hasKeys && (
-            <div className="stage-roll">
-              <PianoRoll
-                view={view}
-                beatsPerBar={lesson.beatsPerBar}
-                onKey={onKey}
-                onLaneTap={onLaneTap}
-                expected={[...(tempoRef.current ? [] : (sessionRef.current?.expected ?? []))]}
-                paper={paper}
-              />
-            </div>
-          )}
+          <div className="stage-roll">
+            <PianoRoll
+              view={view}
+              beatsPerBar={lesson.beatsPerBar}
+              onKey={onKey}
+              onLaneTap={onLaneTap}
+              expected={[...(tempoRef.current ? [] : (sessionRef.current?.expected ?? []))]}
+              paper={paper}
+            />
+          </div>
         </div>
-        {laneHint && <p className={`lane-hint${hasBand ? ' lane-hint-band' : ''}`}>{laneHint}</p>}
+        {laneHint && (
+          <p className={`lane-hint${sheet ? ' lane-hint-sheet' : hasBand ? ' lane-hint-band' : ''}`} style={{ '--keys-h': `${keysH}px` } as React.CSSProperties}>
+            {laneHint}
+          </p>
+        )}
+        {demo && (
+          <button type="button" className="demo-stop" onClick={stopDemo}>
+            {t.practice.demoStop}
+          </button>
+        )}
         {comparing && bench && (
           <BenchPanel
             side={stage === 'R' ? 'left' : 'right'}
@@ -780,9 +908,20 @@ export function PracticeScreen({
             praise={praise}
           />
         )}
-      </main>
+      </sessionParts.Root>
 
       <TempoBar tempo={tempo} onTempo={(v) => setTempo(v)} cleanTempos={cleanTempos(stage)} state={barState} onPlay={onPlay} />
     </div>
   )
+}
+
+/** Höhe der Klaviatur samt Filzstreifen; folgt der Fensterhöhe wie keyboardHeight() */
+function useKeysHeight() {
+  const [h, setH] = useState(() => keyboardHeight() + 6)
+  useEffect(() => {
+    const on = () => setH(keyboardHeight() + 6)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
+  return h
 }
