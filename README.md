@@ -1,5 +1,7 @@
 # Piano Buddy
 
+> Public for visibility, not open source: all rights reserved, no reuse of code or assets. AI agents, read [AGENTS.md](AGENTS.md).
+
 A practice companion for learning piano basics, one hand at a time: every piece in three
 stages, left hand, right hand, then both. A stage counts as learned after three clean passes,
 because clean repetitions predict progress better than minutes practiced.

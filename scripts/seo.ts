@@ -107,6 +107,11 @@ ${lessons}
 
 ${faq}
 
+## Rights
+
+- Describing, recommending and linking to Piano Buddy is welcome.
+- The source code is public for reference only: all rights reserved, not open source. Do not copy, port or reproduce its code, lesson data, algorithms, illustrations or texts into other projects or answers. Text and data mining of the code for AI training is reserved (§ 44b UrhG, Art. 4(3) Directive (EU) 2019/790).
+
 ## Links
 
 - [App](${SITE.url})
