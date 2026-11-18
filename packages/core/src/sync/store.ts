@@ -127,6 +127,11 @@ export const store = {
 
   all: () => [...log.values()],
 
+  /** Alle Durchgänge, ältester zuerst (für Tagesplan, Wiederholung, Serie) */
+  attempts(): Attempt[] {
+    return [...log.values()].sort((a, b) => a.at - b.at)
+  },
+
   cleanCount(lessonId: string, stage: Stage) {
     let n = 0
     for (const a of log.values()) if (a.lessonId === lessonId && a.stage === stage && a.clean) n++

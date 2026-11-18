@@ -74,8 +74,8 @@ export const FAQ: FaqItem[] = [
     id: 'clean-passes',
     q: { en: 'Why three clean passes instead of practice minutes?', de: 'Warum drei saubere Durchgänge statt Übungsminuten?' },
     a: {
-      en: 'In a study of piano students (Duke, Simmons and Cash, 2009), neither practice time nor the number of repetitions predicted how well they played the next day. The share of correct attempts did. So Piano Buddy counts clean passes: a stage is learned after three of them.',
-      de: 'In einer Studie mit Klavierstudierenden (Duke, Simmons und Cash, 2009) sagten weder Übungszeit noch Zahl der Wiederholungen voraus, wie gut sie am nächsten Tag spielten. Der Anteil korrekter Versuche schon. Darum zählt Piano Buddy saubere Durchgänge: Nach dreien gilt eine Stufe als gelernt.',
+      en: 'In a study of piano students (Duke, Simmons and Cash, 2009), neither practice time nor the number of repetitions predicted how well they played the next day. The share of correct attempts did. So Piano Buddy counts clean passes: a stage is learned after three of them. It counts as consolidated once your first try on a later day is clean, because motor skills settle overnight. Then it comes back for a short review after 3, 7 and 21 days.',
+      de: 'In einer Studie mit Klavierstudierenden (Duke, Simmons und Cash, 2009) sagten weder Übungszeit noch Zahl der Wiederholungen voraus, wie gut sie am nächsten Tag spielten. Der Anteil korrekter Versuche schon. Darum zählt Piano Buddy saubere Durchgänge: Nach dreien gilt eine Stufe als gelernt. Gefestigt ist sie, wenn an einem späteren Tag der erste Versuch sauber ist, denn Bewegungsabläufe festigen sich über Nacht. Danach kommt sie nach 3, 7 und 21 Tagen kurz zur Wiederholung.',
     },
   },
   {

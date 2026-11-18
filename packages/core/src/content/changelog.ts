@@ -13,6 +13,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-11-18',
     title: 'Sheet music, a smarter microphone, and a test bench',
     items: [
+      'Today: the app home shows what to practise today, reviews due and the next step on your path, plus your streak of days with a clean pass.',
+      'Learned stages are consolidated the next day: if your first try is clean, the dots turn gold and the piece comes back after 3, 7 and 21 days.',
       'Hold long notes: half and whole notes now count when you hold them. The bar slides into the key while you hold; let go too early and you get a gentle hint, not an error.',
       'New view switch in the toolbar: Falling, Both and Sheet. Both shows the staff above the falling notes, a stepping stone from keys to reading music.',
       'After each pass a three-second countdown starts the next one by itself; tap Pause to read in peace.',

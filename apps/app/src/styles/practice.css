@@ -839,3 +839,14 @@
   color: var(--fg);
   font-weight: 600;
 }
+
+/* Fortschritt nach dem Durchgang: sitzt für heute, gefestigt, morgen nochmal */
+.result-progress {
+  margin: -4px 0 14px;
+  padding: 8px 12px;
+  border-radius: calc(var(--card-radius) - 8px);
+  background: color-mix(in srgb, #c99a2e 14%, transparent);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}

@@ -111,6 +111,22 @@ export const de = {
     nothing: 'Kein Ton aufgenommen.',
   },
 
+  plan: {
+    today: 'Heute',
+    review: 'Auffrischen',
+    focus: 'Als Nächstes',
+    firm: 'gefestigt',
+    streak: (n: number): string => (n === 1 ? '1 Tag in Folge' : `${n} Tage in Folge`),
+    streakOpen: 'heute noch offen',
+    streakStart: 'Ein sauberer Durchgang startet deine Serie',
+    complete: 'Für heute geschafft. Morgen kommt die nächste Wiederholung.',
+    passed: 'gefestigt',
+    retry: 'morgen nochmal',
+    learnedToday: (stage: string) => `${stage} sitzt für heute. Morgen einmal auf Anhieb sauber, dann ist es gefestigt.`,
+    firmNow: (days: number) => `Gefestigt. Wieder dran in ${days} ${days === 1 ? 'Tag' : 'Tagen'}.`,
+    notYet: 'Noch nicht gefestigt: Der erste Versuch heute hatte Fehler. Morgen nochmal.',
+  },
+
   practice: {
     keyboard: 'Klaviatur',
     upNext: 'als Nächstes',

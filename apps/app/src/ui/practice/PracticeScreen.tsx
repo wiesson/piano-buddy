@@ -6,6 +6,8 @@ import { CLEAN_GOAL } from '@piano/core/practice/goal'
 import { store } from '@piano/core/sync/store'
 import { useStoreVersion } from '../../sync/hooks'
 import { lookupFrom, loadProfile } from '@piano/core/audio/profile'
+import { INTERVALS, dayKey, stateFor } from '@piano/core/practice/plan'
+import { currentStates } from '@piano/core/practice/progress'
 import { MicListener, type MicStatus } from '@piano/core/audio/mic'
 import { audioContext, getPiano, holdNote, playNote, stopAll } from '@piano/core/audio/audio'
 import type { NoteOff, NoteOn } from '@piano/core/input/events'
@@ -103,8 +105,10 @@ export function PracticeScreen({
   const stageRef = useRef(stage)
   stageRef.current = stage
 
+  const [progressNote, setProgressNote] = useState<string | undefined>()
   const onPass = useCallback(
     (r: PassResult) => {
+      const before = stateFor(currentStates(), lesson.id, stage)
       store.record({
         lessonId: lesson.id,
         stage,
@@ -114,6 +118,16 @@ export function PracticeScreen({
         source: r.source,
         durationMs: Math.round(r.durationMs),
       })
+      // Was der Durchgang für den Fortschritt heißt: sitzt für heute, gefestigt, morgen nochmal
+      const after = stateFor(currentStates(), lesson.id, stage)
+      let note: string | undefined
+      if (before && after) {
+        const wasDue = before.level >= 0 && before.due !== null && before.due <= dayKey(Date.now())
+        if (before.level < 0 && after.level === 0) note = t.plan.learnedToday(t.stage[stage])
+        else if (before.level >= 0 && after.level > before.level) note = t.plan.firmNow(INTERVALS[after.level])
+        else if (wasDue && after.level === 0 && after.due !== before.due) note = t.plan.notYet
+      }
+      setProgressNote(note)
       finishedAtRef.current = performance.now()
       setResult(r)
     },
@@ -469,6 +483,7 @@ export function PracticeScreen({
             onNext={setStage}
             onNextLesson={onNextLesson}
             silent={micStatus === 'listening' || micStatus === 'calibrating'}
+            note={progressNote}
           />
         )}
       </main>

@@ -25,6 +25,7 @@ export function ResultCard({
   onNext,
   onNextLesson,
   silent = false,
+  note,
 }: {
   result: PassResult
   stage: Stage
@@ -35,6 +36,8 @@ export function ResultCard({
   onNextLesson?: () => void
   /** Kein Countdown-Ton (Mikrofon hört zu) */
   silent?: boolean
+  /** Was der Durchgang für den Fortschritt heißt (sitzt für heute, gefestigt, morgen nochmal) */
+  note?: string
 }) {
   const done = clean >= CLEAN_GOAL
   // Was „weiter“ bedeutet: nächste Stufe, nächstes Stück, sonst nochmal
@@ -91,6 +94,7 @@ export function ResultCard({
               : t.practice.stageDoneLast(t.stage[stage])
           : t.practice.progress(clean, CLEAN_GOAL)}
       </p>
+      {note && <p className="result-progress">{note}</p>}
       {result.unverified > 0 && <p className="result-note">{t.practice.unverified(result.unverified)}</p>}
       {result.short > 0 && <p className="result-note">{t.practice.shortNote(result.short)}</p>}
       <p className="result-hint">{done && nextStage ? t.practice.keepPlayingNext(t.stage[nextStage]) : t.practice.keepPlaying}</p>

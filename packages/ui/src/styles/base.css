@@ -243,3 +243,10 @@ button:disabled {
   background: var(--fg);
   outline-color: var(--fg);
 }
+
+/* gefestigt: am Folgetag auf Anhieb sauber */
+.dots.firm i.on {
+  background: #c99a2e;
+  outline-color: #c99a2e;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #c99a2e 28%, transparent);
+}

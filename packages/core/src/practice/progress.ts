@@ -1,6 +1,7 @@
 import { LESSONS, stagesFor, type Lesson } from '../music/lessons'
 import { store } from '../sync/store'
 import { CLEAN_GOAL } from './goal'
+import { dailyPlan, dayKey, stageStates, streak, type StageState } from './plan'
 
 /** Sitzen alle Stufen eines Stücks? */
 export const lessonDone = (l: Lesson) => stagesFor(l).every((s) => store.cleanCount(l.id, s) >= CLEAN_GOAL)
@@ -21,4 +22,20 @@ export function totals() {
       if (n >= CLEAN_GOAL) learned++
     }
   return { total, learned, clean }
+}
+
+let cache: { v: number; states: Map<string, StageState> } | null = null
+
+/** Zustand aller Stufen, neu berechnet nur, wenn sich das Protokoll geändert hat */
+export function currentStates() {
+  const v = store.version()
+  if (!cache || cache.v !== v) cache = { v, states: stageStates(store.attempts()) }
+  return cache.states
+}
+
+/** Tagesplan und Serie für heute */
+export function today() {
+  const attempts = store.attempts()
+  const day = dayKey(Date.now())
+  return { plan: dailyPlan(attempts, day), streak: streak(attempts, day) }
 }

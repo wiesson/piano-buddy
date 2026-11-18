@@ -109,6 +109,22 @@ export const en: Messages = {
     nothing: 'No notes recorded.',
   },
 
+  plan: {
+    today: 'Today',
+    review: 'Refresh',
+    focus: 'Up next',
+    firm: 'consolidated',
+    streak: (n: number): string => (n === 1 ? '1 day in a row' : `${n} days in a row`),
+    streakOpen: 'today still open',
+    streakStart: 'One clean pass starts your streak',
+    complete: 'Done for today. The next review comes tomorrow.',
+    passed: 'consolidated',
+    retry: 'again tomorrow',
+    learnedToday: (stage: string) => `${stage} is learned for today. One clean first try tomorrow and it is consolidated.`,
+    firmNow: (days: number) => `Consolidated. Back in ${days} ${days === 1 ? 'day' : 'days'}.`,
+    notYet: 'Not consolidated yet: the first try today had mistakes. Again tomorrow.',
+  },
+
   practice: {
     keyboard: 'Keyboard',
     upNext: 'up next',

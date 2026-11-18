@@ -1,7 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { LESSONS, type Lesson } from '@piano/core/music/lessons'
 import { lessonDone, nextLesson, totals } from '@piano/core/practice/progress'
-import { localized, t } from '@piano/core/i18n'
+import { t } from '@piano/core/i18n'
 import { audioContext } from '@piano/core/audio/audio'
 import { Logo } from '@piano/ui/shared/icons'
 import { AboutDialog } from '@piano/ui/shared/AboutDialog'
@@ -9,6 +9,7 @@ import { LessonRow } from '@piano/ui/home/LessonRow'
 import { SongGallery } from '@piano/ui/home/SongGallery'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { DevicesDialog } from '../../sync/DevicesDialog'
+import { Today } from './Today'
 
 /**
  * Startseite der App (Web unter /app, iOS): ohne Werbeteil. Oben „Weiter mit …“, dann Lernpfad
@@ -20,8 +21,6 @@ export function AppHome({ synced }: { synced: boolean }) {
   const next = nextLesson()
   const { total, learned, clean } = totals()
   const started = clean > 0
-  const target = next ?? LESSONS[0]
-  const cta = !started ? t.home.start : next ? t.home.continueWith(localized(next.title)) : t.home.practiceAgain
   const open = (l: Lesson) => {
     // Der Tipp ist die Geste, mit der Browser Klang erlauben
     audioContext()
@@ -42,12 +41,15 @@ export function AppHome({ synced }: { synced: boolean }) {
       </header>
 
       <main className="app-home-main">
-        <section className="app-home-next">
-          <button type="button" className="pb-btn pb-btn-primary app-home-cta" onClick={() => open(target)}>
-            {cta}
-          </button>
-          <p className="pb-mono">{started ? t.home.stats(learned, total, clean) : t.home.statsNew(LESSONS.length)}</p>
-        </section>
+        <Today
+          onOpen={(lessonId, stage) => {
+            audioContext()
+            void navigate({ to: '/play/$lessonId', params: { lessonId }, search: { stage } })
+          }}
+        />
+        <p className="pb-mono app-home-stats">
+          {started ? t.home.stats(learned, total, clean) : t.home.statsNew(LESSONS.length)}
+        </p>
 
         <section className="app-home-section" aria-labelledby="app-path">
           <h2 id="app-path" className="pb-h2">

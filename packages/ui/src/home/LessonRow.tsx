@@ -1,5 +1,7 @@
 import { stagesFor, type Lesson } from '@piano/core/music/lessons'
 import { store } from '@piano/core/sync/store'
+import { stateFor } from '@piano/core/practice/plan'
+import { currentStates } from '@piano/core/practice/progress'
 import { localized, t } from '@piano/core/i18n'
 import { Dots } from '../shared/Dots'
 
@@ -17,6 +19,7 @@ export function LessonRow({
   isNext: boolean
   onOpen: (l: Lesson) => void
 }) {
+  const states = currentStates()
   return (
     <li className={`pb-step${done ? ' done' : ''}${isNext ? ' next' : ''}`}>
       <button type="button" className="pb-lesson" onClick={() => onOpen(lesson)}>
@@ -36,7 +39,7 @@ export function LessonRow({
             stagesFor(lesson).includes(s) ? (
               <span key={s} className={`mini mini-${s}`}>
                 <span className="mini-label">{t.stage[s]}</span>
-                <Dots stage={s} clean={store.cleanCount(lesson.id, s)} />
+                <Dots stage={s} clean={store.cleanCount(lesson.id, s)} firm={stateFor(states, lesson.id, s)?.status === 'firm'} />
               </span>
             ) : (
               <span key={s} className="mini mini-empty" aria-hidden="true" />
