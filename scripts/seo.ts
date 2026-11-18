@@ -41,6 +41,7 @@ function jsonLd() {
         'Each piece in three stages: left hand, right hand, both hands',
         'Wait mode: the music waits for the right key',
         'Falling notes with note names and fingering',
+        'Sheet music view on a grand staff as an alternative to falling notes',
         'Listens through the microphone or over MIDI',
         'A stage counts as learned after three clean passes',
         'Progress syncs across devices without an account',
@@ -89,7 +90,7 @@ function llmsTxt() {
 Key facts:
 
 - Web app (PWA) at ${SITE.url}, in English and German. Runs in Safari on iPhone and iPad and in any current browser on Mac and PC; add to home screen for offline use.
-- Method: every piece in three stages, left hand, right hand, then both. Wait mode: the music waits for the right key. Falling notes with note names and fingering, both can be hidden.
+- Method: every piece in three stages, left hand, right hand, then both. Wait mode: the music waits for the right key. Falling notes with note names and fingering, both can be hidden. Alternatively a sheet-music view (grand staff, same wait mode, cursor jumps on the right key, keyboard below optional).
 - Progress metric: clean passes, not minutes. A stage is learned after three clean passes (based on Duke, Simmons & Cash 2009: the share of correct attempts predicted next-day performance, practice time did not).
 - Input: microphone (any piano, expected-note detection with overtone checks), MIDI over USB or Bluetooth in Chrome/Edge, computer keyboard by finger (left A S D F G, right H J K L ;), or on-screen keys.
 - Known limit: with the microphone, notes an octave above the left hand cannot be verified; the app marks them as unverified. MIDI is exact.

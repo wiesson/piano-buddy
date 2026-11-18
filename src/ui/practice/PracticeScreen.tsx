@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { notesForStage, stagesFor, type Lesson, type Stage } from '../../music/lessons'
 import { WaitSession, type PassResult } from '../../practice/session'
 import { MicBench, type BenchStats } from '../../practice/bench'
@@ -18,6 +18,9 @@ import { PianoRoll, type RollView } from './PianoRoll'
 import { StageSwitcher } from './StageSwitcher'
 import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
+
+// Notenansicht mit VexFlow: eigener Chunk, lädt erst beim Umschalten
+const SheetView = lazy(() => import('./SheetView'))
 import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
 import { ViewMenu } from './ViewMenu'
@@ -65,6 +68,13 @@ export function PracticeScreen({
   const [showNames, setShowNamesState] = useState(() => getPref('names', true))
   const [showFingers, setShowFingersState] = useState(() => getPref('fingers', true))
   const setShowNames = (v: boolean) => (setPref('names', v), setShowNamesState(v))
+  // Noten statt fallender Balken; die Klaviatur darunter lässt sich ausblenden
+  const [sheet, setSheetState] = useState(() => getPref('sheet', false))
+  const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys', true))
+  const setSheet = (v: boolean) => (setPref('sheet', v), setSheetState(v))
+  const setSheetKeys = (v: boolean) => (setPref('sheetkeys', v), setSheetKeysState(v))
+  /** Letzte Eingabe: In der Notenansicht leuchtet die Taste erst, wenn man 3 s zögert */
+  const lastInputRef = useRef(performance.now())
   const setShowFingers = (v: boolean) => (setPref('fingers', v), setShowFingersState(v))
   const [played, setPlayed] = useState(false)
   // Tag: Papier (hell), Abend: Lack (dunkel) – wie der Modus des Geräts
@@ -116,6 +126,7 @@ export function PracticeScreen({
   }, [lesson, stage, onPass])
 
   const input = useCallback((e: NoteOn) => {
+    lastInputRef.current = performance.now()
     pressRef.current.set(e.midi, performance.now())
     const s = sessionRef.current
     if (!s || demoRef.current) return
@@ -311,8 +322,10 @@ export function PracticeScreen({
       },
       showNames,
       showFingers,
+      keysOnly: sheet,
+      hint: !sheet || now - lastInputRef.current > 3000,
     }
-  }, [lesson.notes, stageNotes, showNames, showFingers])
+  }, [lesson.notes, stageNotes, showNames, showFingers, sheet])
 
   const again = () => {
     sessionRef.current?.restart()
@@ -339,6 +352,10 @@ export function PracticeScreen({
             onShowFingers={setShowFingers}
             fingerKeys={fingerKeys}
             onFingerKeys={setFingerKeys}
+            sheet={sheet}
+            onSheet={setSheet}
+            sheetKeys={sheetKeys}
+            onSheetKeys={setSheetKeys}
           />
         }
       />
@@ -348,13 +365,32 @@ export function PracticeScreen({
       </div>
 
       <main className="stage-area">
-        <PianoRoll
-          view={view}
-          beatsPerBar={lesson.beatsPerBar}
-          onKey={onKey}
-          expected={[...(sessionRef.current?.expected ?? [])]}
-          paper={paper}
-        />
+        {sheet ? (
+          <div className={`sheet-stage${sheetKeys ? '' : ' no-keys'}`}>
+            <Suspense fallback={<div className="sheet-view" />}>
+              <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} />
+            </Suspense>
+            {sheetKeys && (
+              <div className="sheet-keys">
+                <PianoRoll
+                  view={view}
+                  beatsPerBar={lesson.beatsPerBar}
+                  onKey={onKey}
+                  expected={[...(sessionRef.current?.expected ?? [])]}
+                  paper={paper}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <PianoRoll
+            view={view}
+            beatsPerBar={lesson.beatsPerBar}
+            onKey={onKey}
+            expected={[...(sessionRef.current?.expected ?? [])]}
+            paper={paper}
+          />
+        )}
         {!played && !result && micStatus === 'off' && midi.state === 'off' && (
           <p className="lane-hint">{t.practice.noInputHint}</p>
         )}

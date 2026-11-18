@@ -642,3 +642,95 @@
   font-weight: 400;
   color: #75675a;
 }
+
+/* ---------- Notenansicht: Notenblatt auf dem Pult, Klaviatur darunter (ausblendbar) ---------- */
+.sheet-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) clamp(96px, 20dvh, 180px);
+}
+.sheet-stage.no-keys {
+  grid-template-rows: minmax(0, 1fr);
+}
+.sheet-keys {
+  position: relative;
+}
+/* Das Blatt ist in beiden Themen Papier, wie Noten auf dem Pult */
+.sheet-view {
+  --sheet: #fffcf6;
+  --sheet-ink: #2b2420;
+  --sheet-done: #b8ab9b;
+  --sheet-off: #d5cbbc;
+  --sheet-l: #2f6f7a;
+  --sheet-r: #b8791f;
+  position: relative;
+  overflow: hidden;
+  margin: 0 12px 10px;
+  border-radius: var(--card-radius);
+  background: var(--sheet);
+  color: var(--sheet-ink);
+}
+.sheet-track {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  will-change: transform;
+}
+.sheet-track svg {
+  display: block;
+}
+.sheet-cursor {
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  width: 24px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--sheet-r) 17%, transparent);
+  pointer-events: none;
+  transition: background 0.15s;
+}
+.sheet-cursor.hand-L {
+  background: color-mix(in srgb, var(--sheet-l) 17%, transparent);
+}
+.sheet-cursor.is-wrong {
+  background: color-mix(in srgb, #c2412d 32%, transparent);
+}
+.sheet-view .pb-note.is-off path,
+.sheet-view .pb-note.is-off text {
+  fill: var(--sheet-off);
+  stroke: var(--sheet-off);
+}
+.sheet-view .pb-note.is-done path,
+.sheet-view .pb-note.is-done text {
+  fill: var(--sheet-done);
+  stroke: var(--sheet-done);
+}
+.sheet-view .pb-note.hand-R.is-now path,
+.sheet-view .pb-note.hand-R.is-now text {
+  fill: var(--sheet-r);
+  stroke: var(--sheet-r);
+}
+.sheet-view .pb-note.hand-L.is-now path,
+.sheet-view .pb-note.hand-L.is-now text {
+  fill: var(--sheet-l);
+  stroke: var(--sheet-l);
+}
+/* Notennamen im Kopf: hell auf dem Notenkopf, auch wenn er die Farbe wechselt */
+.sheet-view .pb-note text.pb-name,
+.sheet-view text.pb-name {
+  /* gewinnt gegen die Farbregeln für gespielt/aktuell, die alle Texte einer Note färben */
+  fill: #fffcf6 !important;
+  stroke: none;
+  font-family: var(--sans);
+  font-weight: 700;
+  text-anchor: middle;
+}
+.paper .sheet-view {
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.06), inset 0 0 0 1px var(--bg-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-cursor {
+    transition: none;
+  }
+}

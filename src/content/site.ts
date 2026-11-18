@@ -58,8 +58,8 @@ export const FAQ: FaqItem[] = [
     id: 'sheet-music',
     q: { en: 'Do I need to read sheet music?', de: 'Muss ich Noten lesen können?' },
     a: {
-      en: 'No. You see falling notes on a piano roll, each with its note name and the finger to use. Both can be switched off once you know the piece.',
-      de: 'Nein. Du siehst fallende Noten auf einer Pianorolle, jede mit Notennamen und dem Finger, der sie spielt. Beides lässt sich ausschalten, sobald du das Stück kennst.',
+      en: 'No. You see falling notes on a piano roll, each with its note name and the finger to use. Both can be switched off once you know the piece. If you can read music, switch to sheet music in the View menu: the same piece on a grand staff, the music still waits for you, and the keyboard below can be hidden.',
+      de: 'Nein. Du siehst fallende Noten auf einer Pianorolle, jede mit Notennamen und dem Finger, der sie spielt. Beides lässt sich ausschalten, sobald du das Stück kennst. Wer Noten liest, schaltet im Menü Ansicht auf Noten um: dasselbe Stück im Klaviersystem, die Musik wartet weiter auf dich, und die Klaviatur darunter lässt sich ausblenden.',
     },
   },
   {

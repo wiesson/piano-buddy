@@ -128,6 +128,8 @@ export const de = {
     view: 'Ansicht',
     fingerKeys: 'Fingertasten',
     fingerKeysHint: 'Links A S D F G, rechts H J K L Ö',
+    sheet: 'Noten',
+    sheetHint: 'Notenblatt statt fallender Balken',
     noteNames: 'Notennamen',
     fingers: 'Finger',
     restart: 'Von vorn',

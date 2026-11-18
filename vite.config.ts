@@ -19,7 +19,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       // Schriften und Icons gehören zur App und müssen offline da sein
-      workbox: { globPatterns: ['**/*.{js,css,html,woff2,png,svg,jpg}'] },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg,jpg}'],
+        // Die Notenansicht (VexFlow mit Notenschrift, ~390 kB) nicht jedem vorab laden: erst beim
+        // ersten Umschalten holen, dann für offline zwischenspeichern
+        globIgnores: ['**/SheetView-*.js'],
+        runtimeCaching: [
+          { urlPattern: /\/assets\/SheetView-.*\.js$/, handler: 'CacheFirst', options: { cacheName: 'sheet-view' } },
+        ],
+      },
       manifest: {
         name: 'Piano Buddy',
         short_name: 'Piano',

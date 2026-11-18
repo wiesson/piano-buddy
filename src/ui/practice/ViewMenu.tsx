@@ -11,6 +11,10 @@ export function ViewMenu(p: {
   onShowFingers: (v: boolean) => void
   fingerKeys: boolean
   onFingerKeys: (v: boolean) => void
+  sheet: boolean
+  onSheet: (v: boolean) => void
+  sheetKeys: boolean
+  onSheetKeys: (v: boolean) => void
 }) {
   return (
     <Popover>
@@ -18,6 +22,17 @@ export function ViewMenu(p: {
         <ViewIcon />
       </PopoverTrigger>
       <PopoverContent className="popover" side="bottom" align="end" sideOffset={6}>
+        <Toggle className="toggle toggle-row" pressed={p.sheet} onPressedChange={p.onSheet}>
+          <span className="toggle-text">
+            {t.practice.sheet}
+            <small>{t.practice.sheetHint}</small>
+          </span>
+        </Toggle>
+        {p.sheet && (
+          <Toggle className="toggle toggle-row" pressed={p.sheetKeys} onPressedChange={p.onSheetKeys}>
+            {t.practice.keyboard}
+          </Toggle>
+        )}
         <Toggle className="toggle toggle-row" pressed={p.showNames} onPressedChange={p.onShowNames}>
           {t.practice.noteNames}
         </Toggle>

@@ -126,6 +126,8 @@ export const en: Messages = {
     view: 'View',
     fingerKeys: 'Finger keys',
     fingerKeysHint: 'Left A S D F G, right H J K L ;',
+    sheet: 'Sheet music',
+    sheetHint: 'Notation instead of falling notes',
     noteNames: 'Note names',
     fingers: 'Fingering',
     restart: 'Restart',

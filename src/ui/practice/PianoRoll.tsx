@@ -24,6 +24,10 @@ export interface RollView {
   press: (midi: number) => number
   showNames: boolean
   showFingers: boolean
+  /** Nur die Klaviatur, ohne fallende Noten (unter der Notenansicht) */
+  keysOnly?: boolean
+  /** Erwartete Tasten einfärben; aus, solange man in der Notenansicht selbst lesen soll */
+  hint?: boolean
 }
 
 /** Abend: Lack und Elfenbein */
@@ -226,9 +230,9 @@ export function PianoRoll({
       // Schmal (hochkant am Telefon): nur der Tonumfang der geübten Hand, damit Tasten und
       // Schrift auf Armlänge lesbar bleiben; breit: das ganze Stück, damit nichts springt
       const l = layoutKeys(W < 640 ? v.notes : v.rangeNotes, W)
-      const keyH = Math.max(90, Math.min(230, H * 0.3, l.keyW * 4.6))
-      const keyTop = H - keyH
       const feltH = 6
+      const keyH = v.keysOnly ? H - feltH : Math.max(90, Math.min(230, H * 0.3, l.keyW * 4.6))
+      const keyTop = H - keyH
       const laneBottom = keyTop - feltH
       layoutRef.current = { l, keyTop, keyH }
       const sig = `${W}x${H}:${l.lo}-${l.hi}:${l.coreLo}-${l.coreHi}`
@@ -237,7 +241,13 @@ export function PianoRoll({
         setKeysLayout({ l, keyTop, keyH })
       }
 
+      // „jetzt“ ist eine Note, deren Zeitspanne die aktuelle Position enthält
+      const sounding = (n: ScoreNote) => n.start <= v.beat + 1e-6 && v.beat < n.start + n.dur - 1e-6
+      const geoW = keyGeometry(l.keyW - 2, false)
+      const geoB = keyGeometry(l.keyW * 0.6, true)
+
       // Bahn; außerhalb des Tonumfangs des Stücks leicht abgedunkelt
+      if (!v.keysOnly) {
       g.fillStyle = C.lane
       g.fillRect(0, 0, W, laneBottom)
       const coreX0 = keyRect(l, l.coreLo).x
@@ -267,11 +277,8 @@ export function PianoRoll({
       }
 
       // Notenblöcke; „jetzt“ ist eine Note, deren Zeitspanne die aktuelle Position enthält
-      const sounding = (n: ScoreNote) => n.start <= v.beat + 1e-6 && v.beat < n.start + n.dur - 1e-6
       g.textAlign = 'center'
       g.textBaseline = 'middle'
-      const geoW = keyGeometry(l.keyW - 2, false)
-      const geoB = keyGeometry(l.keyW * 0.6, true)
       for (const n of v.notes) {
         const top = yOf(n.start + n.dur)
         const bottom = yOf(n.start)
@@ -328,6 +335,8 @@ export function PianoRoll({
         g.globalAlpha = 1
       }
 
+      }
+
       // Tastenbett: dunkel in den Fugen zwischen den Tasten
       g.fillStyle = C.keyBed
       g.fillRect(0, keyTop, W, keyH)
@@ -338,7 +347,8 @@ export function PianoRoll({
 
       // Tastatur
       const flashOf = (m: number) => v.flashes.find((f) => f.midi === m)
-      const handOf = (m: number) => v.notes.find((n) => n.midi === m && v.expected.has(m) && sounding(n))?.hand
+      const handOf = (m: number) =>
+        v.hint === false ? undefined : v.notes.find((n) => n.midi === m && v.expected.has(m) && sounding(n))?.hand
       // Sichtbarer Elfenbein-Bereich unter den schwarzen Tasten: Die Einlage füllt ihn mit
       // gleichem Abstand nach oben (zur schwarzen Taste), zu den Seiten und nach unten.
       const blackH = keyH * 0.62

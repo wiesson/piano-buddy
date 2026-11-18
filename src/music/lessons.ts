@@ -11,6 +11,8 @@ export interface ScoreNote {
   dur: number
   hand: Hand
   finger?: number
+  /** Schreibweise wie in den Daten, ohne Oktave (z. B. „Dis“ oder „Es“): Für die Notenansicht sind das verschiedene Zeichen */
+  spelling?: string
 }
 
 export interface Lesson {
@@ -20,6 +22,15 @@ export interface Lesson {
   goal: Localized
   bpm: number
   beatsPerBar: number
+  /** Notenwert eines Schlags: 4 = Viertel (Standard), 8 = Achtel (Für Elise: 3/8) */
+  beatUnit?: 4 | 8
+  /** Tonart als Zahl der Kreuze (positiv) oder Bs (negativ), Standard 0 = C-Dur/a-Moll */
+  key?: number
+  /**
+   * Auftakt in Schlägen. In den Daten ist der erste Takt mit Pausen aufgefüllt, damit Taktstriche
+   * und Pianorolle stimmen; die Notenansicht zeigt nur diese letzten Schläge als ersten Takt.
+   */
+  pickup?: number
   notes: ScoreNote[]
   /** Gouache-Illustration in public/illustrations (optional) */
   illustration?: string
@@ -41,7 +52,14 @@ function voice(hand: Hand, src: string): ScoreNote[] {
       const ps = pitches.split('+')
       const fs = fingers?.split('+')
       ps.forEach((p, i) =>
-        out.push({ midi: parseNote(p), start: t, dur, hand, finger: fs?.[i] ? Number(fs[i]) : undefined }),
+        out.push({
+          midi: parseNote(p),
+          start: t,
+          dur,
+          hand,
+          finger: fs?.[i] ? Number(fs[i]) : undefined,
+          spelling: p.replace(/-?\d$/, ''),
+        }),
       )
     }
     t += dur
@@ -55,6 +73,9 @@ const lesson = (l: Omit<Lesson, 'notes'> & { left?: string; right?: string }): L
   goal: l.goal,
   bpm: l.bpm,
   beatsPerBar: l.beatsPerBar,
+  beatUnit: l.beatUnit,
+  key: l.key,
+  pickup: l.pickup,
   illustration: l.illustration,
   notes: [...(l.left ? voice('L', l.left) : []), ...(l.right ? voice('R', l.right) : [])].sort(
     (a, b) => a.start - b.start || a.midi - b.midi,
@@ -249,6 +270,7 @@ export const LESSONS: Lesson[] = [
     },
     bpm: 60,
     beatsPerBar: 4,
+    key: 2,
     right:
       'Fis5:2 E5:2 D5:2 Cis5:2 H4:2 A4:2 H4:2 Cis5:2 ' +
       'D5:2 Cis5:2 H4:2 A4:2 G4:2 Fis4:2 G4:2 E4:2 D4+Fis4+A4:4',
@@ -266,6 +288,8 @@ export const LESSONS: Lesson[] = [
     },
     bpm: 120,
     beatsPerBar: 3,
+    beatUnit: 8,
+    pickup: 1,
     right:
       '-:2 E5:0.5:5 Dis5:0.5:4 ' +
       'E5:0.5:5 Dis5:0.5:4 E5:0.5:5 H4:0.5:2 D5:0.5:4 C5:0.5:3 ' +
