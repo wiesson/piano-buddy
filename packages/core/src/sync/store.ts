@@ -17,6 +17,10 @@ export interface Attempt {
   unverified: number
   source: InputSource | string
   durationMs: number
+  /** Anteil der Schritte, die beim ersten Anschlag richtig waren (fehlt bei älteren Versuchen) */
+  percent?: number
+  /** Takte mit Fehlern (fehlt bei älteren Versuchen) */
+  missedBars?: number[]
 }
 
 interface Stored extends Attempt {
@@ -130,6 +134,11 @@ export const store = {
   /** Alle Durchgänge, ältester zuerst (für Tagesplan, Wiederholung, Serie) */
   attempts(): Attempt[] {
     return [...log.values()].sort((a, b) => a.at - b.at)
+  },
+
+  /** Versuche einer Stufe, ältester zuerst */
+  attemptsOf(lessonId: string, stage: Stage): Attempt[] {
+    return [...log.values()].filter((a) => a.lessonId === lessonId && a.stage === stage).sort((a, b) => a.at - b.at)
   },
 
   cleanCount(lessonId: string, stage: Stage) {

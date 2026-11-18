@@ -328,6 +328,12 @@ export interface Step {
   notes: ScoreNote[]
 }
 
+/** Taktnummer eines Schlags wie in den Noten: mit Auftakt ist der kurze erste Takt die 0 */
+export function barOf(lesson: Pick<Lesson, 'beatsPerBar' | 'pickup'>, beat: number): number {
+  const i = Math.floor(beat / lesson.beatsPerBar + 1e-6)
+  return lesson.pickup ? i : i + 1
+}
+
 export function toSteps(notes: ScoreNote[]): Step[] {
   const steps: Step[] = []
   for (const n of notes) {

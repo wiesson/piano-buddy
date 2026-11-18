@@ -1,10 +1,17 @@
-import { notesForStage, toSteps, type Lesson, type Stage, type Step } from '../music/lessons'
+import { barOf, notesForStage, toSteps, type Lesson, type Stage, type Step } from '../music/lessons'
+import { percentOf } from './score'
 import type { NoteOff, NoteOn } from '../input/events'
 
 /**
  * Warte-Modus: Die Noten stehen, bis die richtigen Tasten angeschlagen sind.
  * Ein Durchgang ist „sauber“, wenn kein falscher Ton dazwischen kam. Gezählt werden
  * saubere Durchgänge (nicht Minuten): Sie sagen den Lernerfolg am besten voraus.
+ *
+ * Daneben zählt, wie viele Schritte beim ersten Anschlag richtig waren (Prozent): Ein falscher
+ * Ton kostet nur seinen Schritt, nicht den ganzen Durchgang.
+ *
+ * Schonfrist: Bis der erste richtige Ton kommt, zählen falsche Töne nicht (man sucht die
+ * Starttaste). Der erste richtige Ton startet den Durchgang.
  */
 
 /** Wie lange ein Anschlag, der kurz vor dem Schrittwechsel kam, noch für den neuen Schritt zählt */
@@ -32,6 +39,10 @@ export interface PassResult {
   short: number
   /** Überwiegende Eingabe in diesem Durchgang */
   source: string
+  /** Anteil der Schritte, die beim ersten Anschlag richtig waren, 0–100 (abgerundet: 100 nur ohne Fehler) */
+  percent: number
+  /** Takte mit mindestens einem falschen Ton (Taktnummern wie in den Noten, aufsteigend) */
+  missedBars: number[]
 }
 
 /** Liegt m auf einem Oberton eines anderen Tons desselben Schritts (Oktave, Duodezime, Doppeloktave)? */
@@ -53,6 +64,12 @@ export class WaitSession {
   /** Ein langer Ton wird gerade gehalten: weiter erst nach `until` oder beim Loslassen */
   holding: { midis: Set<number>; start: number; until: number; beats: number } | null = null
   shortCount = 0
+  /** Erst ein richtiger Ton startet den Durchgang; bis dahin zählen falsche Töne nicht */
+  started = false
+  /** Falsche Töne vor dem Start (Schonfrist), für einen sanften Hinweis auf die Starttaste */
+  graceMisses = 0
+  /** Schritte, in denen ein falscher Ton kam */
+  private missedSteps = new Set<number>()
 
   constructor(
     readonly lesson: Lesson,
@@ -76,7 +93,6 @@ export class WaitSession {
   }
 
   input(e: NoteOn) {
-    if (!this.passStart) this.passStart = e.tMs
     // Neuer Ton während des Haltens (andere Hand, nächster Ton): Halten endet ohne Hinweis
     if (this.holding) this.endHold(e.tMs)
     this.recent.push({ ...e, used: false })
@@ -93,9 +109,15 @@ export class WaitSession {
     return new Set(this.steps[this.index + 1]?.notes.map((n) => n.midi) ?? [])
   }
 
-  private wrong(r: { used: boolean; midi: number }, nowMs: number) {
+  private wrong(r: { used: boolean; midi: number; tMs: number }, nowMs: number) {
     r.used = true
+    // Schonfrist: auch ein Ton, der vor dem Start kam und erst jetzt (verzögert) gewertet wird
+    if (!this.started || r.tMs < this.passStart) {
+      this.graceMisses++
+      return
+    }
     this.wrongCount++
+    this.missedSteps.add(this.index)
     this.feedback.push({ midi: r.midi, kind: 'wrong', tMs: nowMs })
   }
 
@@ -142,6 +164,10 @@ export class WaitSession {
         if (r.used || !exp.has(r.midi) || this.struck.has(r.midi)) continue
         if (r.tMs < this.stepStartedAt - CARRY_MS) continue
         r.used = true
+        if (!this.started) {
+          this.started = true
+          this.passStart = r.tMs
+        }
         this.struckBy.set(r.midi, r.source)
         if (r.source === 'mic' && masked(exp, r.midi)) this.unverified++
         this.sourceHits[r.source] = (this.sourceHits[r.source] ?? 0) + 1
@@ -189,6 +215,8 @@ export class WaitSession {
       unverified: this.unverified,
       short: this.shortCount,
       source: Object.entries(this.sourceHits).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'touch',
+      percent: percentOf(this.steps.length, this.missedSteps.size),
+      missedBars: [...new Set([...this.missedSteps].map((i) => barOf(this.lesson, this.steps[i].start)))].sort((a, b) => a - b),
     })
     return true
   }
@@ -200,6 +228,9 @@ export class WaitSession {
     this.index = 0
     this.struck = new Set()
     this.wrongCount = 0
+    this.missedSteps = new Set()
+    this.started = false
+    this.graceMisses = 0
     this.unverified = 0
     this.sourceHits = {}
     this.recent = []

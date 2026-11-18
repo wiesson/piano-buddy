@@ -946,3 +946,75 @@
     transform: translateY(-24px);
   }
 }
+
+/* Bewertung: Sterne, Prozent, Bestwert, Lob (Ergebniskarte und Stufenwahl) */
+.result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+.result-stars {
+  font-size: 30px;
+  gap: 4px;
+  color: var(--ink);
+}
+.result-stars svg.on {
+  animation: star-pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.35) both;
+}
+.result-stars svg.on:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.result-stars svg.on:nth-child(3) {
+  animation-delay: 0.24s;
+}
+@keyframes star-pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+.result-best {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: #6d5a4c;
+  white-space: nowrap;
+}
+.result-best .stars {
+  font-size: 12px;
+}
+.result-praise {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #8a6512;
+}
+.result-praise .stars {
+  font-size: 15px;
+}
+.stage-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.stage-stars {
+  font-size: 10px;
+  gap: 1px;
+}
+.lane-hint.start-hint {
+  top: 40%;
+  color: var(--fg);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-stars svg.on {
+    animation: none;
+  }
+}

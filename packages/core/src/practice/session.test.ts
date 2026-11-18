@@ -41,7 +41,8 @@ describe('Warte-Modus', () => {
 
   it('meldet einen Ton, der weder jetzt noch als Nächstes dran ist, sofort als falsch', () => {
     const { s } = run('lh-fuenf', 'L')
-    s.input({ midi: n('A3'), tMs: 1000, source: 'touch' }) // erwartet C3, danach D3
+    s.input({ midi: n('C3'), tMs: 500, source: 'touch' }) // Start (davor gilt die Schonfrist)
+    s.input({ midi: n('A3'), tMs: 1000, source: 'touch' }) // erwartet D3, danach E3
     expect(s.wrongCount).toBe(1)
     expect(s.feedback).toContainEqual({ midi: n('A3'), kind: 'wrong', tMs: 1000 })
   })
@@ -121,5 +122,74 @@ describe('Warte-Modus', () => {
       expect(s.holding).toBeNull()
       expect(s.index).toBe(1)
     })
+  })
+})
+
+describe('Prozent und Schonfrist', () => {
+  const FUENF = ['C3', 'D3', 'E3', 'F3', 'G3', 'F3', 'E3', 'D3', 'C3'] // 9 Schritte, Takte 1, 1, 1, 1, 2, 2, 2, 2, 3
+
+  it('falsche Töne vor dem ersten richtigen zählen nicht: Der Durchgang bleibt sauber', () => {
+    const { s, results, play, wait } = run('lh-fuenf', 'L')
+    play(n('A3'))
+    play(n('B3'))
+    wait(1000)
+    expect(s.wrongCount).toBe(0)
+    expect(s.feedback.some((f) => f.kind === 'wrong')).toBe(false)
+    for (const m of FUENF) play(n(m))
+    wait(10_000)
+    expect(results[0]).toMatchObject({ clean: true, wrong: 0, percent: 100, missedBars: [] })
+  })
+
+  it('der erste richtige Ton startet den Durchgang: Danach zählt jeder falsche Ton', () => {
+    const { s, results, play, wait } = run('lh-fuenf', 'L')
+    play(n('C3'))
+    play(n('A3'))
+    expect(s.wrongCount).toBe(1)
+    for (const m of FUENF.slice(1)) play(n(m))
+    wait(10_000)
+    expect(results[0]).toMatchObject({ clean: false, wrong: 1 })
+  })
+
+  it('die Dauer beginnt mit dem ersten richtigen Ton, nicht mit dem Suchen davor', () => {
+    // Mikrofon: kein Halten am Schluss, der Durchgang endet mit dem letzten Ton
+    const { results, play } = run('lh-fuenf', 'L')
+    play(n('A3'), 'mic', 1000)
+    play(n('C3'), 'mic', 5000)
+    for (const [i, m] of FUENF.slice(1).entries()) play(n(m), 'mic', 5000 + (i + 1) * 500)
+    expect(results[0].durationMs).toBe(8 * 500)
+  })
+
+  it('ein vor dem Start gespielter Ton zählt auch dann nicht, wenn er erst nach dem Start gewertet wird', () => {
+    // G3 ist der zweite Ton von „Mary“ links: Er wartet, ob er nur zu früh kam. Dann kommt C3 und wird gehalten.
+    const { s, play } = run('mary', 'L')
+    play(n('G3'), 'midi', 1000)
+    play(n('C3'), 'midi', 1100)
+    s.tick(1500) // G3 ist jetzt 500 ms alt und wird gewertet
+    expect(s.wrongCount).toBe(0)
+    expect(s.feedback.some((f) => f.kind === 'wrong')).toBe(false)
+  })
+
+  it('gilt auch nach „Nochmal“', () => {
+    const { s, results, play, wait } = run('lh-fuenf', 'L')
+    play(n('C3'))
+    play(n('A3')) // zählt
+    s.restart()
+    play(n('A3')) // nach dem Neustart wieder Schonfrist
+    for (const m of FUENF) play(n(m))
+    wait(10_000)
+    expect(results[0]).toMatchObject({ clean: true, wrong: 0 })
+  })
+
+  it('Prozent: Anteil der Schritte, die beim ersten Anschlag richtig waren', () => {
+    const { results, play, wait } = run('lh-fuenf', 'L')
+    play(n('C3'))
+    play(n('A3')) // Schritt 2 (D3) verfehlt
+    play(n('B3')) // noch einmal in Schritt 2: kostet nichts zusätzlich
+    for (const m of FUENF.slice(1, 6)) play(n(m))
+    play(n('A3')) // Schritt 7 (E3, Takt 2) verfehlt
+    for (const m of FUENF.slice(6)) play(n(m))
+    wait(10_000)
+    // 7 von 9 Schritten richtig = 77,7 % → 77 (abgerundet)
+    expect(results[0]).toMatchObject({ clean: false, wrong: 3, percent: 77, missedBars: [1, 2] })
   })
 })

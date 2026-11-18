@@ -3,6 +3,8 @@ import { Progress, ProgressIndicator, ProgressTrack } from '@ui-sdk/react/progre
 import type { Stage } from '@piano/core/music/lessons'
 import type { PassResult } from '@piano/core/practice/session'
 import { CLEAN_GOAL } from '@piano/core/practice/goal'
+import { starsFor, type Best, type Praise } from '@piano/core/practice/score'
+import { Stars } from '@piano/ui/shared/Stars'
 import { audioContext } from '@piano/core/audio/audio'
 import { t } from '@piano/core/i18n'
 
@@ -10,7 +12,8 @@ import { t } from '@piano/core/i18n'
 const COUNTDOWN_MS = 3000
 
 /**
- * Karte nach einem Durchgang: sauber oder nicht, Stand der Stufe, was als Nächstes kommt.
+ * Karte nach einem Durchgang: Sterne und Prozent (Schritte auf Anhieb richtig), höchstens eine
+ * Zeile Lob für etwas Neues, Stand der Stufe (x von 3 sauber, Bestwert), was als Nächstes kommt.
  * Nach 3 Sekunden geht es von selbst weiter (egal ob sauber oder nicht): nochmal, nächste Stufe
  * oder nächstes Stück. Die Zahl im Knopf rollt 3 · 2 · 1, unten läuft eine Zündschnur leer
  * (Progress aus dem UI SDK, für Screenreader mit Wert), dazu ein kurzer Ton wie in der
@@ -26,6 +29,8 @@ export function ResultCard({
   onNextLesson,
   silent = false,
   note,
+  best,
+  praise,
 }: {
   result: PassResult
   stage: Stage
@@ -38,6 +43,10 @@ export function ResultCard({
   silent?: boolean
   /** Was der Durchgang für den Fortschritt heißt (sitzt für heute, gefestigt, morgen nochmal) */
   note?: string
+  /** Bestwert der Stufe einschließlich dieses Durchgangs */
+  best?: Best | null
+  /** Lob für etwas Neues (höchstens eins) */
+  praise?: Praise | null
 }) {
   const done = clean >= CLEAN_GOAL
   // Was „weiter“ bedeutet: nächste Stufe, nächstes Stück, sonst nochmal
@@ -84,7 +93,30 @@ export function ResultCard({
 
   return (
     <div className="result" role="status">
-      <p className="result-head">{result.clean ? t.practice.resultClean : t.practice.resultWrong(result.wrong)}</p>
+      <div className="result-top">
+        <Stars n={starsFor(result.percent, result.clean)} className="result-stars" />
+        {best && best.percent > result.percent && (
+          <span className="result-best">
+            {t.practice.best(best.percent)}
+            <Stars n={best.stars} earnedOnly />
+          </span>
+        )}
+      </div>
+      <p className="result-head">{result.clean ? t.practice.resultClean : t.practice.resultPercent(result.percent)}</p>
+      {praise && (
+        <p className="result-praise">
+          {praise.kind === 'stars' ? (
+            <>
+              {t.practice.praiseStars('')}
+              <Stars n={praise.stars} earnedOnly />
+            </>
+          ) : praise.kind === 'best' ? (
+            t.practice.praiseBest
+          ) : (
+            t.practice.praiseBar(praise.bar)
+          )}
+        </p>
+      )}
       <p className="result-sub">
         {done
           ? nextStage

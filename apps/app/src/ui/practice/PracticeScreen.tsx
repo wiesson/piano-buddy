@@ -3,6 +3,7 @@ import { notesForStage, stagesFor, type Lesson, type Stage } from '@piano/core/m
 import { WaitSession, type PassResult } from '@piano/core/practice/session'
 import { MicBench, type BenchStats } from '@piano/core/practice/bench'
 import { CLEAN_GOAL } from '@piano/core/practice/goal'
+import { bestOf, praiseFor, type Praise } from '@piano/core/practice/score'
 import { store } from '@piano/core/sync/store'
 import { useStoreVersion } from '../../sync/hooks'
 import { lookupFrom, loadProfile } from '@piano/core/audio/profile'
@@ -62,6 +63,7 @@ export function PracticeScreen({
   const stages = useMemo(() => stagesFor(lesson), [lesson])
   useStoreVersion()
   const cleanCount = useCallback((s: Stage) => store.cleanCount(lesson.id, s), [lesson.id])
+  const bestFor = useCallback((s: Stage) => bestOf(store.attemptsOf(lesson.id, s)), [lesson.id])
   const [stage, setStage] = useState<Stage>(() =>
     initialStage && stages.includes(initialStage)
       ? initialStage
@@ -132,9 +134,11 @@ export function PracticeScreen({
   stageRef.current = stage
 
   const [progressNote, setProgressNote] = useState<string | undefined>()
+  const [praise, setPraise] = useState<Praise | null>(null)
   const onPass = useCallback(
     (r: PassResult) => {
       const before = stateFor(currentStates(), lesson.id, stage)
+      setPraise(praiseFor(store.attemptsOf(lesson.id, stage), r))
       store.record({
         lessonId: lesson.id,
         stage,
@@ -143,6 +147,8 @@ export function PracticeScreen({
         unverified: r.unverified,
         source: r.source,
         durationMs: Math.round(r.durationMs),
+        percent: r.percent,
+        missedBars: r.missedBars,
       })
       // Was der Durchgang für den Fortschritt heißt: sitzt für heute, gefestigt, morgen nochmal
       const after = stateFor(currentStates(), lesson.id, stage)
@@ -395,7 +401,10 @@ export function PracticeScreen({
   const view = useCallback((): RollView => {
     const s = sessionRef.current
     const now = performance.now()
+    const graceBefore = s?.graceMisses
     s?.tick(now)
+    // Ein verzögert gewerteter Ton vor dem Start: Hinweis auf die Starttaste zeigen
+    if (s && s.graceMisses !== graceBefore) queueMicrotask(() => force((x) => x + 1))
     let beat: number
     let expected: ReadonlySet<number> = s?.expected ?? new Set()
     let struck: ReadonlySet<number> = s?.struck ?? new Set()
@@ -446,7 +455,8 @@ export function PracticeScreen({
       showNames,
       showFingers,
       keysOnly: sheet,
-      hint: !sheet || now - lastInputRef.current > 3000,
+      // In den Noten leuchtet die Taste erst nach 3 s Zögern, oder wenn jemand die Starttaste sucht
+      hint: !sheet || now - lastInputRef.current > 3000 || (!!s && !s.started && s.graceMisses > 0),
     }
   }, [lesson.notes, stageNotes, showNames, showFingers, sheet])
 
@@ -486,7 +496,7 @@ export function PracticeScreen({
         }
       />
       <div className="stage-row">
-        <StageSwitcher stages={stages} stage={stage} cleanCount={cleanCount} onChange={setStage} />
+        <StageSwitcher stages={stages} stage={stage} cleanCount={cleanCount} best={bestFor} onChange={setStage} />
         <p className="stage-goal">{localized(lesson.goal)}</p>
       </div>
 
@@ -520,6 +530,10 @@ export function PracticeScreen({
           </p>
         )}
         {shortHint && <p className="lane-hint hold-hint">{t.practice.holdLonger}</p>}
+        {/* Schonfrist: Wer vor dem ersten richtigen Ton danebengreift, bekommt nur die Starttaste gezeigt */}
+        {s && !s.started && s.graceMisses > 0 && !result && !demo && (
+          <p className="lane-hint start-hint">{t.practice.startHint([...s.expected].map(displayNoteLabel).join(', '))}</p>
+        )}
         {comparing && bench && (
           <BenchPanel
             side={stage === 'R' ? 'left' : 'right'}
@@ -539,6 +553,8 @@ export function PracticeScreen({
             onNextLesson={onNextLesson}
             silent={micStatus === 'listening' || micStatus === 'calibrating'}
             note={progressNote}
+            best={bestFor(stage)}
+            praise={praise}
           />
         )}
       </main>

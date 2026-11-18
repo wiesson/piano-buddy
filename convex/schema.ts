@@ -15,6 +15,9 @@ export const attemptFields = {
   unverified: v.number(), // Töne, die das Mikrofon nicht sicher prüfen konnte
   source: v.string(), // mic | midi | touch | keys (überwiegende Eingabe)
   durationMs: v.number(),
+  // Neu ab Bewertung in Prozent; ältere Versuche haben die Felder nicht
+  percent: v.optional(v.number()), // Schritte beim ersten Anschlag richtig, 0–100
+  missedBars: v.optional(v.array(v.number())), // Takte mit Fehlern
 }
 
 export default defineSchema({

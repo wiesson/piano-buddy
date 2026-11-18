@@ -13,7 +13,8 @@ const meta = {
   title: 'App/Üben',
   component: ResultCard,
   args: {
-    result: { clean: true, wrong: 0, durationMs: 41000, unverified: 0, source: 'mic' },
+    result: { clean: true, wrong: 0, durationMs: 41000, unverified: 0, short: 0, source: 'mic', percent: 100, missedBars: [] },
+    praise: { kind: 'stars', stars: 3 },
     stage: 'R',
     nextStage: 'LR',
     clean: 1,
@@ -87,7 +88,12 @@ export const Sauber: StoryObj<typeof meta> = {
 
 /** @summary Ergebnis mit falschen Tönen. */
 export const MitFehlern: StoryObj<typeof meta> = {
-  args: { result: { clean: false, wrong: 3, durationMs: 52000, unverified: 0, source: 'mic' }, clean: 0 },
+  args: {
+    result: { clean: false, wrong: 3, durationMs: 52000, unverified: 0, short: 0, source: 'mic', percent: 84, missedBars: [3, 6] },
+    clean: 0,
+    best: { percent: 92, stars: 2 },
+    praise: { kind: 'bar', bar: 5 },
+  },
   render: (args) => (
     <div style={{ position: 'relative', height: 360 }}>
       <ResultCard {...args} />
