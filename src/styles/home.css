@@ -754,10 +754,10 @@ body:has(.home) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 0;
-  font-weight: 700;
-  font-size: 17px;
-  line-height: 1.35;
+  padding: 14px 0;
+  font-weight: 550;
+  font-size: 15px;
+  line-height: 1.4;
   cursor: pointer;
   list-style: none;
 }
@@ -777,9 +777,9 @@ body:has(.home) {
 }
 .faq details p {
   max-width: 38em;
-  margin: -4px 0 18px;
+  margin: -4px 0 16px;
   color: var(--fg-dim);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
