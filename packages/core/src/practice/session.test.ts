@@ -125,6 +125,17 @@ describe('Warte-Modus', () => {
       expect(s.shortCount).toBe(0)
     })
 
+    it('eine Ganze am Schluss muss höchstens 1,5 s gehalten werden', () => {
+      // „Fünf Finger links“, 72 bpm: die Ganze wären 2,67 s
+      const { s, results, play, wait } = run('lh-fuenf', 'L')
+      for (const m of ['C3', 'D3', 'E3', 'F3', 'G3', 'F3', 'E3', 'D3', 'C3']) play(n(m))
+      expect(s.holding).not.toBeNull()
+      wait(1400)
+      expect(results).toHaveLength(0)
+      wait(150)
+      expect(results).toHaveLength(1)
+    })
+
     it('Mikrofon: kein Halten (es hört das Loslassen nicht)', () => {
       const { s, play } = run('mary', 'L')
       play(n('C3'), 'mic')

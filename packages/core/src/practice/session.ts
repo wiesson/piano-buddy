@@ -21,6 +21,9 @@ const WRONG_DELAY_MS = 350
 /** Lange Töne (halbe Note und länger) müssen gehalten werden: so viel ihrer Länge im Tempo des Stücks */
 const HOLD_SHARE = 0.8
 const HOLD_MIN_QUARTERS = 2
+/** Höchstens so lange halten: Im Warte-Modus gibt der Spieler das Tempo vor, eine Ganze im
+ *  Stücktempo (60 bpm: 3,2 s) fühlt sich dann endlos an. Halbe bleiben meist darunter. */
+const HOLD_MAX_MS = 1500
 
 /** Halbtonabstände der Teiltöne 2 bis 10 über dem Grundton */
 const OVERTONE_STEPS = [12, 19, 24, 28, 31, 34, 36, 38, 40]
@@ -211,7 +214,7 @@ export class WaitSession {
     )
     if (!long.length) return null
     const beats = Math.max(...long.map((n) => n.dur))
-    const ms = ((beats * 60) / this.lesson.bpm) * 1000 * HOLD_SHARE
+    const ms = Math.min(HOLD_MAX_MS, ((beats * 60) / this.lesson.bpm) * 1000 * HOLD_SHARE)
     return { midis: new Set(long.map((n) => n.midi)), start: nowMs, until: nowMs + ms, beats }
   }
 
