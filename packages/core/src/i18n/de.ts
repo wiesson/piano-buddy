@@ -158,6 +158,9 @@ export const de = {
     view: 'Ansicht',
     fingerKeys: 'Fingertasten',
     fingerKeysHint: 'Links A S D F G, rechts H J K L Ö',
+    more: 'Mehr',
+    diagnostics: 'Übungen zur Verbesserung senden',
+    diagnosticsHint: 'Aufnahme und Messwerte jeder Übung mit Mikrofon gehen an Piano Buddy',
     viewMode: 'Ansicht',
     viewModes: { roll: 'Fallend', both: 'Beides', sheet: 'Noten' } as Record<'roll' | 'both' | 'sheet', string>,
     sheet: 'Noten',
@@ -180,6 +183,7 @@ export const de = {
     keepPlayingNext: (stage: string) => `Spiel einfach weiter, dann geht es mit ${stage} los.`,
     nextLesson: 'Nächstes Stück',
     noInputHint: 'Womit spielst du? Schalte unten Mikrofon oder MIDI ein, oder tipp die Tasten an.',
+    noInputHintNoKeys: 'Womit spielst du? Schalte unten Mikrofon oder MIDI ein.',
     progress: (n: number, goal: number) => `${n} von ${goal} sauberen Durchgängen.`,
     unverified: (n: number) =>
       `${plural(n, 'Ein Ton liegt', `${n} Töne liegen`)} eine Oktave oder Duodezime über der linken Hand. Dort hört das Mikrofon die rechte Hand auch, wenn nur links gespielt wird. Mit MIDI wird es genau.`,

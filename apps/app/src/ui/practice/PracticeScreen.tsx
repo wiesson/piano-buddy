@@ -29,6 +29,8 @@ import { ViewMenu } from './ViewMenu'
 import { AppBar } from '@piano/ui/shared/AppBar'
 import { getPref, getPrefValue, setPref, setPrefValue } from './prefs'
 import { VIEW_MODES, type ViewMode } from './ViewSwitch'
+import { PracticeRecorder } from '../../diagnostics/recorder'
+import { useReportUpload } from '../../diagnostics/upload'
 import { usePrefersLight } from '@piano/ui/shared/usePrefersLight'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { BackIcon } from '@piano/ui/shared/icons'
@@ -78,8 +80,15 @@ export function PracticeScreen({
   )
   const setMode = (v: ViewMode) => (setPrefValue('view', v), setModeState(v))
   const sheet = mode === 'sheet'
-  const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys', true))
-  const setSheetKeys = (v: boolean) => (setPref('sheetkeys', v), setSheetKeysState(v))
+  const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys2', false))
+  const setSheetKeys = (v: boolean) => (setPref('sheetkeys2', v), setSheetKeysState(v))
+  // Diagnose: jede Übung mit Mikrofon samt Aufnahme senden (nur auf ausdrücklichen Schalter)
+  const upload = useReportUpload()
+  const [diagnostics, setDiagnosticsState] = useState(() => getPref('diagnostics', false))
+  const setDiagnostics = (v: boolean) => (setPref('diagnostics', v), setDiagnosticsState(v))
+  const diagnosticsRef = useRef(diagnostics)
+  diagnosticsRef.current = diagnostics && !!upload
+  const recorderRef = useRef<PracticeRecorder | null>(null)
   /** Letzte Eingabe: In der Notenansicht leuchtet die Taste erst, wenn man 3 s zögert */
   const lastInputRef = useRef(performance.now())
   const setShowFingers = (v: boolean) => (setPref('fingers', v), setShowFingersState(v))
@@ -130,6 +139,7 @@ export function PracticeScreen({
       setProgressNote(note)
       finishedAtRef.current = performance.now()
       setResult(r)
+      void flushRef.current('pass', r)
     },
     [lesson.id, stage],
   )
@@ -194,6 +204,30 @@ export function PracticeScreen({
     input({ midi: n.midi, tMs: n.tMs, source: 'midi' })
   })
 
+  /** Diagnose: Messung dieses Durchgangs senden und eine neue beginnen */
+  const flushDiagnostics = async (reason: 'pass' | 'leave', result?: PassResult) => {
+    const rec = recorderRef.current
+    recorderRef.current = null
+    if (!rec || !upload) return
+    const mic = micRef.current
+    if (reason === 'pass' && mic?.status === 'listening') {
+      recorderRef.current = new PracticeRecorder()
+      recorderRef.current.start(mic.mediaStream)
+    }
+    if (rec.empty) return
+    try {
+      const { data, audio, summary } = await rec.finish(
+        { lessonId: lesson.id, stage, reason, result: result ?? null, profile: !!loadProfile() },
+        mic?.calibration ?? null,
+      )
+      await upload('practice', summary, data, audio)
+    } catch (e) {
+      console.warn('Diagnose senden', e)
+    }
+  }
+  const flushRef = useRef(flushDiagnostics)
+  flushRef.current = flushDiagnostics
+
   // Mikrofon
   useEffect(() => {
     // Eingelerntes Klangprofil (Lernmodus), sonst feste Regeln
@@ -201,8 +235,20 @@ export function PracticeScreen({
     const mic = new MicListener({
       profile: () => profile,
       expected: () => sessionRef.current?.expected ?? new Set(),
-      onNote: (m, tMs) => (midiLiveRef.current ? benchRef.current.mic(m, tMs) : input({ midi: m, tMs, source: 'mic' })),
-      onStatus: setMicStatus,
+      onNote: (m, tMs) => {
+        recorderRef.current?.note(m, tMs, [...(sessionRef.current?.expected ?? [])])
+        if (midiLiveRef.current) benchRef.current.mic(m, tMs)
+        else input({ midi: m, tMs, source: 'mic' })
+      },
+      onFrame: (f) => recorderRef.current?.frame(f),
+      onStatus: (st) => {
+        setMicStatus(st)
+        // Diagnose: Aufnahme mitlaufen lassen, sobald das Mikrofon hört
+        if (st === 'listening' && diagnosticsRef.current && !recorderRef.current) {
+          recorderRef.current = new PracticeRecorder()
+          recorderRef.current.start(mic.mediaStream)
+        }
+      },
       onLevel: (level, heard) => {
         levelRef.current = level
         heardRef.current = heard
@@ -211,7 +257,11 @@ export function PracticeScreen({
     micRef.current = mic
     // Wer das Mikrofon zuletzt an hatte, bekommt es wieder (der Tipp aufs Stück war die Geste)
     if (getPref('mic', false)) void mic.start()
-    return () => mic.stop()
+    return () => {
+      void flushRef.current('leave')
+      mic.stop()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, midiLiveRef])
 
   const comparing = midi.state === 'on' && midi.devices.length > 0 && (micStatus === 'listening' || micStatus === 'calibrating')
@@ -402,13 +452,17 @@ export function PracticeScreen({
         title={<span className="appbar-text">{localized(lesson.title)}</span>}
         right={
           <ViewMenu
+            mode={mode}
+            onMode={setMode}
+            onCalibrate={onCalibrate}
+            diagnostics={diagnostics}
+            onDiagnostics={upload ? setDiagnostics : undefined}
             showNames={showNames}
             onShowNames={setShowNames}
             showFingers={showFingers}
             onShowFingers={setShowFingers}
             fingerKeys={fingerKeys}
             onFingerKeys={setFingerKeys}
-            sheet={sheet}
             sheetKeys={sheetKeys}
             onSheetKeys={setSheetKeys}
           />
@@ -438,7 +492,7 @@ export function PracticeScreen({
         ) : sheet ? (
           <div className={`sheet-stage${sheetKeys ? '' : ' no-keys'}`}>
             <Suspense fallback={<div className="sheet-view" />}>
-              <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} />
+              <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} forceBand />
             </Suspense>
             {sheetKeys && (
               <div className="sheet-keys">
@@ -462,7 +516,9 @@ export function PracticeScreen({
           />
         )}
         {!played && !result && micStatus === 'off' && midi.state === 'off' && (
-          <p className={`lane-hint lane-hint-${mode}`}>{t.practice.noInputHint}</p>
+          <p className={`lane-hint lane-hint-${sheet && !sheetKeys ? 'band' : mode}`}>
+            {sheet && !sheetKeys ? t.practice.noInputHintNoKeys : t.practice.noInputHint}
+          </p>
         )}
         {shortHint && <p className="lane-hint hold-hint">{t.practice.holdLonger}</p>}
         {comparing && bench && (
@@ -498,9 +554,6 @@ export function PracticeScreen({
         onToggleDemo={toggleDemo}
         canRestart={!!s && (s.index > 0 || !!result)}
         onRestart={again}
-        onCalibrate={onCalibrate}
-        mode={mode}
-        onMode={setMode}
       />
     </div>
   )

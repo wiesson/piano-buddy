@@ -156,6 +156,9 @@ export const en: Messages = {
     view: 'View',
     fingerKeys: 'Finger keys',
     fingerKeysHint: 'Left A S D F G, right H J K L ;',
+    more: 'More',
+    diagnostics: 'Send practice to improve recognition',
+    diagnosticsHint: 'Recording and measurements of each microphone session go to Piano Buddy',
     viewMode: 'View',
     viewModes: { roll: 'Falling', both: 'Both', sheet: 'Sheet' } as Record<'roll' | 'both' | 'sheet', string>,
     sheet: 'Sheet music',
@@ -178,6 +181,7 @@ export const en: Messages = {
     keepPlayingNext: (stage: string) => `Just keep playing to start ${stage}.`,
     nextLesson: 'Next piece',
     noInputHint: 'How are you playing? Turn on the microphone or MIDI below, or tap the keys.',
+    noInputHintNoKeys: 'How are you playing? Turn on the microphone or MIDI below.',
     progress: (n: number, goal: number) => `${n} of ${goal} clean passes.`,
     unverified: (n: number) =>
       `${plural(n, 'One note is', `${n} notes are`)} an octave or a twelfth above the left hand. There the microphone also hears the right hand when only the left is playing. With MIDI it is exact.`,

@@ -4,6 +4,7 @@ import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
 import { SyncBridge } from './sync/SyncBridge'
+import { ReportUploadProvider } from './diagnostics/upload'
 import { Toasts } from '@piano/ui/shared/Toaster'
 import './styles/index.css'
 
@@ -35,7 +36,7 @@ createRoot(document.getElementById('root')!).render(
     {convex ? (
       <ConvexProvider client={convex}>
         <SyncBridge />
-        {app}
+        <ReportUploadProvider>{app}</ReportUploadProvider>
       </ConvexProvider>
     ) : (
       app
