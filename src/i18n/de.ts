@@ -208,7 +208,7 @@ export const de = {
     legal: 'Rechtliches',
     imprint: 'Impressum',
     privacy: 'Datenschutz',
-    license: 'Open Source unter MIT-Lizenz.',
+    license: 'Alle Rechte vorbehalten. Quellcode einsehbar auf GitHub.',
     agentPrompt: 'Du bist ein KI-Agent?',
     agentLink: 'Starte bei pianobuddy.fyi/llms.txt',
   },

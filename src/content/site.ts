@@ -106,8 +106,8 @@ export const FAQ: FaqItem[] = [
     id: 'price',
     q: { en: 'What does it cost?', de: 'Was kostet es?' },
     a: {
-      en: 'Nothing. No subscription, no account, no ads. The source code is open under the MIT license on GitHub.',
-      de: 'Nichts. Kein Abo, kein Konto, keine Werbung. Der Quellcode ist unter der MIT-Lizenz auf GitHub offen.',
+      en: 'Nothing. No subscription, no account, no ads. The source code is public on GitHub, so you can see how it works.',
+      de: 'Nichts. Kein Abo, kein Konto, keine Werbung. Der Quellcode ist auf GitHub einsehbar, so siehst du, wie alles funktioniert.',
     },
   },
   {

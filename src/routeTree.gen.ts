@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CalibrateRouteImport } from './routes/calibrate'
+import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as PlayLessonIdRouteImport } from './routes/play.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const CalibrateRoute = CalibrateRouteImport.update({
   path: '/calibrate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChangelogRoute = ChangelogRouteImport.update({
+  id: '/changelog',
+  path: '/changelog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayLessonIdRoute = PlayLessonIdRouteImport.update({
   id: '/play/$lessonId',
   path: '/play/$lessonId',
@@ -32,30 +38,34 @@ const PlayLessonIdRoute = PlayLessonIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calibrate': typeof CalibrateRoute
+  '/changelog': typeof ChangelogRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calibrate': typeof CalibrateRoute
+  '/changelog': typeof ChangelogRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/calibrate': typeof CalibrateRoute
+  '/changelog': typeof ChangelogRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/calibrate' | '/play/$lessonId'
+  fullPaths: '/' | '/calibrate' | '/changelog' | '/play/$lessonId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calibrate' | '/play/$lessonId'
-  id: '__root__' | '/' | '/calibrate' | '/play/$lessonId'
+  to: '/' | '/calibrate' | '/changelog' | '/play/$lessonId'
+  id: '__root__' | '/' | '/calibrate' | '/changelog' | '/play/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalibrateRoute: typeof CalibrateRoute
+  ChangelogRoute: typeof ChangelogRoute
   PlayLessonIdRoute: typeof PlayLessonIdRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalibrateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/changelog': {
+      id: '/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof ChangelogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/play/$lessonId': {
       id: '/play/$lessonId'
       path: '/play/$lessonId'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalibrateRoute: CalibrateRoute,
+  ChangelogRoute: ChangelogRoute,
   PlayLessonIdRoute: PlayLessonIdRoute,
 }
 export const routeTree = rootRouteImport

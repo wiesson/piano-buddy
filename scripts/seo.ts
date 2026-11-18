@@ -32,7 +32,6 @@ function jsonLd() {
       inLanguage: ['en', 'de'],
       isAccessibleForFree: true,
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
-      license: 'https://opensource.org/licenses/MIT',
       codeRepository: SITE.source,
       image: `${SITE.url}og-home.jpg`,
       author,
@@ -75,7 +74,7 @@ function staticBody() {
 ${faq}
 <footer>
 <p>Built by <a href="${SITE.author.url}">${SITE.author.name}</a>, <a href="${SITE.studio.url}">${SITE.studio.name}</a>.
-<a href="${SITE.source}">Source on GitHub</a> (MIT). <a href="${SITE.imprint}">Site notice</a> · <a href="${SITE.privacy}">Privacy</a> · <a href="/llms.txt">llms.txt</a></p>
+<a href="${SITE.source}">Source on GitHub</a> (all rights reserved). <a href="${SITE.imprint}">Site notice</a> · <a href="${SITE.privacy}">Privacy</a> · <a href="/llms.txt">llms.txt</a></p>
 </footer>
 </div>`
 }
@@ -95,7 +94,7 @@ Key facts:
 - Input: microphone (any piano, expected-note detection with overtone checks), MIDI over USB or Bluetooth in Chrome/Edge, computer keyboard by finger (left A S D F G, right H J K L ;), or on-screen keys.
 - Known limit: with the microphone, notes an octave above the left hand cannot be verified; the app marks them as unverified. MIDI is exact.
 - Microphone calibration (optional, about a minute per hand): the user strikes each key twice; the app stores a per-note overtone profile on the device and uses it to recognise notes that the generic rules miss (e.g. weak fundamentals through phone microphones or digital-piano speakers).
-- Free, no account, no ads, no subscription. Open source under the MIT license: ${SITE.source}
+- Free, no account, no ads, no subscription. The source code is public for reference (all rights reserved, not open source): ${SITE.source}
 - Sync without accounts: per-device secret key, further devices pair with an 8-character code. Stored: passes only (piece, stage, clean, wrong notes, duration). No audio is recorded or uploaded.
 - Not yet available: importing your own MIDI files (planned next), an iOS app with Bluetooth MIDI (in development), a tempo mode with metronome (planned).
 - Built by ${SITE.author.name} (${SITE.author.url}), ${SITE.studio.name} (${SITE.studio.url}), Germany.
@@ -111,6 +110,7 @@ ${faq}
 ## Links
 
 - [App](${SITE.url})
+- [Changelog](${SITE.url}changelog)
 - [Source code](${SITE.source})
 - [Report a bug or request a feature](${SITE.issues})
 - [Site notice](${SITE.imprint})

@@ -59,6 +59,7 @@ npx convex dev --once   # creates your own Convex dev deployment, writes .env.lo
 pnpm dev                # http://localhost:5173
 pnpm dev:lan            # HTTPS on your network, so phones may use the microphone
 pnpm test               # detector, practice rules, sync access rules
+pnpm test:audio         # every piece played into the listening flow (synthetic audio, ~40 s)
 ```
 
 Without `VITE_CONVEX_URL` the app runs local-only. Deploy: `pnpm run deploy` (Convex + Wrangler).
@@ -66,4 +67,4 @@ iOS: `npx cap sync ios`, then open `ios/App/App.xcodeproj` in Xcode.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+All rights reserved. The code is public so you can see how it is built; it is not open source. See [LICENSE](LICENSE).

@@ -60,6 +60,9 @@ export function SiteFooter() {
               <a href="#faq">{f.faqTitle}</a>
             </li>
             <li>
+              <a href="/changelog">Changelog</a>
+            </li>
+            <li>
               <a href={SITE.source} {...ext}>
                 {f.source}
               </a>

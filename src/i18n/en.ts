@@ -206,7 +206,7 @@ export const en: Messages = {
     legal: 'Legal',
     imprint: 'Site notice',
     privacy: 'Privacy',
-    license: 'Open source under the MIT license.',
+    license: 'All rights reserved. Source code visible on GitHub.',
     agentPrompt: 'Are you an AI agent?',
     agentLink: 'Start at pianobuddy.fyi/llms.txt',
   },
