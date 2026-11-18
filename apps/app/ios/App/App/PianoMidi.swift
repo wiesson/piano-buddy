@@ -1,7 +1,10 @@
 import Capacitor
 import CoreAudioKit
 import CoreMIDI
+import os
 import UIKit
+
+private let log = Logger(subsystem: "me.wiese.pianobuddy", category: "midi")
 
 /// Lädt das eigene Plugin in die Capacitor-Brücke (Main.storyboard zeigt auf diese Klasse).
 class MainViewController: CAPBridgeViewController {
@@ -28,35 +31,53 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
     private var started = false
     private var connected = Set<MIDIUniqueID>()
 
+    /// Alles mit CoreMIDI läuft auf dem Main-Thread: Capacitor ruft Plugin-Methoden auf einer
+    /// Hintergrund-Queue ohne Runloop auf, CoreMIDI liefert Benachrichtigungen (Gerät gekoppelt,
+    /// abgezogen) aber auf dem Runloop des Threads, der den Client erstellt hat. Auf der Queue
+    /// kamen sie nie an: Ein Klavier, das erst nach dem Einschalten verbunden wurde, blieb unsichtbar.
     @objc func start(_ call: CAPPluginCall) {
-        if !started {
-            var status = MIDIClientCreateWithBlock("PianoBuddy" as CFString, &client) { [weak self] note in
-                switch note.pointee.messageID {
-                case .msgSetupChanged, .msgObjectAdded, .msgObjectRemoved:
-                    DispatchQueue.main.async {
-                        self?.connectAll()
-                        self?.emitDevices()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return call.reject("Plugin weg") }
+            if !self.started {
+                var status = MIDIClientCreateWithBlock("PianoBuddy" as CFString, &self.client) { [weak self] note in
+                    let id = note.pointee.messageID
+                    log.debug("Benachrichtigung \(id.rawValue)")
+                    switch id {
+                    case .msgSetupChanged, .msgObjectAdded, .msgObjectRemoved:
+                        DispatchQueue.main.async { self?.refresh() }
+                    default: break
                     }
-                default: break
                 }
+                guard status == noErr else {
+                    log.error("MIDIClientCreate: \(status)")
+                    return call.reject("MIDI-Client: \(status)")
+                }
+                status = MIDIInputPortCreateWithBlock(self.client, "Eingang" as CFString, &self.port) { [weak self] list, _ in
+                    self?.handle(list)
+                }
+                guard status == noErr else {
+                    log.error("MIDIInputPortCreate: \(status)")
+                    return call.reject("MIDI-Eingang: \(status)")
+                }
+                self.started = true
             }
-            guard status == noErr else { return call.reject("MIDI-Client: \(status)") }
-            status = MIDIInputPortCreateWithBlock(client, "Eingang" as CFString, &port) { [weak self] list, _ in
-                self?.handle(list)
-            }
-            guard status == noErr else { return call.reject("MIDI-Eingang: \(status)") }
-            started = true
+            self.connectAll()
+            let devices = self.deviceNames()
+            log.info("start: \(devices.count) Quelle(n): \(devices.joined(separator: ", "))")
+            call.resolve(["devices": devices])
         }
-        connectAll()
-        call.resolve(["devices": deviceNames()])
     }
 
     @objc func stop(_ call: CAPPluginCall) {
-        for i in 0..<MIDIGetNumberOfSources() {
-            MIDIPortDisconnectSource(port, MIDIGetSource(i))
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return call.resolve() }
+            for i in 0..<MIDIGetNumberOfSources() {
+                MIDIPortDisconnectSource(self.port, MIDIGetSource(i))
+            }
+            self.connected.removeAll()
+            log.info("stop")
+            call.resolve()
         }
-        connected.removeAll()
-        call.resolve()
     }
 
     /// Apples eigener Dialog zum Koppeln von Bluetooth-MIDI-Geräten (das CA701 meldet sich dort).
@@ -67,21 +88,45 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
             let nav = UINavigationController(rootViewController: central)
             central.navigationItem.rightBarButtonItem = UIBarButtonItem(
                 systemItem: .done,
-                primaryAction: UIAction { _ in presenter.dismiss(animated: true) }
+                primaryAction: UIAction { [weak self] _ in
+                    presenter.dismiss(animated: true) { self?.refresh() }
+                }
             )
+            // Wegwischen ohne „Fertig“ soll auch neu suchen
+            self?.sheetDelegate.onDismiss = { [weak self] in self?.refresh() }
+            nav.presentationController?.delegate = self?.sheetDelegate
+            log.info("Bluetooth-Dialog geöffnet")
             presenter.present(nav, animated: true)
             call.resolve()
         }
     }
 
+    private let sheetDelegate = SheetDelegate()
+
+    /// Quellen neu verbinden und JavaScript die aktuelle Liste melden
+    private func refresh() {
+        connectAll()
+        let devices = deviceNames()
+        log.info("Quellen: \(devices.count) (\(devices.joined(separator: ", ")))")
+        emitDevices()
+    }
+
     private func connectAll() {
         guard started else { return }
+        // Getrennte Geräte vergessen, damit sie beim Wiederverbinden neu angebunden werden
+        let present = Set((0..<MIDIGetNumberOfSources()).map { i -> MIDIUniqueID in
+            var uid: MIDIUniqueID = 0
+            MIDIObjectGetIntegerProperty(MIDIGetSource(i), kMIDIPropertyUniqueID, &uid)
+            return uid
+        })
+        connected.formIntersection(present)
         for i in 0..<MIDIGetNumberOfSources() {
             let src = MIDIGetSource(i)
             var uid: MIDIUniqueID = 0
             MIDIObjectGetIntegerProperty(src, kMIDIPropertyUniqueID, &uid)
             if connected.contains(uid) { continue }
-            if MIDIPortConnectSource(port, src, nil) == noErr { connected.insert(uid) }
+            let status = MIDIPortConnectSource(port, src, nil)
+            if status == noErr { connected.insert(uid) } else { log.error("Verbinden fehlgeschlagen: \(status)") }
         }
     }
 
@@ -149,5 +194,13 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
     /// Host-Ticks in Millisekunden
     static func hostMs(_ ticks: UInt64) -> Double {
         Double(ticks) * Double(timebase.numer) / Double(timebase.denom) / 1_000_000
+    }
+}
+
+/// Meldet, wenn der Bluetooth-Dialog weggewischt wurde
+private final class SheetDelegate: NSObject, UIAdaptivePresentationControllerDelegate {
+    var onDismiss: (() -> Void)?
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        onDismiss?()
     }
 }
