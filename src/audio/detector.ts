@@ -192,9 +192,16 @@ export function isSounding(
   // nur, es verschärft nie: Ein schlecht aufgenommenes Profil kann die Erkennung nicht verschlechtern.
   if (!harmonicSeries(f, m, a1, a2)) {
     if (!own) return false
-    const shape: number[] = []
-    for (let h = 1; h <= HARMONICS; h++) shape.push(A(f, m, h))
-    if (similarity(shape, own.shape) < 0.75) return false
+    // Im Akkord liegen Teiltöne anderer erwarteter Töne auf manchen Teiltönen von m: Die zählen
+    // für den Vergleich nicht, sonst passt die Form nie zum eingelernten Einzelton
+    const a: number[] = []
+    const b: number[] = []
+    for (let h = 1; h <= HARMONICS; h++) {
+      if (h > 1 && sharedPartial(m, h, expected)) continue
+      a.push(A(f, m, h))
+      b.push(own.shape[h - 1])
+    }
+    if (a.length < 2 || similarity(a, b) < 0.75) return false
   }
 
   // Ein deutlich lauterer Nachbarton (bis zwei Halbtöne) verschmiert ins Fenster, vor allem
@@ -223,7 +230,9 @@ export function isSounding(
     const otherH = h === 2 ? 3 : 2
     const subOther = A(f, sub, otherH)
     const subOwn = profile?.(sub)
-    if (subOwn && subOwn.shape[otherH - 1] > 0.05) {
+    // Beleg für den tiefen Ton nur, wenn sein eigener Teilton nicht von einem anderen erwarteten
+    // Ton stammt (im Akkord C4+E4+A4 liegt E4s Oberton genau auf dem 3. Teilton von A3)
+    if (subOwn && subOwn.shape[otherH - 1] > 0.05 && !sharedPartial(sub, otherH, expected)) {
       // Mit Profil des tiefen Tons: Aus seinem eigenen Teilton schätzen, wie laut er klingt, und
       // daraus, wie viel Energie er auf m legt. Erklärt das fast alles, wurde nur er gespielt.
       // Das greift auch, wenn sein Grundton auf diesem Klavier kaum zu hören ist.
@@ -254,6 +263,19 @@ function harmonicSeries(f: Frame, m: number, a1: number, a2: number) {
   }
   if (supported < Math.min(2, available)) return false
   return Math.max(a1, a2) >= peak * 0.25
+}
+
+/** Halbtöne vom Grundton zum h-ten Teilton (gerundet): 0, 12, 19, 24, 28, 31 */
+const PARTIAL_STEPS = [0, 12, 19, 24, 28, 31, 34, 36]
+
+/** Fällt der h-te Teilton von m auf einen Teilton eines anderen erwarteten Tons? */
+function sharedPartial(m: number, h: number, expected: ReadonlySet<number>) {
+  const target = m + PARTIAL_STEPS[h - 1]
+  for (const e of expected) {
+    if (e === m) continue
+    if (PARTIAL_STEPS.some((d) => e + d === target)) return true
+  }
+  return false
 }
 
 /** Ähnlichkeit zweier Teiltonformen, 0..1 (Kosinus) */
@@ -302,12 +324,21 @@ export function heardNotes(
  * „klingt UND Energie ist gegenüber dem Minimum der letzten ~300 ms um `rise` gestiegen“.
  * So zählt ein ausklingender Ton nicht erneut, ein neuer Anschlag desselben Tons schon.
  */
+/** So lange gilt ein erkannter Anschlag als nachklingend (Obertöne erklären) */
+const RING_MS = 2000
+
 export class OnsetDetector {
   private hist: Float64Array[]
+  /** Grundton-Amplitude je Note in denselben Frames (für „der tiefe Ton wurde nicht neu angeschlagen“) */
+  private histA1: Float64Array[]
   private pos = 0
   private filled = 0
   private count: Uint8Array
   private lastOnset: Float64Array
+  /** Zeitpunkt der letzten Anschlags-Transiente (Energie springt am Fensterende) */
+  private lastTransient = -Infinity
+  /** Zuletzt erkannte Anschläge: Sie klingen nach, ihre Obertöne sind keine eigenen Töne */
+  private ringing = new Map<number, number>()
 
   constructor(
     private cal: () => Calibration | null,
@@ -320,6 +351,7 @@ export class OnsetDetector {
   ) {
     const n = MAX_MIDI - MIN_MIDI + 1
     this.hist = Array.from({ length: historyFrames }, () => new Float64Array(n))
+    this.histA1 = Array.from({ length: historyFrames }, () => new Float64Array(n))
     this.count = new Uint8Array(n)
     this.lastOnset = new Float64Array(n).fill(-Infinity)
   }
@@ -332,17 +364,43 @@ export class OnsetDetector {
     const cal = this.cal()
     const n = MAX_MIDI - MIN_MIDI + 1
     const onsets: number[] = []
+    if (f.freshness > 1.3) this.lastTransient = tMs
+    const transient = tMs - this.lastTransient < 160
     const profile = this.profile()
     const soundingExpected = [...expected].filter((m) => isSounding(f, m, expected, cal, this.opt, profile))
-    const heard = new Set(heardNotes(f, cal, this.opt, profile, soundingExpected))
-    for (let j = 0; j < n; j++) {
-      const m = j + MIN_MIDI
+    for (const [m, at] of this.ringing) if (tMs - at > RING_MS) this.ringing.delete(m)
+    const explainers = [...new Set([...soundingExpected, ...this.ringing.keys()])]
+    const heard = new Set(heardNotes(f, cal, this.opt, profile, explainers))
+    const minOf = (j: number) => {
       let min = Infinity
       for (let k = 0; k < this.filled; k++) min = Math.min(min, this.hist[k][j])
+      return min
+    }
+    for (let j = 0; j < n; j++) {
+      const m = j + MIN_MIDI
+      const min = minOf(j)
       const s = f.salience[j]
-      const rising = this.filled === 0 ? false : s > min * this.rise
+      // Erneuter Anschlag eines noch klingenden Tons (E-E, D-D im Tempo): Der alte Ton ist nicht
+      // abgeklungen, die Energie steigt nur auf etwa das 1,5-Fache. Zählt für erwartete Töne, wenn
+      // kurz zuvor eine Anschlags-Transiente war; fremde Töne brauchen weiter den vollen Anstieg.
+      const rising =
+        this.filled === 0 ? false : s > min * this.rise || (expected.has(m) && transient && s > min * 1.25)
       // Erwartete Töne prüfen wir gezielt, alle anderen nur, wenn sie frei gehört werden.
-      const sounding = expected.has(m) ? soundingExpected.includes(m) : heard.has(m)
+      let sounding = expected.has(m) ? soundingExpected.includes(m) : heard.has(m)
+      // Melodieton auf einem Oberton eines noch klingenden Basstons (G4 über C3): Die Oktavsperre
+      // hielte ihn für den Oberton. Steigt aber der Ton selbst stark an und der tiefe nicht, ist
+      // er neu angeschlagen: dann ohne Sperre gegen diese tiefen Töne prüfen.
+      if (!sounding && expected.has(m) && rising) {
+        const subs = SUBS.map(([d]) => m - d).filter((x) => inRange(x))
+        // Grundton des tiefen Tons statt seiner Gesamtenergie: Die steigt mit, weil der neue Ton
+        // auf einem seiner Teiltöne liegt
+        const quiet = subs.every((x) => {
+          let lo = Infinity
+          for (let k = 0; k < this.filled; k++) lo = Math.min(lo, this.histA1[k][x - MIN_MIDI])
+          return A(f, x, 1) < lo * 1.3 + 1e-9
+        })
+        if (quiet) sounding = isSounding(f, m, new Set([...expected, ...subs]), cal, this.opt, profile)
+      }
       // Bestätigung über mehrere Frames: erwartete Töne 2, fremde Töne 3. Frames, in denen der
       // Anschlag erst am Fensterende liegt, zählen nie: Dort ist das Spektrum verschmiert und der
       // Halbton-Nachbar „klingt“ mit. Das kostet ~90 ms, Fehlalarme kosten mehr als späte Meldungen.
@@ -352,9 +410,11 @@ export class OnsetDetector {
       if (this.count[j] === need && tMs - this.lastOnset[j] > this.refractoryMs) {
         onsets.push(m)
         this.lastOnset[j] = tMs
+        this.ringing.set(m, tMs)
       }
     }
     this.hist[this.pos].set(f.salience)
+    for (let j = 0; j < n; j++) this.histA1[this.pos][j] = f.amp[j * HARMONICS]
     this.pos = (this.pos + 1) % this.hist.length
     this.filled = Math.min(this.filled + 1, this.hist.length)
     return onsets
