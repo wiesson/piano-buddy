@@ -1,0 +1,506 @@
+/* ---------- Bausteine (/sink) ----------
+   Raster aus Karten wie ein Katalog. Konzentrisch: Karte 28 px, Innenfläche 12 px eingerückt,
+   also 16 px Radius; darin wieder Abstand 6 → 10 px. Keine farbigen Ränder an Rundungen. */
+
+.sink {
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top) + 28px) 16px calc(env(safe-area-inset-bottom) + 40px);
+  background: var(--bg);
+  color: var(--fg);
+}
+.sink-head {
+  max-width: 1360px;
+  margin: 0 auto 28px;
+  padding: 0 8px;
+}
+.sink-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 17px;
+}
+.sink-slash {
+  color: var(--fg-dim);
+  font-weight: 400;
+}
+.sink-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+}
+.sink-lede {
+  max-width: 620px;
+  margin: 14px 0 0;
+  font-family: var(--serif);
+  font-size: clamp(22px, 3vw, 30px);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.sink-foot {
+  max-width: 1360px;
+  margin: 28px auto 0;
+  padding: 0 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+/* Raster: vier Spalten am Desktop, zwei am Tablet, eine am Telefon */
+.sink-grid {
+  max-width: 1360px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.sink-hero {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+.sink-states,
+.sink-notes {
+  grid-column: span 2;
+}
+@media (max-width: 1080px) {
+  .sink-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sink-hero {
+    grid-row: auto;
+  }
+}
+@media (max-width: 680px) {
+  .sink-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sink-hero,
+  .sink-states,
+  .sink-notes {
+    grid-column: auto;
+  }
+}
+
+/* Karte */
+.sink-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 28px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(43, 36, 32, 0.06);
+}
+.sink-demo {
+  position: relative;
+  flex: 1;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg);
+}
+.sink-cap {
+  margin: 14px 8px 8px;
+  font-size: 15.5px;
+  line-height: 1.4;
+  color: var(--fg-dim);
+  text-wrap: pretty;
+}
+.sink-cap b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.sink-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 8px 8px;
+  padding: 0;
+  list-style: none;
+}
+.sink-tags code {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+/* Farbige Karten wie Gouache-Flächen */
+.sink-states {
+  background: color-mix(in srgb, var(--hand-l) 16%, var(--card));
+}
+.sink-states .sink-demo {
+  background: color-mix(in srgb, var(--hand-l) 8%, var(--card));
+}
+.sink-result-card {
+  background: color-mix(in srgb, var(--hand-r) 24%, var(--card));
+}
+.sink-result-card .sink-demo {
+  background: color-mix(in srgb, var(--hand-r) 12%, var(--card));
+}
+.sink-pair .sink-demo {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+
+/* Abend-Karte: Lack und Elfenbein wie die Übe-Seite */
+.sink-dark {
+  --bg: #241a17;
+  --bg-2: #2f231f;
+  --bg-3: #3b2d28;
+  --fg: #f3ebdd;
+  --fg-dim: #b9ab98;
+  --hand-l: #4f9db5;
+  --hand-r: #d3a04d;
+  --accent: #d3a04d;
+  --felt: #8e2f2b;
+  color-scheme: dark;
+  background: #2f231f;
+  color: var(--fg);
+}
+.sink-dark .sink-cap b {
+  color: var(--fg);
+}
+.sink-dark .sink-tags code {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+}
+.sink-hero .sink-demo {
+  align-content: stretch;
+  grid-template-rows: minmax(340px, 1fr) auto auto;
+  padding: 0 0 12px;
+  overflow: hidden;
+}
+.sink-stage {
+  position: relative;
+  min-height: 340px;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+.sink-hero .tempo-bar {
+  padding: 0 12px;
+}
+
+/* Agent und Protokoll: feste Höhe, nichts springt */
+.sink-agent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 0 12px;
+}
+.sink-agent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--bg);
+  background: var(--fg);
+  white-space: nowrap;
+}
+.sink-agent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hand-l);
+}
+.sink-agent-btn.on .sink-agent-dot {
+  background: var(--hand-r);
+  animation: sink-pulse 0.9s ease-in-out infinite;
+}
+@keyframes sink-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.sink-log {
+  display: grid;
+  grid-auto-rows: 22px;
+  height: calc(22px * 6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.sink-log li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  white-space: nowrap;
+}
+.sink-log li:not(:first-child) {
+  opacity: 0.55;
+}
+.sink-log-empty {
+  color: var(--fg-dim);
+  white-space: normal !important;
+}
+.sink-who {
+  flex: none;
+  width: 44px;
+  font-weight: 700;
+}
+.sink-log-agent .sink-who {
+  color: var(--hand-r);
+}
+.sink-log-you .sink-who {
+  color: var(--hand-l);
+}
+.sink-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Zustände */
+.sink-diagram {
+  display: grid;
+  gap: 10px;
+}
+.sink-rail {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  opacity: 0.45;
+  transition: opacity 0.25s;
+}
+.sink-rail.current {
+  opacity: 1;
+}
+.sink-rail-label {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-dim);
+}
+.sink-rail-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+}
+.sink-node-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.sink-node {
+  display: inline-grid;
+  place-items: center;
+  min-width: 78px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+}
+.sink-node.active {
+  color: #fffcf6;
+  background: var(--hand-l);
+  transform: scale(1.04);
+}
+.sink-node[data-phase='result'].active {
+  background: var(--hand-r);
+}
+.sink-node[data-phase='paused'].active,
+.sink-node[data-phase='holding'].active {
+  background: var(--accent);
+}
+.sink-link {
+  width: 22px;
+  text-align: center;
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+.sink-json {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+}
+.sink-json-label {
+  color: var(--fg-dim);
+}
+
+/* Ergebnis: die echte Karte, hier im Fluss statt über der Bahn */
+.sink-result .result {
+  position: static;
+  transform: none;
+  width: 100%;
+  animation: none;
+  box-shadow: 0 10px 30px rgba(43, 36, 32, 0.14);
+}
+
+/* Eingang: eine Kopfzeile wie auf der Übe-Seite, darunter die Schalter */
+.sink-mockbar,
+.sink-chip-stage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 10px;
+  background: #241a17;
+  color: #f3ebdd;
+  --bg: #241a17;
+  --bg-2: #2f231f;
+  --bg-3: #3b2d28;
+  --fg: #f3ebdd;
+  --fg-dim: #b9ab98;
+}
+.sink-mockbar-title,
+.sink-chip-title {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: #d3a04d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sink-chip-stage {
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-height: 96px;
+  padding: 12px;
+}
+.sink-rows {
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--card);
+}
+.sink-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+}
+.sink-toggle-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sink-toggle-name svg {
+  width: 19px;
+  height: 19px;
+}
+.sink-toggle::after {
+  content: '';
+  flex: none;
+  width: 42px;
+  height: 26px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+  transition: background 0.2s;
+}
+.sink-toggle[data-pressed]::after {
+  background: var(--hand-l);
+}
+.sink-toggle {
+  position: relative;
+}
+.sink-toggle::before {
+  content: '';
+  position: absolute;
+  right: 23px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: #fffcf6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s;
+}
+.sink-toggle[data-pressed]::before {
+  transform: translateX(16px);
+}
+.sink-toggle[data-disabled] {
+  opacity: 0.4;
+}
+
+/* Noten im Band */
+.sink-notes .sink-demo {
+  padding: 12px 0;
+}
+.sink-band {
+  position: relative;
+  display: grid;
+  height: 210px;
+}
+.sink-band .sheet-view {
+  margin: 0 12px;
+  border-radius: 10px;
+}
+
+/* Koppeln */
+.sink-otp .otp-slot {
+  height: 44px;
+  font-size: 19px;
+}
+
+/* Telefon: Beschriftung über der Schiene, Knoten schmaler, damit eine Schiene in eine Zeile passt */
+@media (max-width: 680px) {
+  .sink-rail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .sink-rail-nodes {
+    flex-wrap: nowrap;
+  }
+  .sink-node {
+    min-width: 0;
+    height: 30px;
+    padding: 0 9px;
+    font-size: 12.5px;
+  }
+  .sink-link {
+    width: 16px;
+  }
+  .sink-agent {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sink-agent-btn {
+    justify-self: start;
+  }
+}
