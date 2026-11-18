@@ -90,7 +90,7 @@ export function StageMenu({
               <span className="stage-row-top">
                 <span className="stage-row-name">
                   <span className={`hand-dots hand-${s}`} aria-hidden="true" />
-                  {t.stage[s]}
+                  {t.stage[s]}{' '}
                   <Dots stage={s} clean={Math.min(clean, CLEAN_GOAL)} />
                 </span>
                 {bs && (
@@ -99,11 +99,12 @@ export function StageMenu({
                     {t.tempo.percent(bs.percent)}
                   </span>
                 )}
-              </span>
+              </span>{' '}
+              {/* Leerzeichen zwischen den Teilen: Screenreader und Agent lesen sonst „RightWait60%…“ */}
               <span className="mini-ladder" aria-label={t.tempo.label}>
                 {TEMPO_LADDER.map((tp) => (
                   <span key={String(tp)} className={done.has(tp) ? 'done' : ''}>
-                    {tempoLabel(tp)}
+                    {tempoLabel(tp)}{' '}
                   </span>
                 ))}
               </span>

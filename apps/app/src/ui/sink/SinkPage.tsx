@@ -58,6 +58,8 @@ export function SinkPage() {
   useThemeColor('#f6eedf')
   const [stage, setStage] = useState<Stage>('R')
   const mini = useMiniPractice(LESSON, stage)
+  const stageRef = useRef(stage)
+  stageRef.current = stage
   const miniRef = useRef(mini)
   miniRef.current = mini
   const stages = stagesFor(LESSON)
@@ -122,16 +124,29 @@ export function SinkPage() {
         await act([{ ref: t.tempo.label, action: 'setValue', args: ['wait'] }])
         await sleep(350)
       }
-      const snapNow = a.snapshot()
-      const session = snapNow.find((c) => c.component === 'practice-session')
-      const keys = snapNow.find((c) => c.component === 'piano-keys')
-      if (!session || !keys) return
-      await act([{ ref: session.ref, action: 'restart' }])
-      push('agent', `act · restart → ${t.sink.phases.waiting}`)
-      await sleep(400)
       const spb = 60_000 / LESSON.bpm
-      for (const step of miniRef.current.steps()) {
-        if (!runRef.current) break
+      // Von vorn in der aktuellen Stufe; wechselt jemand die Stufe, während der Agent spielt,
+      // fängt er dort neu an (sonst spielte er die Töne der alten Hand in die neue)
+      let playing: Stage | null = null
+      let steps: ReturnType<typeof miniRef.current.steps> = []
+      let i = 0
+      while (runRef.current) {
+        if (playing !== stageRef.current) {
+          await sleep(playing ? 350 : 0) // neue Sitzung abwarten
+          const snapNow = a.snapshot()
+          const session = snapNow.find((c) => c.component === 'practice-session')
+          if (!session) return
+          await act([{ ref: session.ref, action: 'restart' }])
+          push('agent', `act · restart (${t.stage[stageRef.current]}) → ${t.sink.phases.waiting}`)
+          await sleep(400)
+          playing = stageRef.current
+          steps = miniRef.current.steps()
+          i = 0
+        }
+        const step = steps[i++]
+        if (!step) break
+        const keys = a.snapshot().find((c) => c.component === 'piano-keys')
+        if (!keys) return
         const r = await act(step.midis.map((m) => ({ ref: keys.ref, action: 'play', args: [m] })))
         await sleep(30)
         push('agent', `act · play(${step.midis.map(displayNoteLabel).join(' ')}) → ${t.sink.phases[miniRef.current.phase]}${r.ok ? '' : ' ✕'}`)
