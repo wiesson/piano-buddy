@@ -17,11 +17,11 @@
     "deploy": "convex deploy -y --cmd 'pnpm build' --cmd-url-env-var-name VITE_CONVEX_URL && pnpm --filter @piano/app deploy:worker && pnpm --filter @piano/website deploy:worker"
   },
   "dependencies": {
-    "convex": "^1.50.0"
+    "convex": "^1.51.0"
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
-    "convex-test": "^0.0.71",
+    "convex-test": "^0.0.72",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",

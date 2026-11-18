@@ -13,6 +13,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-11-18',
     title: 'Sheet music, a smarter microphone, and a test bench',
     items: [
+      'After each pass a three-second countdown starts the next one by itself; tap Pause to read in peace.',
+      'The app has its own home at pianobuddy.fyi/app with your path and songs; the iPhone app now works offline from the first start.',
       'Sheet music view: switch from falling notes to a grand staff in the View menu. The music still waits for you, the keyboard below can be hidden.',
       'Calibrate the microphone with a scale: play C major up and down, see for every note whether the app heard it, then it knows your piano.',
       'Fixed: repeated notes in tempo (E–E, D–D) were sometimes missed, so the music stalled and the rest counted as wrong.',

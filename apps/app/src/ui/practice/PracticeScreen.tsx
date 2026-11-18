@@ -411,6 +411,7 @@ export function PracticeScreen({
             onAgain={again}
             onNext={setStage}
             onNextLesson={onNextLesson}
+            silent={micStatus === 'listening' || micStatus === 'calibrating'}
           />
         )}
       </main>

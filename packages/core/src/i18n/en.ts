@@ -145,6 +145,8 @@ export const en: Messages = {
     noteNames: 'Note names',
     fingers: 'Fingering',
     restart: 'Restart',
+    pause: 'Pause',
+    autoNext: (s: number) => `Continues by itself in ${s} ${s === 1 ? 'second' : 'seconds'}`,
     again: 'Again',
     continueWith: (stage: string) => `Continue with ${stage}`,
     resultClean: 'Clean pass',

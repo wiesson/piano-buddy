@@ -147,6 +147,8 @@ export const de = {
     noteNames: 'Notennamen',
     fingers: 'Finger',
     restart: 'Von vorn',
+    pause: 'Anhalten',
+    autoNext: (s: number) => `Geht in ${s} ${s === 1 ? 'Sekunde' : 'Sekunden'} von selbst weiter`,
     again: 'Nochmal',
     continueWith: (stage: string) => `Weiter mit ${stage}`,
     resultClean: 'Sauber durchgespielt',

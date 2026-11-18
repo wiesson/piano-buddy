@@ -710,3 +710,66 @@
     transition: none;
   }
 }
+
+/* Weiter nach 3 s: rollende Zahl im Knopf, Zündschnur unten (Progress aus dem UI SDK) */
+.result-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.result-count {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card) 18%, transparent);
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.result-count-n {
+  animation: result-roll 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes result-roll {
+  from {
+    transform: translateY(110%) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.result-pause {
+  min-height: 44px;
+  padding: 0 12px;
+  color: #6d5a4c;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.result-fuse {
+  position: absolute;
+  left: var(--card-radius);
+  right: var(--card-radius);
+  bottom: 0;
+}
+.result-fuse-track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.result-fuse-fill {
+  height: 100%;
+  background: var(--hand-r);
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-count-n {
+    animation: none;
+  }
+}
