@@ -1,3 +1,4 @@
+import { lazy, Suspense, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { LESSONS, stagesFor, type Lesson } from '../../music/lessons'
 import { CLEAN_GOAL } from '../../practice/goal'
 import { store } from '../../sync/store'
@@ -10,6 +11,9 @@ import { useThemeColor } from '../shared/useThemeColor'
 import { Faq } from './Faq'
 import { RollPreview } from './RollPreview'
 import { SiteFooter } from './SiteFooter'
+
+// Klaviatur zum Ausprobieren: eigener Chunk, geladen erst kurz bevor die Section sichtbar wird
+const TryPiano = lazy(() => import('./TryPiano'))
 
 /**
  * Startseite auf Papier, Aufbau nach monet.directory und Kontor: das Bild füllt den ersten
@@ -123,6 +127,18 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
           </div>
         </section>
 
+        <section id="try" className="pb-section">
+          <div className="pb-try">
+            <h2 className="pb-h2 pb-center">{t.home.tryTitle}</h2>
+            <p className="pb-body pb-center">{t.home.tryLede}</p>
+            <WhenNear placeholder={<div className="try-card try-placeholder" aria-hidden="true" />}>
+              <Suspense fallback={<div className="try-card try-placeholder" aria-hidden="true" />}>
+                <TryPiano onOpen={onOpen} />
+              </Suspense>
+            </WhenNear>
+          </div>
+        </section>
+
         <section id="path" className="pb-section">
           <div className="pb-split">
             <div className="pb-split-aside">
@@ -181,6 +197,20 @@ export function HomeScreen({ onOpen, synced }: { onOpen: (l: Lesson) => void; sy
       <SiteFooter />
     </div>
   )
+}
+
+/** Rendert die Kinder erst, wenn der Platzhalter auf etwa einen Bildschirm herangescrollt ist */
+function WhenNear({ children, placeholder }: { children: ReactNode; placeholder: ReactElement }) {
+  const [near, setNear] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || near) return
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setNear(true), { rootMargin: '100% 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+  return near ? children : <div ref={ref}>{placeholder}</div>
 }
 
 /** Eine Zeile im Lernpfad: Nummer in Mono, Stück und Ziel, rechts die Punkte je Hand */
