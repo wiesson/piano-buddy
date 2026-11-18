@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { notesForStage, stagesFor, type Lesson, type Stage } from '@piano/core/music/lessons'
 import { WaitSession, type PassResult } from '@piano/core/practice/session'
+import { TempoSession, TEMPO_LADDER, type JudgedNote, type Tempo, type TempoResult } from '@piano/core/practice/tempo'
 import { MicBench, type BenchStats } from '@piano/core/practice/bench'
 import { CLEAN_GOAL } from '@piano/core/practice/goal'
 import { bestOf, praiseFor, type Praise } from '@piano/core/practice/score'
@@ -10,24 +11,20 @@ import { lookupFrom, loadProfile } from '@piano/core/audio/profile'
 import { INTERVALS, dayKey, stateFor } from '@piano/core/practice/plan'
 import { currentStates } from '@piano/core/practice/progress'
 import { MicListener, type MicStatus } from '@piano/core/audio/mic'
-import { audioContext, getPiano, holdNote, playNote, stopAll } from '@piano/core/audio/audio'
+import { audioContext, click, getPiano, holdNote, playNote, stopAll } from '@piano/core/audio/audio'
 import type { NoteOff, NoteOn } from '@piano/core/input/events'
 import { keyToMidi } from '@piano/core/input/keyboard'
 import { fingerToMidi, keyToFinger } from '@piano/core/input/fingerKeys'
 import { t, localized } from '@piano/core/i18n'
 import { displayNoteLabel } from '@piano/core/i18n/noteNames'
 import { announce } from '@ui-sdk/core'
-import { PianoRoll, type RollView } from './PianoRoll'
-import { StageSwitcher } from './StageSwitcher'
+import { PianoRoll, TAG_MS, type RollView } from './PianoRoll'
 import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
-
-// Notenansicht mit VexFlow: eigener Chunk, lädt erst beim Umschalten
-const loadSheetView = () => import('./SheetView')
-const SheetView = lazy(loadSheetView)
-import { PracticeToolbar } from './PracticeToolbar'
+import { TempoBar } from './TempoBar'
+import { StageMenu } from './StageMenu'
+import { SettingsMenu } from './SettingsMenu'
 import { useMidiInput } from './useMidiInput'
-import { ViewMenu } from './ViewMenu'
 import { swapModules } from './swapModules'
 import { AppBar } from '@piano/ui/shared/AppBar'
 import { getPref, getPrefValue, setPref, setPrefValue } from './prefs'
@@ -38,10 +35,27 @@ import { usePrefersLight } from '@piano/ui/shared/usePrefersLight'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { BackIcon } from '@piano/ui/shared/icons'
 
+// Notenansicht mit VexFlow: eigener Chunk, lädt erst beim Umschalten
+const loadSheetView = () => import('./SheetView')
+const SheetView = lazy(loadSheetView)
+
+const TEMPO_VALUES = TEMPO_LADDER.map(String)
+const tempoKey = (lessonId: string, stage: Stage) => `tempo.${lessonId}.${stage}`
+const readTempo = (lessonId: string, stage: Stage): Tempo => {
+  const v = getPrefValue(tempoKey(lessonId, stage), TEMPO_VALUES, 'wait')
+  return v === 'wait' ? 'wait' : (Number(v) as Tempo)
+}
+
 /**
- * Übe-Seite im Warte-Modus. Eingaben (Mikrofon, MIDI, Bildschirm, Tastatur) landen alle
- * in derselben WaitSession. Laufen MIDI und Mikrofon zugleich, führt MIDI und das Mikrofon
- * wird nur dagegen gemessen.
+ * Übe-Seite. Zwei Arten zu üben, gewählt mit der Tempo-Leiter unten:
+ * - Warten: Die Noten stehen, bis die richtigen Tasten kommen (WaitSession).
+ * - Mitspielen in 60, 80 oder 100 %: ein Takt Einzähler, dann läuft das Stück durch, jeder Ton
+ *   wird nach Anschlag und (mit MIDI) Haltedauer gewertet (TempoSession).
+ *
+ * Ruhig gehalten: oben Titel und Stufen-Chip, unten Leiter und ein Knopf. Stufen und
+ * Einstellungen liegen in Sheets. Während ein Durchgang läuft, treten Kopf und Leiste zurück;
+ * ein Tipp in die Bahn hält an. Eingaben (Mikrofon, MIDI, Bildschirm, Tastatur) landen in
+ * derselben Sitzung. Laufen MIDI und Mikrofon zugleich, führt MIDI, das Mikrofon wird gemessen.
  */
 export function PracticeScreen({
   lesson,
@@ -64,6 +78,11 @@ export function PracticeScreen({
   useStoreVersion()
   const cleanCount = useCallback((s: Stage) => store.cleanCount(lesson.id, s), [lesson.id])
   const bestFor = useCallback((s: Stage) => bestOf(store.attemptsOf(lesson.id, s)), [lesson.id])
+  const cleanTempos = useCallback(
+    (s: Stage) => new Set(store.attemptsOf(lesson.id, s).filter((a) => a.clean).map((a) => (a.tempo ?? 'wait') as Tempo)),
+    [lesson.id],
+  )
+  const dueOf = useCallback((s: Stage) => stateFor(currentStates(), lesson.id, s)?.due ?? null, [lesson.id])
   const [stage, setStage] = useState<Stage>(() =>
     initialStage && stages.includes(initialStage)
       ? initialStage
@@ -72,23 +91,28 @@ export function PracticeScreen({
   const stageChange = useRef(onStageChange)
   stageChange.current = onStageChange
   useEffect(() => stageChange.current?.(stage), [stage])
+
+  // Tempo je Stück und Stufe gemerkt; neu: Warten
+  const [tempo, setTempoState] = useState<Tempo>(() => readTempo(lesson.id, stage))
+  useEffect(() => setTempoState(readTempo(lesson.id, stage)), [lesson.id, stage])
+  const [metronome, setMetronomeState] = useState(() => getPref('metronome', true))
+  const setMetronome = (v: boolean) => (setPref('metronome', v), setMetronomeState(v))
+  const metronomeRef = useRef(metronome)
+  metronomeRef.current = metronome
+
   const [micStatus, setMicStatus] = useState<MicStatus>('off')
   const [bench, setBench] = useState<BenchStats | null>(null)
   const [showNames, setShowNamesState] = useState(() => getPref('names', true))
   const [showFingers, setShowFingersState] = useState(() => getPref('fingers', true))
   const setShowNames = (v: boolean) => (setPref('names', v), setShowNamesState(v))
-  // Noten statt fallender Balken; die Klaviatur darunter lässt sich ausblenden
-  // Ansicht: fallende Noten, beides (Zwischenschritt) oder Noten. Früher ein An/Aus „sheet“.
+  // Ansicht: fallende Noten (Standard), beides (Zwischenschritt) oder Noten
   const [mode, setModeState] = useState<ViewMode>(() =>
     getPrefValue('view', VIEW_MODES, getPref('sheet', false) ? 'sheet' : 'roll'),
   )
   const sheet = mode === 'sheet'
   const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys2', false))
-  // Module der Ansicht: Notenband (beides, Noten), Bahn mit Klaviatur (fallend, beides; bei
-  // Noten nur die Klaviatur und nur auf Wunsch)
   const hasBand = mode !== 'roll'
   const hasKeys = !sheet || sheetKeys
-  // Notenansicht vorab laden, damit der erste Wechsel ohne Ladepause gleitet
   useEffect(() => {
     const id = window.setTimeout(loadSheetView, 1500)
     return () => window.clearTimeout(id)
@@ -112,14 +136,33 @@ export function PracticeScreen({
   const lastInputRef = useRef(performance.now())
   const setShowFingers = (v: boolean) => (setPref('fingers', v), setShowFingersState(v))
   const [played, setPlayed] = useState(false)
-  // Tag: Papier (hell), Abend: Lack (dunkel) – wie der Modus des Geräts
   const paper = usePrefersLight()
   useThemeColor(paper ? '#f6eedf' : '#241a17')
   const [demo, setDemo] = useState(false)
-  const [result, setResult] = useState<PassResult | null>(null)
+  const [result, setResult] = useState<PassResult | TempoResult | null>(null)
   const [, force] = useState(0)
 
   const sessionRef = useRef<WaitSession | null>(null)
+  const tempoRef = useRef<TempoSession | null>(null)
+  const nextClickRef = useRef(0)
+  /** Geplante Klicks, die noch nicht klangen: Pause und neuer Durchgang sagen sie ab */
+  const clicksRef = useRef<(() => void)[]>([])
+  const scheduleClick = (atMs: number, beat: number) => {
+    const n = lesson.beatsPerBar
+    clicksRef.current.push(click(atMs, ((beat % n) + n) % n === 0))
+    if (clicksRef.current.length > 32) clicksRef.current.splice(0, 16)
+  }
+  const cancelClicks = () => {
+    clicksRef.current.forEach((cancel) => cancel())
+    clicksRef.current = []
+  }
+  useEffect(() => () => cancelClicks(), [])
+  /** Nach „Weiter mit 80 %“: Sobald die Sitzung im neuen Tempo steht, gleich einzählen */
+  const startPending = useRef(false)
+  const stopDemoRef = useRef<() => void>(() => {})
+  /** Hinweis „Tippen hält an“ nur beim ersten Durchgang im Tempo */
+  const [pauseTip, setPauseTip] = useState(false)
+  const pauseTipShown = useRef(false)
   const heardRef = useRef<number[]>([])
   const levelRef = useRef(0)
   const beatRef = useRef(0)
@@ -127,16 +170,14 @@ export function PracticeScreen({
   const micRef = useRef<MicListener | null>(null)
   const benchRef = useRef(new MicBench())
   const finishedAtRef = useRef(0)
-  // letzte Anschläge je Taste, für die Drück-Optik
   const pressRef = useRef(new Map<number, number>())
-  // aktuelle Stufe für den Eingabe-Callback (der bleibt stabil, damit MIDI und Mikrofon nicht neu verbinden)
   const stageRef = useRef(stage)
   stageRef.current = stage
 
   const [progressNote, setProgressNote] = useState<string | undefined>()
   const [praise, setPraise] = useState<Praise | null>(null)
   const onPass = useCallback(
-    (r: PassResult) => {
+    (r: PassResult | TempoResult) => {
       const before = stateFor(currentStates(), lesson.id, stage)
       setPraise(praiseFor(store.attemptsOf(lesson.id, stage), r))
       store.record({
@@ -149,6 +190,8 @@ export function PracticeScreen({
         durationMs: Math.round(r.durationMs),
         percent: r.percent,
         missedBars: r.missedBars,
+        // Mitspielen: Tempo und je Ton Anschlag und Haltedauer (Grundlage für den Geist)
+        ...('tempo' in r ? { tempo: r.tempo, timing: r.timing, held: r.held } : {}),
       })
       // Was der Durchgang für den Fortschritt heißt: sitzt für heute, gefestigt, morgen nochmal
       const after = stateFor(currentStates(), lesson.id, stage)
@@ -166,62 +209,142 @@ export function PracticeScreen({
     },
     [lesson.id, stage],
   )
+  const onPassRef = useRef(onPass)
+  onPassRef.current = onPass
 
-  // neue Sitzung je Stufe
+  /** Mitspielen: neuer Durchgang, ein Takt Einzähler (immer hörbar, auch ohne Metronom) */
+  const startTempo = useCallback(() => {
+    const prev = tempoRef.current
+    if (!prev) return
+    stopDemoRef.current()
+    cancelClicks()
+    audioContext()
+    const s = new TempoSession(lesson, prev.stage, prev.tempo, (r) => onPassRef.current(r))
+    s.start(performance.now())
+    for (const k of s.countInClicks()) scheduleClick(s.timeOf(k), k)
+    nextClickRef.current = s.firstBeat
+    tempoRef.current = s
+    setResult(null)
+    if (!pauseTipShown.current) {
+      pauseTipShown.current = true
+      setPauseTip(true)
+      window.setTimeout(() => setPauseTip(false), 5000)
+    }
+    force((x) => x + 1)
+  }, [lesson])
+
+  const pauseTempo = () => {
+    tempoRef.current?.pause(performance.now())
+    cancelClicks()
+    force((x) => x + 1)
+  }
+  const resumeTempo = () => {
+    const s = tempoRef.current
+    if (!s?.paused) return
+    stopDemoRef.current()
+    cancelClicks()
+    s.resume(performance.now())
+    for (const k of s.countInClicks()) scheduleClick(s.timeOf(k), k)
+    nextClickRef.current = s.firstBeat
+    force((x) => x + 1)
+  }
+
+  // neue Sitzung je Stufe und Tempo
   useEffect(() => {
-    const s = new WaitSession(lesson, stage, onPass)
-    s.restart()
-    sessionRef.current = s
-    beatRef.current = s.beat
+    cancelClicks()
+    if (tempo === 'wait') {
+      const s = new WaitSession(lesson, stage, (r) => onPassRef.current(r))
+      s.restart()
+      sessionRef.current = s
+      tempoRef.current = null
+      beatRef.current = s.beat
+    } else {
+      sessionRef.current = null
+      tempoRef.current = new TempoSession(lesson, stage, tempo, (r) => onPassRef.current(r))
+    }
     setResult(null)
     force((x) => x + 1)
-  }, [lesson, stage, onPass])
+    if (startPending.current) {
+      startPending.current = false
+      if (tempo !== 'wait') startTempo()
+    }
+  }, [lesson, stage, tempo, startTempo])
 
-  const input = useCallback((e: NoteOn) => {
-    lastInputRef.current = performance.now()
-    pressRef.current.set(e.midi, performance.now())
-    const s = sessionRef.current
-    if (!s || demoRef.current) return
-    setPlayed(true)
-    if (s.finished) {
-      // Das Klavier ist die Fernbedienung: Der nächste Anschlag startet den nächsten Durchgang,
-      // bei fertiger Stufe die nächste. Frühestens 1,2 s nach dem Ende, sonst zählt der Nachklang.
-      if (performance.now() - finishedAtRef.current < 1200) return
-      const st = stageRef.current
-      const next = stages[stages.indexOf(st) + 1]
-      if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
-        setStage(next)
+  const stopDemo = () => {
+    if (!demoRef.current) return
+    stopAll()
+    demoRef.current = null
+    setDemo(false)
+  }
+  stopDemoRef.current = stopDemo
+  const setTempo = (v: Tempo, start = false) => {
+    stopDemo()
+    setPrefValue(tempoKey(lesson.id, stage), String(v))
+    if (v === tempo) {
+      if (start && v !== 'wait') startTempo()
+      else if (start) again()
+      return
+    }
+    startPending.current = start
+    setTempoState(v)
+  }
+
+  /** Töne, auf die das Mikrofon gerade achten soll */
+  const expectedNow = (): ReadonlySet<number> => {
+    const ts = tempoRef.current
+    if (!ts) return sessionRef.current?.expected ?? new Set()
+    const b = ts.beatAt(performance.now())
+    return new Set(ts.notes.filter((n) => n.state === 'pending' && n.start >= b - 0.5 && n.start <= b + 1).map((n) => n.midi))
+  }
+
+  const input = useCallback(
+    (e: NoteOn) => {
+      lastInputRef.current = performance.now()
+      pressRef.current.set(e.midi, performance.now())
+      if (demoRef.current) return
+      setPlayed(true)
+      const ts = tempoRef.current
+      if (ts) {
+        // Das Klavier ist die Fernbedienung: Eine Taste startet den Einzähler (sie selbst zählt
+        // nicht). Nach dem Ende frühestens 1,2 s später, sonst zählt der Nachklang.
+        if (!ts.started || ts.finished) {
+          if (ts.finished && performance.now() - finishedAtRef.current < 1200) return
+          if (e.source === 'mic' && !ts.finished) return
+          startTempo()
+          return
+        }
+        ts.input(e)
         return
       }
-      s.restart()
-      setResult(null)
-    }
-    const before = s.index
-    s.input(e)
-    // Screenreader: nach jedem geschafften Schritt die nächsten Töne ansagen
-    if (s.index !== before && !s.finished) announce(t.practice.nextNotes([...s.expected].map(displayNoteLabel).join(', ')))
-    force((x) => x + 1)
-  }, [lesson.id, stages])
+      const s = sessionRef.current
+      if (!s) return
+      if (s.finished) {
+        if (performance.now() - finishedAtRef.current < 1200) return
+        const st = stageRef.current
+        const next = stages[stages.indexOf(st) + 1]
+        if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
+          setStage(next)
+          return
+        }
+        s.restart()
+        setResult(null)
+      }
+      const before = s.index
+      s.input(e)
+      if (s.index !== before && !s.finished) announce(t.practice.nextNotes([...s.expected].map(displayNoteLabel).join(', ')))
+      force((x) => x + 1)
+    },
+    [lesson.id, stages, startTempo],
+  )
 
-  /** Losgelassen: an die Sitzung (lange Töne halten), Hinweis bei zu frühem Loslassen */
-  const [shortHint, setShortHint] = useState(false)
-  const shortTimer = useRef<number | null>(null)
+  /** Losgelassen: Haltedauer (Mitspielen) bzw. lange Töne halten (Warten) */
   const release = useCallback((e: NoteOff) => {
-    const s = sessionRef.current
-    if (!s) return
-    const before = s.shortCount
-    s.release(e)
-    if (s.shortCount > before) {
-      setShortHint(true)
-      if (shortTimer.current) window.clearTimeout(shortTimer.current)
-      shortTimer.current = window.setTimeout(() => setShortHint(false), 1600)
-    }
+    if (tempoRef.current) return tempoRef.current.release(e)
+    sessionRef.current?.release(e)
   }, [])
-
 
   // MIDI: führt die Übung; läuft das Mikrofon mit, ist MIDI die Wahrheit für die Messung
   const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput((n) => {
-    // Anschlagstärke 0 heißt losgelassen (Note-Off)
     if (n.velocity === 0) return release({ midi: n.midi, tMs: n.tMs, source: 'midi' })
     if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
     input({ midi: n.midi, tMs: n.tMs, source: 'midi' })
@@ -252,21 +375,21 @@ export function PracticeScreen({
   flushRef.current = flushDiagnostics
 
   // Mikrofon
+  const expectedRef = useRef(expectedNow)
+  expectedRef.current = expectedNow
   useEffect(() => {
-    // Eingelerntes Klangprofil (Lernmodus), sonst feste Regeln
     const profile = lookupFrom(loadProfile())
     const mic = new MicListener({
       profile: () => profile,
-      expected: () => sessionRef.current?.expected ?? new Set(),
+      expected: () => expectedRef.current(),
       onNote: (m, tMs) => {
-        recorderRef.current?.note(m, tMs, [...(sessionRef.current?.expected ?? [])])
+        recorderRef.current?.note(m, tMs, [...expectedRef.current()])
         if (midiLiveRef.current) benchRef.current.mic(m, tMs)
         else input({ midi: m, tMs, source: 'mic' })
       },
       onFrame: (f) => recorderRef.current?.frame(f),
       onStatus: (st) => {
         setMicStatus(st)
-        // Diagnose: Aufnahme mitlaufen lassen, sobald das Mikrofon hört
         if (st === 'listening' && diagnosticsRef.current && !recorderRef.current) {
           recorderRef.current = new PracticeRecorder()
           recorderRef.current.start(mic.mediaStream)
@@ -278,7 +401,6 @@ export function PracticeScreen({
       },
     })
     micRef.current = mic
-    // Wer das Mikrofon zuletzt an hatte, bekommt es wieder (der Tipp aufs Stück war die Geste)
     if (getPref('mic', false)) void mic.start()
     return () => {
       void flushRef.current('leave')
@@ -287,7 +409,9 @@ export function PracticeScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, midiLiveRef])
 
-  const comparing = midi.state === 'on' && midi.devices.length > 0 && (micStatus === 'listening' || micStatus === 'calibrating')
+  // Messkarte „Mikrofon gegen MIDI“ nur mit eingeschalteter Diagnose: Sie ist Entwicklerwerkzeug
+  const comparing =
+    diagnostics && midi.state === 'on' && midi.devices.length > 0 && (micStatus === 'listening' || micStatus === 'calibrating')
   useEffect(() => {
     if (!comparing) return setBench(null)
     const timer = window.setInterval(() => {
@@ -298,13 +422,21 @@ export function PracticeScreen({
   }, [comparing])
 
   const stageNotes = useMemo(() => notesForStage(lesson, stage), [lesson, stage])
-  // Computertastatur: Fingertasten (Standard) oder Töne wie im Tracker (Y–M, Q–I)
+  const lastBeat = useMemo(() => Math.max(...stageNotes.map((n) => n.start + n.dur)), [stageNotes])
   const [fingerKeys, setFingerKeysState] = useState(() => getPref('fingerkeys', true))
   const setFingerKeys = (v: boolean) => (setPref('fingerkeys', v), setFingerKeysState(v))
   const lowest = Math.min(...lesson.notes.map((n) => n.midi))
+  /**
+   * Position für die Fingertasten (welcher Ton ist mit Finger 3 gemeint?). Beim Mitspielen um das
+   * Fenster „knapp“ voraus: Wer kurz vor dem Schlag anschlägt, meint schon den nächsten Ton.
+   */
+  const beatForKeys = () => {
+    const ts = tempoRef.current
+    if (ts) return ts.beatAt(performance.now()) + ts.win.near / ts.beat
+    return sessionRef.current?.beat ?? 0
+  }
   useEffect(() => {
     const base = Math.min(48, Math.floor(lowest / 12) * 12)
-    // Ton klingt, solange die Taste gehalten wird
     const held = new Map<string, () => void>()
     const up = (e: KeyboardEvent) => {
       held.get(e.code)?.()
@@ -323,7 +455,7 @@ export function PracticeScreen({
       let m: number | null
       if (fingerKeys) {
         const f = keyToFinger(e.code)
-        m = f ? fingerToMidi(stageNotes, sessionRef.current?.beat ?? 0, f.hand, f.finger) : null
+        m = f ? fingerToMidi(stageNotes, Math.max(0, beatForKeys()), f.hand, f.finger) : null
       } else m = keyToMidi(e.code, base)
       if (m === null) return
       e.preventDefault()
@@ -351,12 +483,10 @@ export function PracticeScreen({
     return () => void lock?.release()
   }, [])
 
-  // Klavierklang vorladen
   useEffect(() => {
     getPiano()
   }, [])
 
-  /** Bildschirmtaste gedrückt; gibt das Loslassen zurück (Ton klingt, solange der Finger liegt) */
   /** Bildschirmtaste gedrückt; gibt das Loslassen zurück (Ton und Haltedauer) */
   const onKey = useCallback(
     (m: number) => {
@@ -382,108 +512,206 @@ export function PracticeScreen({
     }
   }
 
+  /** Anhören: die Stufe einmal vorspielen, im gewählten Tempo (Warten: Originaltempo) */
   const toggleDemo = () => {
-    if (demoRef.current) {
-      stopAll()
-      demoRef.current = null
-      setDemo(false)
-      return
+    if (demoRef.current) return stopDemo()
+    const ts = tempoRef.current
+    if (ts?.running) {
+      ts.pause(performance.now())
+      cancelClicks()
     }
     const ctx = audioContext()
-    const spb = 60 / lesson.bpm
+    const bpm = lesson.bpm * (tempo === 'wait' ? 1 : tempo)
+    const spb = 60 / bpm
     const t0 = ctx.currentTime + 0.6
     for (const n of notesForStage(lesson, stage)) playNote(n.midi, n.dur * spb * 0.95, t0 + n.start * spb, n.hand === 'L' ? 62 : 78)
-    demoRef.current = { t0, bpm: lesson.bpm }
+    demoRef.current = { t0, bpm }
     setDemo(true)
   }
 
   // Anzeige-Zustand, gelesen im Zeichen-Loop der Pianorolle
   const view = useCallback((): RollView => {
-    const s = sessionRef.current
     const now = performance.now()
-    const graceBefore = s?.graceMisses
-    s?.tick(now)
-    // Ein verzögert gewerteter Ton vor dem Start: Hinweis auf die Starttaste zeigen
-    if (s && s.graceMisses !== graceBefore) queueMicrotask(() => force((x) => x + 1))
-    let beat: number
-    let expected: ReadonlySet<number> = s?.expected ?? new Set()
-    let struck: ReadonlySet<number> = s?.struck ?? new Set()
     const d = demoRef.current
-    if (d) {
-      // Vorspielen: die Bahn gleitet mit, „aktuell“ sind die klingenden Noten
-      beat = ((audioContext().currentTime - d.t0) * d.bpm) / 60
-      const last = Math.max(...stageNotes.map((n) => n.start + n.dur))
-      if (beat > last + 1) {
-        demoRef.current = null
-        setDemo(false)
-      }
-      expected = new Set(stageNotes.filter((n) => beat >= n.start && beat < n.start + n.dur).map((n) => n.midi))
-      struck = new Set()
-      beatRef.current = beat
-    } else {
-      // Warte-Modus: weich zum aktuellen Schritt gleiten
-      // Beim Halten eines langen Tons läuft die Bahn in Echtzeit weiter: Der Balken schiebt sich
-      // in die Taste, in den Noten wandert der Cursor über die Notenlänge
-      const hold = s?.holdProgress(now)
-      const holdBeats = s?.holding ? s.holding.beats * 0.8 : 0
-      const target = s?.finished
-        ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2
-        : (s?.beat ?? 0) + (hold ?? 0) * holdBeats
-      beatRef.current += (target - beatRef.current) * 0.25
-      if (Math.abs(target - beatRef.current) < 0.002) beatRef.current = target
-      beat = beatRef.current
-    }
-    const arrived = d ? true : Math.abs(beat - (s?.beat ?? 0)) < 0.4 || !!s?.holding
-    return {
-      notes: stageNotes,
+    const base = {
       rangeNotes: lesson.notes,
-      beat: d || s?.holding ? beat : arrived ? (s?.beat ?? beat) : beat,
-      expected: d || arrived ? expected : new Set(),
-      struck,
-      flashes: (s?.feedback ?? [])
-        .filter((f) => f.kind !== 'short')
-        .map((f) => ({ midi: f.midi, kind: f.kind as 'hit' | 'wrong', age: now - f.tMs })),
       heard: heardRef.current,
-      // Vorspielen: klingende Tasten bleiben unten; sonst federt die Taste in ~300 ms zurück
-      press: (m: number) => {
-        if (d) return expected.has(m) ? 1 : 0
-        const at = pressRef.current.get(m)
-        if (at === undefined) return 0
-        const age = now - at
-        return age < 300 ? 1 - (age / 300) ** 2 : 0
-      },
       showNames,
       showFingers,
       keysOnly: sheet,
+    }
+    const pressOf = (m: number) => {
+      const at = pressRef.current.get(m)
+      if (at === undefined) return 0
+      const age = now - at
+      return age < 300 ? 1 - (age / 300) ** 2 : 0
+    }
+    if (d) {
+      // Vorspielen: die Bahn gleitet mit, „aktuell“ sind die klingenden Noten
+      const beat = ((audioContext().currentTime - d.t0) * d.bpm) / 60
+      if (beat > lastBeat + 1) {
+        demoRef.current = null
+        setDemo(false)
+      }
+      const expected = new Set(stageNotes.filter((n) => beat >= n.start && beat < n.start + n.dur).map((n) => n.midi))
+      beatRef.current = beat
+      return { ...base, notes: stageNotes, beat, expected, struck: new Set(), flashes: [], press: (m) => (expected.has(m) ? 1 : 0), hint: true }
+    }
+
+    const ts = tempoRef.current
+    if (ts) {
+      ts.tick(now)
+      const beat = ts.beatAt(now)
+      // Metronom: Klicks kurz vorausplanen, auf der Audio-Uhr. Mit Mikrofon still, sonst hört
+      // es den Klick als Ton
+      if (ts.running && beat >= ts.countTo - 0.3) {
+        const quiet = !metronomeRef.current || micRef.current?.status === 'listening'
+        while (nextClickRef.current < beat + 0.3) {
+          const k = nextClickRef.current++
+          // Verpasste Schläge (App war im Hintergrund) nicht als Salve nachholen
+          if (!quiet && k < lastBeat && ts.timeOf(k) > now - 20) scheduleClick(ts.timeOf(k), k)
+        }
+      }
+      const sounding = ts.started ? ts.soundingAt(beat) : ts.notes.filter((n) => n.start === ts.notes[0]?.start)
+      const look = (n: JudgedNote) => ({
+        missed: n.state === 'missed',
+        heldBeats: n.hold === 'short' && n.onMs !== null && n.offMs !== null ? (n.offMs - n.onMs) / ts.beat : undefined,
+      })
+      return {
+        ...base,
+        notes: ts.notes,
+        beat,
+        expected: new Set(sounding.map((n) => n.midi)),
+        struck: new Set(sounding.filter((n) => n.onMs !== null && n.offMs === null).map((n) => n.midi)),
+        flashes: ts.feedback
+          .filter((f) => f.kind === 'hit' || f.kind === 'wrong')
+          .map((f) => ({ midi: f.midi, kind: f.kind as 'hit' | 'wrong', age: now - f.tMs })),
+        tags: ts.feedback
+          .filter((f) => f.kind === 'early' || f.kind === 'late' || f.kind === 'short' || f.kind === 'long')
+          .map((f) => ({ midi: f.midi, text: t.tempo[f.kind as 'early' | 'late' | 'short' | 'long'], age: now - f.tMs }))
+          .filter((x) => x.age < TAG_MS),
+        judge: (n) => look(n as JudgedNote),
+        overholds: ts.notes
+          .filter((n) => n.onMs !== null && n.offMs === null && beat > n.start + n.dur)
+          .map((n) => ({ midi: n.midi, hand: n.hand, beats: beat - (n.start + n.dur), long: n.hold === 'long' })),
+        countIn: ts.countInShown(now),
+        press: pressOf,
+        hint: !sheet || now - lastInputRef.current > 3000,
+      }
+    }
+
+    // Warte-Modus: weich zum aktuellen Schritt gleiten; beim Halten eines langen Tons läuft die
+    // Bahn in Echtzeit weiter
+    const s = sessionRef.current
+    const graceBefore = s?.graceMisses
+    s?.tick(now)
+    if (s && s.graceMisses !== graceBefore) queueMicrotask(() => force((x) => x + 1))
+    const hold = s?.holdProgress(now)
+    const holdBeats = s?.holding ? s.holding.beats * 0.8 : 0
+    const target = s?.finished ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2 : (s?.beat ?? 0) + (hold ?? 0) * holdBeats
+    beatRef.current += (target - beatRef.current) * 0.25
+    if (Math.abs(target - beatRef.current) < 0.002) beatRef.current = target
+    const arrived = Math.abs(beatRef.current - (s?.beat ?? 0)) < 0.4 || !!s?.holding
+    const expected = s?.expected ?? new Set<number>()
+    return {
+      ...base,
+      notes: stageNotes,
+      beat: s?.holding ? beatRef.current : arrived ? (s?.beat ?? beatRef.current) : beatRef.current,
+      expected: arrived ? expected : new Set(),
+      struck: s?.struck ?? new Set(),
+      flashes: (s?.feedback ?? [])
+        .filter((f) => f.kind !== 'short')
+        .map((f) => ({ midi: f.midi, kind: f.kind as 'hit' | 'wrong', age: now - f.tMs })),
+      // Langer Ton zu früh losgelassen: leise „kurz“ über der Taste statt einer Einblendung
+      tags: (s?.feedback ?? [])
+        .filter((f) => f.kind === 'short')
+        .map((f) => ({ midi: f.midi, text: t.tempo.short, age: now - f.tMs })),
+      press: pressOf,
       // In den Noten leuchtet die Taste erst nach 3 s Zögern, oder wenn jemand die Starttaste sucht
       hint: !sheet || now - lastInputRef.current > 3000 || (!!s && !s.started && s.graceMisses > 0),
     }
-  }, [lesson.notes, stageNotes, showNames, showFingers, sheet])
+  }, [lesson.notes, lesson.beatsPerBar, stageNotes, lastBeat, showNames, showFingers, sheet])
 
   const again = () => {
+    if (tempoRef.current) return startTempo()
     sessionRef.current?.restart()
     setResult(null)
     force((x) => x + 1)
   }
 
+  const ts = tempoRef.current
   const s = sessionRef.current
+  const running = !!ts?.running
+  const barState: 'idle' | 'running' | 'paused' | 'restart' | 'waiting' = ts
+    ? ts.paused
+      ? 'paused'
+      : running
+        ? 'running'
+        : 'idle'
+    : s && (s.index > 0 || result)
+      ? 'restart'
+      : 'waiting'
+  const onPlay = () => {
+    if (barState === 'running') pauseTempo()
+    else if (barState === 'paused') resumeTempo()
+    else again()
+  }
+  const onLaneTap = () => {
+    if (!ts) return
+    if (ts.running) pauseTempo()
+    else if (ts.paused) resumeTempo()
+  }
+  const noInput = micStatus === 'off' && midi.state === 'off'
+  const laneHint = result
+    ? null
+    : ts?.paused
+      ? t.tempo.paused
+      : running
+        ? pauseTip
+          ? t.tempo.tapToPause
+          : null
+        : ts
+          ? `${t.tempo.hintPlay}${noInput ? ` ${t.tempo.hintNoInput}` : ''}`
+          : !played
+            ? `${t.tempo.hintWait}${noInput ? ` ${t.tempo.hintNoInput}` : ''}`
+            : null
 
   return (
-    <div className={`practice ${paper ? 'paper' : ''}`}>
+    <div className={`practice ${paper ? 'paper' : ''}${running ? ' hush' : ''}`}>
       <AppBar
         left={
           <button className="icon-button" onClick={onBack} aria-label={t.practice.back}>
             <BackIcon />
           </button>
         }
-        title={<span className="appbar-text">{localized(lesson.title)}</span>}
+        title={
+          <span className="title-stack">
+            <span className="appbar-text">{localized(lesson.title)}</span>
+            <StageMenu
+              stages={stages}
+              stage={stage}
+              onChange={setStage}
+              cleanCount={cleanCount}
+              best={bestFor}
+              cleanTempos={cleanTempos}
+              due={dueOf}
+              goal={localized(lesson.goal)}
+              demo={demo}
+              onToggleDemo={toggleDemo}
+            />
+          </span>
+        }
         right={
-          <ViewMenu
+          <SettingsMenu
             mode={mode}
             onMode={setMode}
-            onCalibrate={onCalibrate}
-            diagnostics={diagnostics}
-            onDiagnostics={upload ? setDiagnostics : undefined}
+            midi={midi}
+            onToggleMidi={toggleMidi}
+            micStatus={micStatus}
+            levelRef={levelRef}
+            onToggleMic={toggleMic}
+            metronome={metronome}
+            onMetronome={setMetronome}
             showNames={showNames}
             onShowNames={setShowNames}
             showFingers={showFingers}
@@ -492,19 +720,20 @@ export function PracticeScreen({
             onFingerKeys={setFingerKeys}
             sheetKeys={sheetKeys}
             onSheetKeys={setSheetKeys}
+            onCalibrate={onCalibrate}
+            diagnostics={diagnostics}
+            onDiagnostics={upload ? setDiagnostics : undefined}
           />
         }
       />
-      <div className="stage-row">
-        <StageSwitcher stages={stages} stage={stage} cleanCount={cleanCount} best={bestFor} onChange={setStage} />
-        <p className="stage-goal">{localized(lesson.goal)}</p>
-      </div>
 
       <main className="stage-area">
         {/* Feste Plätze wie ein kleiner Modulkatalog: Notenband oben, Klaviatur unten, beide
-            immer gleich groß; nur die Bahn dazwischen nimmt den Rest. Ein Wechsel der Ansicht
-            blendet Module ein und aus (animiert), statt die Seite neu zu ordnen. */}
-        <div className={`stage-grid${hasBand ? ' has-band' : ''}`}>
+            immer gleich groß; nur die Bahn dazwischen nimmt den Rest. */}
+        <div
+          className={`stage-grid${hasBand ? ' has-band' : ''}`}
+          onPointerDown={!hasKeys ? onLaneTap : undefined}
+        >
           {hasBand && (
             <div className="stage-band">
               <Suspense fallback={<div className="sheet-view" />}>
@@ -518,22 +747,14 @@ export function PracticeScreen({
                 view={view}
                 beatsPerBar={lesson.beatsPerBar}
                 onKey={onKey}
-                expected={[...(sessionRef.current?.expected ?? [])]}
+                onLaneTap={onLaneTap}
+                expected={[...(tempoRef.current ? [] : (sessionRef.current?.expected ?? []))]}
                 paper={paper}
               />
             </div>
           )}
         </div>
-        {!played && !result && micStatus === 'off' && midi.state === 'off' && (
-          <p className={`lane-hint${hasBand ? ' lane-hint-band' : ''}`}>
-            {sheet && !sheetKeys ? t.practice.noInputHintNoKeys : t.practice.noInputHint}
-          </p>
-        )}
-        {shortHint && <p className="lane-hint hold-hint">{t.practice.holdLonger}</p>}
-        {/* Schonfrist: Wer vor dem ersten richtigen Ton danebengreift, bekommt nur die Starttaste gezeigt */}
-        {s && !s.started && s.graceMisses > 0 && !result && !demo && (
-          <p className="lane-hint start-hint">{t.practice.startHint([...s.expected].map(displayNoteLabel).join(', '))}</p>
-        )}
+        {laneHint && <p className={`lane-hint${hasBand ? ' lane-hint-band' : ''}`}>{laneHint}</p>}
         {comparing && bench && (
           <BenchPanel
             side={stage === 'R' ? 'left' : 'right'}
@@ -551,7 +772,9 @@ export function PracticeScreen({
             onAgain={again}
             onNext={setStage}
             onNextLesson={onNextLesson}
-            silent={micStatus === 'listening' || micStatus === 'calibrating'}
+            onTempo={(v) => setTempo(v, true)}
+            tempo={tempo}
+            cleanTempos={cleanTempos(stage)}
             note={progressNote}
             best={bestFor(stage)}
             praise={praise}
@@ -559,17 +782,7 @@ export function PracticeScreen({
         )}
       </main>
 
-      <PracticeToolbar
-        micStatus={micStatus}
-        levelRef={levelRef}
-        onToggleMic={toggleMic}
-        midi={midi}
-        onToggleMidi={toggleMidi}
-        demo={demo}
-        onToggleDemo={toggleDemo}
-        canRestart={!!s && (s.index > 0 || !!result)}
-        onRestart={again}
-      />
+      <TempoBar tempo={tempo} onTempo={(v) => setTempo(v)} cleanTempos={cleanTempos(stage)} state={barState} onPlay={onPlay} />
     </div>
   )
 }

@@ -13,52 +13,6 @@
   gap: 10px;
   padding: 10px 14px;
 }
-.stages {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  background: var(--bg-2);
-  border-radius: 12px;
-  padding: 3px;
-  gap: 2px;
-}
-/* UI SDK misst das gewählte Element; der Schieber gleitet zur Wahl und trägt die Handfarbe */
-.stage-indicator {
-  position: absolute;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  z-index: -1;
-  top: var(--segmented-control-indicator-top);
-  left: var(--segmented-control-indicator-left);
-  width: var(--segmented-control-indicator-width);
-  height: var(--segmented-control-indicator-height);
-  border-radius: 9px;
-  background: var(--bg-3);
-  transition-property: top, left, width, height, box-shadow;
-  transition-duration: 220ms;
-  transition-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .stage-indicator {
-    transition: none;
-  }
-}
-.stage {
-  display: grid;
-  justify-items: center;
-  gap: 3px;
-  padding: 6px 14px 7px;
-  border-radius: 9px;
-  font-weight: 800;
-  color: var(--fg-dim);
-  min-width: 76px;
-}
-.stage[data-checked] {
-  color: var(--fg);
-}
-.stage:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .stage-area {
   position: relative;
   min-height: 0;
@@ -98,34 +52,11 @@
   outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
-
-.tools {
-  flex-wrap: nowrap;
-  gap: 8px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  /* Ränder blenden weich aus, damit klar ist: hier geht es weiter */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-}
-.tools::-webkit-scrollbar {
-  display: none;
-}
-.tools > * {
-  flex: none;
-}
-.tools > .spacer {
-  flex: 1 0 8px;
-}
 .spacer {
   flex: 1;
 }
 .toggle,
-.ghost,
-.mic,
-.pill {
+.ghost {
   min-height: 44px;
   padding: 9px 16px;
   border-radius: 99px;
@@ -135,26 +66,10 @@
   background: var(--bg-2);
 }
 .toggle[data-pressed],
-.toggle.on,
-.mic.listening,
-.mic.calibrating,
-.midi.on {
+.toggle.on {
   color: var(--fg);
   background: var(--bg-3);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
-}
-.pill {
-  background: none;
-  border: 1px solid var(--bg-3);
-}
-.mic {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-}
-.mic.denied,
-.mic.error {
-  color: var(--felt);
 }
 .meter {
   width: 6px;
@@ -174,17 +89,18 @@
   transform: scaleY(0.12);
 }
 
+/* Oben in der Bahn, nie über der Klaviatur: Wer mit MIDI spielt, spielt einfach weiter */
 .result {
   position: absolute;
   left: 50%;
-  top: 22%;
+  top: 12px;
   transform: translateX(-50%);
-  width: min(440px, calc(100% - 32px));
+  width: min(440px, calc(100% - 24px));
   background: var(--card);
   color: var(--ink);
   border-radius: var(--card-radius);
-  padding: var(--card-pad);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  padding: 16px 18px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.32);
   animation: rise 0.28s ease-out;
 }
 .result-head {
@@ -192,16 +108,7 @@
   font-size: 24px;
   margin: 0 0 4px;
 }
-.result-sub {
-  margin: 0 0 16px;
-  color: #5b4a3f;
-}
 .result-hint {
-  margin: -6px 0 16px;
-  font-size: 14px;
-  color: #6d5a4c;
-}
-.result-note {
   margin: -6px 0 16px;
   font-size: 14px;
   color: #6d5a4c;
@@ -242,16 +149,6 @@
   .bar {
     padding: 6px 12px;
   }
-  .stage {
-    padding: 4px 10px 5px;
-    min-width: 64px;
-  }
-}
-@media (max-width: 640px) {
-  .stage {
-    min-width: 0;
-    padding: 6px 10px 7px;
-  }
 }
 
 /* Hochkant am Telefon: Stufenwahl in eigener Zeile über die volle Breite */
@@ -260,55 +157,19 @@
   overflow: hidden;
 }
 @media (max-width: 640px) {
-  .stages {
-    width: 100%;
-  }
-  .stage {
-    flex: 1;
-  }
-  .tools > .spacer {
-    flex: 0 0 0;
-  }
   .toggle,
-  .ghost,
-  .mic,
-  .pill {
+  .ghost {
     padding: 8px 12px;
     font-size: 14px;
   }
 }
 
-/* ---------- MIDI und Vergleichsmessung ---------- */
-
-.midi {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 9px 16px;
-  border-radius: 99px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fg-dim);
-  background: var(--bg-2);
-  max-width: 14em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .midi-dot {
   flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   outline: 1.5px solid var(--fg-dim);
-}
-.midi.on .midi-dot.live {
-  outline: none;
-  background: var(--fg);
-}
-.midi.connecting .midi-dot {
-  outline-color: var(--accent);
 }
 
 .bench {
@@ -403,52 +264,6 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-@media (max-width: 640px) {
-  .midi {
-    padding: 8px 12px;
-    font-size: 14px;
-  }
-}
-
-/* Handfarbe in den Punkten der gewählten Stufe statt als Unterstreichung */
-.stage[data-checked] .dots-L i {
-  outline-color: var(--hand-l);
-}
-.stage[data-checked] .dots-R i {
-  outline-color: var(--accent);
-}
-.stage[data-checked] .dots-LR i {
-  outline-color: var(--fg);
-}
-
-/* Nur eine Stufe: Etikett statt Umschalter, in der Titelzeile */
-.stage-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--bg-2);
-  font-weight: 800;
-  font-size: 15px;
-  white-space: nowrap;
-}
-.stage-badge .dots i {
-  outline-color: currentColor;
-}
-.stage-badge.stage-L {
-  color: var(--hand-l);
-}
-.stage-badge.stage-R {
-  color: var(--hand-r);
-}
-.stage-badge.stage-L .dots i.on {
-  background: var(--hand-l);
-}
-.stage-badge.stage-R .dots i.on {
-  background: var(--hand-r);
-}
 
 /* Quer am Telefon: Messkarte kompakt, damit sie die Tastatur nicht verdeckt */
 @media (max-height: 500px) {
@@ -460,18 +275,8 @@
   }
 }
 
-
 .bench-line {
   display: block;
-}
-.view-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.view-trigger[data-open] {
-  color: var(--fg);
-  background: var(--bg-3);
 }
 /* Ansicht-Popover: 14 px Radius, 6 px Abstand, Zeilen darin 14 − 6 = 8 px */
 .popover {
@@ -525,37 +330,11 @@
   box-shadow: inset 0 0 0 4px var(--fg), 0 0 0 1.5px var(--ink);
 }
 
-/* Schmal hochkant: Ansicht nur als Icon, damit alle Knöpfe in eine Zeile passen */
-@media (max-width: 420px) {
-  .view-label {
-    display: none;
-  }
-  .view-trigger {
-    padding: 8px 11px;
-  }
-  .tools {
-    gap: 6px;
-  }
-}
-
 .bench-left {
   left: 12px;
 }
 .bench-right {
   right: 12px;
-}
-
-/* Hochkant: Leiste in zwei Zeilen statt seitlich wischen; Eingänge zuerst */
-@media (max-width: 640px) {
-  .tools {
-    flex-wrap: wrap;
-    overflow: visible;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-  .tools > .spacer {
-    display: none;
-  }
 }
 
 /* Hinweis in der Bahn, solange kein Eingang läuft */
@@ -571,21 +350,6 @@
   color: var(--fg-dim);
   text-wrap: balance;
   pointer-events: none;
-}
-
-.tools-break {
-  display: none;
-}
-@media (max-width: 640px) {
-  .tools-break {
-    display: block;
-    flex-basis: 100%;
-    height: 0;
-  }
-  .tools > .spacer {
-    display: block;
-    flex: 1 0 0;
-  }
 }
 .lane-hint {
   padding: 10px 14px;
@@ -604,39 +368,12 @@
   height: 56px;
 }
 .practice {
-  grid-template-rows: auto auto 1fr auto;
-}
-/* Stufenwahl und Zielsatz unter der Leiste, mittig */
-.stage-row {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 10px 14px 10px;
-}
-.stage-row .stages {
-  width: min(100%, 440px);
-}
-.stage-row .stage {
-  flex: 1;
-}
-.stage-goal {
-  margin: 0;
-  max-width: 60ch;
-  text-align: center;
-  font-size: 14px;
-  color: var(--fg-dim);
-  text-wrap: balance;
+  grid-template-rows: auto 1fr auto;
 }
 /* Quer am Telefon: kompakt, Zielsatz weg, damit die Bahn Platz hat */
 @media (max-height: 500px) {
   .practice .appbar {
     height: 48px;
-  }
-  .stage-row {
-    padding: 4px 14px 6px;
-  }
-  .stage-goal {
-    display: none;
   }
 }
 
@@ -730,69 +467,6 @@
   }
 }
 
-/* Weiter nach 3 s: rollende Zahl im Knopf, Zündschnur unten (Progress aus dem UI SDK) */
-.result-go {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.result-count {
-  display: inline-grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-left: -6px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--card) 18%, transparent);
-  font-family: var(--mono);
-  font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.result-count-n {
-  animation: result-roll 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-}
-@keyframes result-roll {
-  from {
-    transform: translateY(110%) scale(0.6);
-    opacity: 0;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
-.result-pause {
-  min-height: 44px;
-  padding: 0 12px;
-  color: #6d5a4c;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.result-fuse {
-  position: absolute;
-  left: var(--card-radius);
-  right: var(--card-radius);
-  bottom: 0;
-}
-.result-fuse-track {
-  height: 3px;
-  overflow: hidden;
-  border-radius: 3px 3px 0 0;
-  background: color-mix(in srgb, var(--ink) 10%, transparent);
-}
-.result-fuse-fill {
-  height: 100%;
-  background: var(--hand-r);
-}
-@media (prefers-reduced-motion: reduce) {
-  .result-count-n {
-    animation: none;
-  }
-}
-
 /* Ansicht umschalten: Fallend · Beides · Noten (UI SDK Segmented Control) */
 .view-switch {
   position: relative;
@@ -839,36 +513,12 @@
   }
 }
 
-/* Hinweis „länger halten“: kurz über der Bahn */
-.lane-hint.hold-hint {
-  top: 40%;
-  color: var(--fg);
-  font-weight: 600;
-}
-
-/* Fortschritt nach dem Durchgang: sitzt für heute, gefestigt, morgen nochmal */
-.result-progress {
-  margin: -4px 0 14px;
-  padding: 8px 12px;
-  border-radius: calc(var(--card-radius) - 8px);
-  background: color-mix(in srgb, #c99a2e 14%, transparent);
-  color: var(--ink);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 /* „…“-Menü: Ansicht oben, dann Anzeige, dann Werkzeuge */
 .more-menu {
   min-width: 250px;
   color: var(--ink);
   /* eigene Ebene im Ansichtswechsel, sonst gleitet das Notenband über das offene Menü */
   view-transition-name: pb-menu;
-}
-.menu-label {
-  margin: 4px 12px 2px;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: #6d5a4c;
 }
 .more-menu .view-switch {
   margin: 0 6px 4px;
@@ -883,11 +533,6 @@
 }
 .more-menu .view-switch-item[data-checked] {
   color: var(--ink);
-}
-.menu-sep {
-  height: 1px;
-  margin: 4px 8px;
-  background: rgba(36, 26, 23, 0.1);
 }
 .menu-item {
   width: 100%;
@@ -1030,22 +675,550 @@
 .result-praise .stars {
   font-size: 15px;
 }
-.stage-marks {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.stage-stars {
-  font-size: 10px;
-  gap: 1px;
-}
-.lane-hint.start-hint {
-  top: 40%;
-  color: var(--fg);
-  font-weight: 600;
-}
 @media (prefers-reduced-motion: reduce) {
   .result-stars svg.on {
     animation: none;
+  }
+}
+
+/* ---------- Ruhige Übe-Seite: Titel mit Stufen-Chip, Tempo-Leiste, Sheets ---------- */
+
+.practice .appbar {
+  height: 62px;
+}
+.practice .appbar-title {
+  font-size: 19px;
+}
+.title-stack {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.title-stack .appbar-text {
+  max-width: 100%;
+  padding-top: 0;
+}
+
+/* Stufen-Chip: Hand, beste Sterne, Pfeil; öffnet das Stufen-Sheet */
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 10px 2px 9px;
+  border-radius: 99px;
+  background: var(--bg-2);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.stage-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chip-stars {
+  font-size: 10px;
+  gap: 1px;
+  color: var(--hand-r);
+}
+.chip-chev {
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+/* Handfarbe als Punkt; bei beiden Händen zwei Punkte */
+.hand-dots {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hand-l);
+}
+.hand-dots.hand-R {
+  background: var(--hand-r);
+}
+.hand-dots.hand-LR {
+  margin-right: 9px;
+  box-shadow: 9px 0 0 var(--hand-r);
+}
+
+/* „…“ mit Punkt, solange ein Eingang läuft */
+.more-trigger {
+  position: relative;
+}
+.input-dot {
+  position: absolute;
+  top: 9px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6fa55a;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.midi-dot.live {
+  outline: none;
+  background: #6fa55a;
+}
+
+/* Untere Leiste: Tempo-Leiter und ein runder Knopf */
+.tempo-bar {
+  gap: 10px;
+  padding: 10px 14px 12px;
+}
+.ladder {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr 1fr;
+  max-width: 420px;
+  padding: 3px;
+  border-radius: 15px;
+  background: var(--bg-2);
+}
+.ladder-indicator {
+  position: absolute;
+  z-index: -1;
+  top: var(--segmented-control-indicator-top);
+  left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width);
+  height: var(--segmented-control-indicator-height);
+  border-radius: 12px;
+  background: var(--bg-3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition-property: left, width;
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.ladder-item {
+  position: relative;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+.ladder-item[data-checked] {
+  color: var(--fg);
+}
+.ladder-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ladder-tick {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: 10px;
+  color: var(--hand-r);
+}
+.play-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--bg);
+}
+.play-button:disabled {
+  opacity: 0.35;
+}
+.play-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (min-width: 700px) {
+  .tempo-bar {
+    justify-content: center;
+  }
+}
+
+/* Während ein Durchgang läuft: Kopf und Leiste treten zurück (Plätze bleiben, nichts springt).
+   Ein Tipp in die Bahn hält an und holt sie zurück. */
+.practice .appbar,
+.practice .tempo-bar {
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.practice.hush .appbar {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+.practice.hush .tempo-bar {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+}
+
+/* Ergebniskarte, kompakt */
+.result-top {
+  justify-content: flex-start;
+  align-items: baseline;
+  margin: 0 0 6px;
+}
+.result-head {
+  margin: 0;
+}
+.result-stars {
+  font-size: 20px;
+}
+.result-best {
+  margin-left: auto;
+}
+.result-line {
+  margin: 0 0 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #5b4a3f;
+}
+.result-line.result-praise {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.result-actions {
+  align-items: center;
+  margin-top: 10px;
+}
+.result-actions .primary,
+.result-actions .secondary {
+  padding: 9px 16px;
+}
+.result-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6d5a4c;
+}
+
+/* Sheets (Telefon): Einstellungen und Stufen */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+.sheet {
+  --row-fg: var(--fg);
+  --row-dim: var(--fg-dim);
+  --row-bg: var(--bg-2);
+  --row-line: color-mix(in srgb, var(--fg) 10%, transparent);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 94dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: 28px 28px 0 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.4;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+}
+.sheet::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--bg);
+}
+.sheet-handle {
+  flex: none;
+  align-self: center;
+  width: 64px;
+  height: 22px;
+  border-radius: 11px;
+  background: transparent;
+  position: relative;
+}
+.sheet-handle::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  top: 8px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--fg);
+  opacity: 0.25;
+}
+.sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 6px 20px;
+}
+.sheet-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 4px 16px 32px;
+}
+/* Aufgezogen: Die Übe-Seite tritt zurück wie bei iOS */
+.practice {
+  transition:
+    transform 0.45s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.45s,
+    filter 0.45s;
+  transform-origin: 50% 0;
+}
+body:has(.sheet[data-expanded]) .practice {
+  transform: translateY(10px) scale(0.94);
+  border-radius: 18px;
+  filter: brightness(0.85);
+}
+
+/* Gruppen in Sheet und Popover */
+.popover {
+  --row-fg: var(--ink);
+  --row-dim: #6d5a4c;
+  --row-bg: transparent;
+  --row-line: transparent;
+}
+.set-group {
+  display: grid;
+  gap: 6px;
+}
+.set-label {
+  margin: 0;
+  padding: 4px 4px 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--row-dim);
+}
+.popover .set-label {
+  padding: 6px 12px 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.set-rows {
+  display: grid;
+  border-radius: 16px;
+  background: var(--row-bg);
+  overflow: hidden;
+}
+.set-rows > * + * {
+  box-shadow: inset 0 1px 0 var(--row-line);
+}
+.popover.more-menu {
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  gap: 8px;
+}
+.popover .view-switch {
+  margin: 0 6px;
+  background: rgba(36, 26, 23, 0.08);
+}
+.popover .view-switch-indicator {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(36, 26, 23, 0.15);
+}
+.popover .view-switch-item {
+  color: #6d5a4c;
+}
+.popover .view-switch-item[data-checked] {
+  color: var(--ink);
+}
+.sheet .view-switch {
+  display: flex;
+  border-radius: 14px;
+}
+.sheet .view-switch-indicator {
+  border-radius: 11px;
+}
+.sheet .view-switch-item {
+  flex: 1;
+  border-radius: 11px;
+}
+.sheet .toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--row-fg);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: none;
+}
+/* Schalter wie bei iOS */
+.sheet .toggle-row::after {
+  content: '';
+  flex: none;
+  width: 46px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: background 0.2s;
+}
+.sheet .toggle-row[data-pressed]::after {
+  background: var(--hand-l);
+}
+.sheet .toggle-row {
+  position: relative;
+}
+.sheet .toggle-row::before {
+  content: '';
+  position: absolute;
+  right: 35px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 1;
+}
+.sheet .toggle-row[data-pressed]::before {
+  transform: translateX(18px);
+}
+.sheet .toggle-row[data-disabled] {
+  opacity: 0.45;
+}
+.sheet .toggle-text small,
+.sheet .menu-item small {
+  color: var(--row-dim);
+}
+.sheet .menu-item {
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 0;
+  font-size: 16px;
+  color: var(--row-fg);
+}
+.toggle-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.toggle-name .meter {
+  height: 14px;
+}
+
+/* Stufen-Sheet */
+.stage-sheet-goal {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--row-dim);
+  text-wrap: pretty;
+}
+.popover .stage-sheet-goal,
+.popover .stage-sheet-legend {
+  max-width: 300px;
+  padding: 6px 12px 0;
+}
+.stage-row-item {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  color: var(--row-fg);
+  background: transparent;
+}
+.popover .stage-row-item {
+  border-radius: 10px;
+}
+.stage-row-item[aria-current='true'] {
+  background: color-mix(in srgb, var(--row-fg) 7%, transparent);
+}
+.stage-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.stage-row-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.stage-row-name .dots i {
+  width: 8px;
+  height: 8px;
+}
+.stage-row-best {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--row-dim);
+}
+.stage-row-best .stars {
+  font-size: 11px;
+  gap: 1px;
+  color: var(--hand-r);
+}
+.mini-ladder {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.mini-ladder span {
+  padding: 3px 0;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--row-dim);
+  background: color-mix(in srgb, var(--row-fg) 7%, transparent);
+}
+.mini-ladder span.done {
+  color: var(--row-fg);
+  background: color-mix(in srgb, var(--hand-r) 32%, transparent);
+}
+.stage-row-sub {
+  font-size: 12.5px;
+  color: var(--row-dim);
+}
+.stage-sheet-legend {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--row-dim);
+}
+@media (prefers-reduced-motion: reduce) {
+  .practice,
+  .practice .appbar,
+  .practice .tempo-bar,
+  .ladder-indicator {
+    transition: none;
   }
 }

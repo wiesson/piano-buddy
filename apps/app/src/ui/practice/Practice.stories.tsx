@@ -20,6 +20,9 @@ const meta = {
     clean: 1,
     onAgain: () => {},
     onNext: () => {},
+    onTempo: () => {},
+    tempo: 'wait',
+    cleanTempos: new Set(),
   },
 } satisfies Meta<typeof ResultCard>
 export default meta
@@ -93,6 +96,24 @@ export const MitFehlern: StoryObj<typeof meta> = {
     clean: 0,
     best: { percent: 92, stars: 2 },
     praise: { kind: 'bar', bar: 5 },
+  },
+  render: (args) => (
+    <div style={{ position: 'relative', height: 360 }}>
+      <ResultCard {...args} />
+    </div>
+  ),
+}
+
+/** @summary Ergebnis beim Mitspielen in 80 %: Anschlag, Haltedauer, ein eilender Takt. */
+export const Mitspielen: StoryObj<typeof meta> = {
+  args: {
+    result: {
+      clean: false, wrong: 1, durationMs: 38000, unverified: 0, short: 3, source: 'midi', percent: 86, missedBars: [5],
+      tempo: 0.8, onTime: 22, near: 3, missed: 1, long: 1, holdGraded: true, drift: { bar: 5, ms: -62 }, timing: [], held: [],
+    },
+    clean: 1,
+    praise: null,
+    tempo: 0.8,
   },
   render: (args) => (
     <div style={{ position: 'relative', height: 360 }}>

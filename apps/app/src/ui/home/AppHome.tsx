@@ -47,9 +47,8 @@ export function AppHome({ synced }: { synced: boolean }) {
             void navigate({ to: '/play/$lessonId', params: { lessonId }, search: { stage } })
           }}
         />
-        <p className="pb-mono app-home-stats">
-          {started ? t.home.stats(learned, total, clean) : t.home.statsNew(LESSONS.length)}
-        </p>
+        {/* Stand erst, wenn es einen gibt; die Werbezeile („14 Stücke · kein Konto“) gehört auf die Website */}
+        {started && <p className="pb-mono app-home-stats">{t.home.stats(learned, total, clean)}</p>}
 
         <section className="app-home-section" aria-labelledby="app-path">
           <h2 id="app-path" className="pb-h2">

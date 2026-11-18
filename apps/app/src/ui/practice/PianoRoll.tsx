@@ -28,7 +28,24 @@ export interface RollView {
   keysOnly?: boolean
   /** Erwartete Tasten einfärben; aus, solange man in der Notenansicht selbst lesen soll */
   hint?: boolean
+  /** Mitspiel-Modus: Wertung je Note (verpasst; zu früh losgelassen nach so vielen Schlägen) */
+  judge?: (n: ScoreNote) => NoteLook | undefined
+  /** Mitspiel-Modus: Töne, die über ihr Ende hinaus gehalten werden (Faden über der Taste) */
+  overholds?: { midi: number; hand: 'L' | 'R'; beats: number; long: boolean }[]
+  /** Kurze Hinweise direkt über der Taste („früh“, „spät“, „kurz“, „loslassen“) */
+  tags?: { midi: number; text: string; age: number }[]
+  /** Einzähler: welcher Schlag (1 bis 4) und wie weit er ist (0..1) */
+  countIn?: { n: number; frac: number } | null
 }
+
+export interface NoteLook {
+  missed?: boolean
+  /** Zu früh losgelassen: so viele Schläge gehalten; der Rest des Balkens wird hohl */
+  heldBeats?: number
+}
+
+/** So lange steht ein Hinweis über der Taste */
+export const TAG_MS = 1100
 
 /** Abend: Lack und Elfenbein */
 const DARK = {
@@ -225,10 +242,13 @@ export function PianoRoll({
   onKey,
   expected,
   paper = false,
+  onLaneTap,
 }: {
   view: () => RollView
   beatsPerBar: number
   onKey: (midi: number) => (() => void) | void
+  /** Tipp in die Bahn (über der Klaviatur): Mitspielen anhalten oder fortsetzen */
+  onLaneTap?: () => void
   /** Töne des aktuellen Schritts, für Screenreader („als Nächstes“) und den ersten Fokus */
   expected: number[]
   /** helles Papier statt Lack */
@@ -344,18 +364,43 @@ export function PianoRoll({
         const isNow = v.expected.has(n.midi) && sounding(n)
         const past = n.start < v.beat - 1e-6
         const color = C[n.hand]
-        g.globalAlpha = past ? 0.18 : isNow ? 1 : 0.78
+        const look = v.judge?.(n)
+        g.globalAlpha = look?.missed ? 0.22 : past && !isNow ? 0.18 : isNow ? 1 : 0.78
         const bx = x + pad
         const bw = w - pad * 2
         const by = Math.max(top + 2, -20)
         const bh = Math.min(bottom, laneBottom + 400) - by - 2
-        if (isNow) {
+        if (isNow && !look?.missed) {
           g.shadowColor = color
           g.shadowBlur = 18
         }
         g.fillStyle = color
-        roundRect(g, bx, by, bw, bh, kg.inner)
-        g.fill()
+        if (look?.heldBeats !== undefined && look.heldBeats < n.dur) {
+          // Zu früh losgelassen: gespielter Teil voll, der Rest nur als gestrichelter Umriss
+          const cut = Math.max(by, Math.min(bottom, yOf(n.start + look.heldBeats)))
+          g.save()
+          g.beginPath()
+          g.rect(bx - 2, cut, bw + 4, bottom - cut + 2)
+          g.clip()
+          roundRect(g, bx, by, bw, bh, kg.inner)
+          g.fill()
+          g.restore()
+          g.save()
+          g.beginPath()
+          g.rect(bx - 2, by - 2, bw + 4, cut - by + 2)
+          g.clip()
+          g.shadowBlur = 0
+          g.strokeStyle = color
+          g.lineWidth = 1.5
+          g.setLineDash([4, 3])
+          roundRect(g, bx + 0.75, by + 0.75, bw - 1.5, bh - 1.5, Math.max(0, kg.inner - 0.75))
+          g.stroke()
+          g.setLineDash([])
+          g.restore()
+        } else {
+          roundRect(g, bx, by, bw, bh, kg.inner)
+          g.fill()
+        }
         g.shadowBlur = 0
         if (isNow && v.struck.has(n.midi)) {
           g.fillStyle = 'rgba(255,255,255,0.35)'
@@ -389,6 +434,44 @@ export function PianoRoll({
         g.globalAlpha = 1
       }
 
+      // Zu lang gehalten: ein dünner Faden steigt aus der Taste, solange der Ton über sein Ende
+      // hinaus liegt; ab der Grenze in der Fehlerfarbe
+      for (const o of v.overholds ?? []) {
+        const { x, w } = keyRect(l, o.midi)
+        const len = Math.min(o.beats * pxPerBeat, laneBottom * 0.4)
+        g.globalAlpha = 0.65
+        g.fillStyle = o.long ? C.wrong : C[o.hand]
+        roundRect(g, x + w / 2 - 1.5, laneBottom - len, 3, len, 1.5)
+        g.fill()
+        g.globalAlpha = 1
+      }
+
+      // Einzähler: groß in der Bahn, jede Zahl verblasst über ihren Schlag
+      if (v.countIn) {
+        const { n, frac } = v.countIn
+        g.globalAlpha = 1 - frac * 0.7
+        g.fillStyle = paper ? '#2b2420' : '#f3ebdd'
+        g.font = `400 ${Math.round(Math.min(72, laneBottom * 0.18) * (1 - frac * 0.12))}px "Geist Serif", Georgia, serif`
+        g.fillText(String(n), W / 2, laneBottom * 0.4)
+        g.globalAlpha = 1
+      }
+      }
+
+      // Hinweise über der Taste: leise, steigen etwas und verblassen
+      for (const tag of v.tags ?? []) {
+        const { x, w } = keyRect(l, tag.midi)
+        const a = tag.age / TAG_MS
+        g.font = `700 12px ${font}`
+        const tw = g.measureText(tag.text).width + 16
+        const tx = Math.max(4, Math.min(W - tw - 4, x + w / 2 - tw / 2))
+        const ty = laneBottom - 36 - a * 16
+        g.globalAlpha = a < 0.7 ? 1 : Math.max(0, 1 - (a - 0.7) / 0.3)
+        g.fillStyle = paper ? 'rgba(255,252,246,0.95)' : 'rgba(36,26,23,0.92)'
+        roundRect(g, tx, ty, tw, 22, 11)
+        g.fill()
+        g.fillStyle = paper ? '#2b2420' : '#f3ebdd'
+        g.fillText(tag.text, tx + tw / 2, ty + 11.5)
+        g.globalAlpha = 1
       }
 
       // Tastenbett: dunkel in den Fugen zwischen den Tasten. Es endet, wo die Rundung der weißen
@@ -499,7 +582,7 @@ export function PianoRoll({
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    if (y < lr.keyTop) return
+    if (y < lr.keyTop) return void onLaneTap?.()
     const { l, keyTop, keyH } = lr
     // schwarze Tasten zuerst prüfen (liegen oben drauf)
     if (y < keyTop + keyH * 0.62) {
