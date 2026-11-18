@@ -1,0 +1,21 @@
+{
+  "name": "@piano/core",
+  "private": true,
+  "type": "module",
+  "description": "Logik und Daten ohne Oberfläche: Stücke, Notenmodell, Erkennung, Warte-Modus, Texte, lokaler Fortschritt.",
+  "scripts": {
+    "test": "vp test run --exclude '**/*.audio.test.ts' --exclude '**/node_modules/**'",
+    "test:audio": "vp test run audio.test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "smplr": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

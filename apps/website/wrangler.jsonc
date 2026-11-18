@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Die Website. Die App unter /app ist ein eigener Worker (apps/app/wrangler.jsonc, Route mit Vorrang).
+  "name": "piano-buddy",
+  "compatibility_date": "2026-11-01",
+  // pianobuddy.fyi ist die Adresse; piano.wiesson.dev bleibt erreichbar (dort liegt alter Fortschritt im Browser)
+  "routes": [
+    { "pattern": "pianobuddy.fyi", "custom_domain": true },
+    { "pattern": "piano.wiesson.dev", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

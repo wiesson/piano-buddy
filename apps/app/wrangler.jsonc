@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Die App unter /app: eine Route vor der Custom Domain der Website (Routen haben Vorrang).
+  "name": "piano-buddy-app",
+  "compatibility_date": "2026-11-01",
+  "routes": [
+    { "pattern": "pianobuddy.fyi/app*", "zone_name": "pianobuddy.fyi" },
+    { "pattern": "piano.wiesson.dev/app*", "zone_name": "wiesson.dev" }
+  ],
+  "workers_dev": false,
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

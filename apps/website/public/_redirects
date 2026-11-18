@@ -1,0 +1,3 @@
+# Alte Adressen der App (vor der Trennung von Website und App)
+/play/*     /app/play/:splat   301
+/calibrate  /app/calibrate     301

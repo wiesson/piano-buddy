@@ -42,15 +42,32 @@ the smeared spectrum makes the neighbouring semitone ring along.
 Known limit, kept honest in the tests (`it.fails`): when both hands play an octave apart, the
 left hand alone sounds like both. MIDI is exact there.
 
+## Layout
+
+A pnpm monorepo on [Vite+](https://viteplus.dev):
+
+```
+apps/website    pianobuddy.fyi: home, FAQ, changelog, llms.txt (Worker "piano-buddy")
+apps/app        the practice app at pianobuddy.fyi/app (Worker "piano-buddy-app", route /app*),
+                also bundled into the iOS app (apps/app/ios, Capacitor)
+packages/core   pieces, notation model, microphone detection, wait mode, texts, local progress
+packages/ui     shared components, base styles and fonts, illustrations, Storybook
+convex/         sync backend
+```
+
+Website and app share one domain, so progress and device keys in the browser carry over.
+
 ## Stack
 
-- Vite, React 19, TypeScript, Canvas 2D for the piano roll
+- Vite+ (Vite, Vitest), React 19, TypeScript, TanStack Router, Canvas 2D for the piano roll,
+  [VexFlow](https://vexflow.com) for sheet music
 - [UI SDK](https://github.com/vercel-labs/ui) by Vercel Labs (beta): segmented control, toggles,
   dialog, OTP input, toasts, all styled by hand
 - [Convex](https://convex.dev) for sync, tested with `convex-test`
-- [Capacitor 8](https://capacitorjs.com) shell for iOS with a small CoreMIDI plugin
-  (`ios/App/App/PianoMidi.swift`), because Safari has no Web MIDI
+- [Capacitor 8](https://capacitorjs.com) for iOS with a small CoreMIDI plugin
+  (`apps/app/ios/App/App/PianoMidi.swift`), because Safari has no Web MIDI
 - [smplr](https://github.com/danigb/smplr) for the piano sound, Geist and Geist Serif for type
+- Storybook 11 (beta) for every component: `pnpm storybook`
 - Hosted on Cloudflare Workers static assets
 
 ## Run it
@@ -58,14 +75,16 @@ left hand alone sounds like both. MIDI is exact there.
 ```bash
 pnpm install
 npx convex dev --once   # creates your own Convex dev deployment, writes .env.local
-pnpm dev                # http://localhost:5173
+pnpm dev                # website http://localhost:5199, app at /app (proxied to :5198)
 pnpm dev:lan            # HTTPS on your network, so phones may use the microphone
-pnpm test               # detector, practice rules, sync access rules
+pnpm test               # detector, practice rules, notation, sync access rules
 pnpm test:audio         # every piece played into the listening flow (synthetic audio, ~40 s)
+pnpm storybook          # all components, https://storybook.piano.localhost
 ```
 
-Without `VITE_CONVEX_URL` the app runs local-only. Deploy: `pnpm run deploy` (Convex + Wrangler).
-iOS: `npx cap sync ios`, then open `ios/App/App.xcodeproj` in Xcode.
+Without `VITE_CONVEX_URL` the app runs local-only. Deploy: `pnpm run deploy` (Convex, then the
+app Worker, then the website Worker). iOS: `pnpm build:ios`, then open
+`apps/app/ios/App/App.xcodeproj` in Xcode.
 
 ## License
 

@@ -1,0 +1,36 @@
+{
+  "name": "@piano/website",
+  "private": true,
+  "type": "module",
+  "description": "Die Website pianobuddy.fyi: Startseite, FAQ, Changelog, llms.txt. Die App liegt unter /app.",
+  "scripts": {
+    "dev": "vp dev --port 5199 --strictPort",
+    "dev:lan": "LAN=1 vp dev --host --port 5199 --strictPort",
+    "build": "tsc -p tsconfig.json && vp build",
+    "preview": "vp preview --port 5199",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "echo 'Tests der Logik liegen in @piano/core'",
+    "deploy:worker": "wrangler deploy"
+  },
+  "dependencies": {
+    "@piano/core": "workspace:*",
+    "@piano/ui": "workspace:*",
+    "@tanstack/react-router": "catalog:",
+    "@ui-sdk/core": "catalog:",
+    "@ui-sdk/react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@tanstack/router-plugin": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "wrangler": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

@@ -1,0 +1,3 @@
+/* Reihenfolge ist Kaskade: Grundlagen, dann Bereiche */
+@import '@piano/ui/styles/base.css';
+@import '@piano/ui/styles/home.css';

@@ -1,0 +1,24 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
+  vite-plus: 1.7.0
+  # Vite+ 1.7.0 bringt diese Vitest-Linie mit (Storybook-Browsertests brauchen genau sie)
+  vitest: 5.1.0
+  react: ^19.3.1
+  react-dom: ^19.3.1
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
+  '@types/node': ^26.6.6
+  '@vitejs/plugin-react': ^6.3.0
+  '@tanstack/react-router': ^1.170.46
+  '@tanstack/router-plugin': ^1.169.0
+  '@ui-sdk/core': 0.1.0-beta.5
+  '@ui-sdk/react': 0.1.0-beta.5
+  typescript: ^7.0.2
+  wrangler: ^4.163.0
+
+onlyBuiltDependencies:
+  - esbuild
