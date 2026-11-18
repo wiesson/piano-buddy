@@ -98,19 +98,25 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
         notifyListeners("devices", data: ["devices": deviceNames()])
     }
 
-    /// Note-On (Status 0x9n mit Anschlagstärke > 0) aus den MIDI-1.0-Paketen lesen.
+    /// Note-On und Note-Off aus den MIDI-1.0-Paketen lesen, mit dem Zeitstempel des Pakets.
+    /// CoreMIDI stempelt in Host-Ticks (bei Bluetooth-MIDI aus den Zeitstempeln des Geräts
+    /// rekonstruiert). Mit gemeldet wird die Host-Zeit beim Absenden: JavaScript rechnet daraus
+    /// auf performance.now() um, sodass die Laufzeit über die Capacitor-Brücke nicht zählt.
     private func handle(_ list: UnsafePointer<MIDIPacketList>) {
-        // (Ton, Stärke); Stärke 0 heißt losgelassen
-        var notes: [(UInt8, UInt8)] = []
+        // (Ton, Stärke, Zeit in ms); Stärke 0 heißt losgelassen
+        var notes: [(UInt8, UInt8, Double)] = []
         for packet in list.unsafeSequence() {
             let bytes = Array(packet.bytes())
+            // Zeitstempel 0 heißt „jetzt“
+            let stamp = packet.pointee.timeStamp
+            let tMs = stamp == 0 ? PianoMidiPlugin.hostMs(mach_absolute_time()) : PianoMidiPlugin.hostMs(stamp)
             var i = 0
             while i < bytes.count {
                 let status = bytes[i]
                 if (status & 0xF0 == 0x90 || status & 0xF0 == 0x80), i + 2 < bytes.count {
                     // Note-On mit Stärke 0 oder Note-Off: losgelassen
                     let velocity = status & 0xF0 == 0x80 ? 0 : bytes[i + 2]
-                    notes.append((bytes[i + 1], velocity))
+                    notes.append((bytes[i + 1], velocity, tMs))
                     i += 3
                 } else if status & 0x80 != 0 {
                     // andere Statusmeldungen: Datenbytes überspringen
@@ -123,13 +129,25 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         guard !notes.isEmpty else { return }
         DispatchQueue.main.async { [weak self] in
-            for (note, velocity) in notes {
+            let sent = PianoMidiPlugin.hostMs(mach_absolute_time())
+            for (note, velocity, tMs) in notes {
                 if velocity == 0 {
-                    self?.notifyListeners("noteOff", data: ["note": Int(note)])
+                    self?.notifyListeners("noteOff", data: ["note": Int(note), "t": tMs, "sent": sent])
                 } else {
-                    self?.notifyListeners("noteOn", data: ["note": Int(note), "velocity": Int(velocity)])
+                    self?.notifyListeners("noteOn", data: ["note": Int(note), "velocity": Int(velocity), "t": tMs, "sent": sent])
                 }
             }
         }
+    }
+
+    private static let timebase: mach_timebase_info_data_t = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return info
+    }()
+
+    /// Host-Ticks in Millisekunden
+    static func hostMs(_ ticks: UInt64) -> Double {
+        Double(ticks) * Double(timebase.numer) / Double(timebase.denom) / 1_000_000
     }
 }

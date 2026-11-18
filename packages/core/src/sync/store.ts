@@ -21,6 +21,12 @@ export interface Attempt {
   percent?: number
   /** Takte mit Fehlern (fehlt bei älteren Versuchen) */
   missedBars?: number[]
+  /** Mitspiel-Modus: Anteil des Stück-Tempos (0.6, 0.8, 1); fehlt im Warte-Modus */
+  tempo?: number
+  /** Mitspiel-Modus, je Ton: Abweichung des Anschlags in ms (null = verpasst), für den Geist */
+  timing?: (number | null)[]
+  /** Mitspiel-Modus, je Ton: gehaltener Anteil in Prozent (null = nicht gemessen) */
+  held?: (number | null)[]
 }
 
 interface Stored extends Attempt {

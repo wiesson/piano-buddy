@@ -18,6 +18,9 @@ export const attemptFields = {
   // Neu ab Bewertung in Prozent; ältere Versuche haben die Felder nicht
   percent: v.optional(v.number()), // Schritte beim ersten Anschlag richtig, 0–100
   missedBars: v.optional(v.array(v.number())), // Takte mit Fehlern
+  tempo: v.optional(v.number()), // Mitspiel-Modus: Anteil des Stück-Tempos; fehlt im Warte-Modus
+  timing: v.optional(v.array(v.union(v.number(), v.null()))), // je Ton: Abweichung in ms (null = verpasst)
+  held: v.optional(v.array(v.union(v.number(), v.null()))), // je Ton: gehaltener Anteil in % (null = nicht gemessen)
 }
 
 export default defineSchema({

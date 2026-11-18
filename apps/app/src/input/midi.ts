@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
+import { HostClock } from '@piano/core/input/hostClock'
 
 /**
  * MIDI vom Klavier, auf zwei Wegen hinter einer Schnittstelle:
@@ -23,8 +24,9 @@ interface PianoMidiPlugin {
   start(): Promise<{ devices: string[] }>
   stop(): Promise<void>
   showBluetooth(): Promise<void>
-  addListener(event: 'noteOn', fn: (d: { note: number; velocity: number }) => void): Promise<PluginListenerHandle>
-  addListener(event: 'noteOff', fn: (d: { note: number }) => void): Promise<PluginListenerHandle>
+  /** t: Anschlag, sent: Absenden, beides Host-Zeit in ms (fehlt in älteren App-Versionen) */
+  addListener(event: 'noteOn', fn: (d: { note: number; velocity: number; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
+  addListener(event: 'noteOff', fn: (d: { note: number; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
   addListener(event: 'devices', fn: (d: { devices: string[] }) => void): Promise<PluginListenerHandle>
 }
 
@@ -46,11 +48,18 @@ export async function connectMidi(
 ): Promise<MidiHandle> {
   const kind = midiKind()
   if (kind === 'native') {
+    const clock = new HostClock()
+    const local = (d: { note: number; t?: number; sent?: number }, off: boolean) => {
+      const now = performance.now()
+      if (typeof d.t !== 'number' || typeof d.sent !== 'number') return now
+      return off ? clock.noteOff(d.note, d.t, d.sent, now) : clock.noteOn(d.note, d.t, d.sent, now)
+    }
     const subs = await Promise.all([
-      // Ankunftszeit im Web-Teil; die Host-Zeitstempel von CoreMIDI abzubilden ist STU-1228
-      PianoMidi.addListener('noteOn', (d) => onNote({ midi: d.note, velocity: d.velocity, tMs: performance.now() })),
-      // Loslassen kommt als Anschlagstärke 0 (für die Haltedauer langer Töne)
-      PianoMidi.addListener('noteOff', (d) => onNote({ midi: d.note, velocity: 0, tMs: performance.now() })),
+      // Zeitstempel von CoreMIDI, auf performance.now() umgerechnet (ältere App-Versionen ohne
+      // Zeitstempel: Ankunftszeit)
+      PianoMidi.addListener('noteOn', (d) => onNote({ midi: d.note, velocity: d.velocity, tMs: local(d, false) })),
+      // Loslassen kommt als Anschlagstärke 0 (für die Haltedauer)
+      PianoMidi.addListener('noteOff', (d) => onNote({ midi: d.note, velocity: 0, tMs: local(d, true) })),
       PianoMidi.addListener('devices', (d) => onDevices(d.devices)),
     ])
     const { devices } = await PianoMidi.start()

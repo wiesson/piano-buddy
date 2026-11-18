@@ -47,3 +47,44 @@ export function holdNote(midi: number, velocity = 80): () => void {
 export function stopAll() {
   piano?.stop()
 }
+
+/**
+ * Zeitpunkt auf der Audio-Uhr, an dem ein Ton zu `perfMs` (performance.now()) hörbar wird.
+ * getOutputTimestamp verbindet beide Uhren samt Ausgabelatenz: Klick und Bild fallen zusammen.
+ */
+export function audioTimeAt(perfMs: number): number {
+  const c = audioContext()
+  const ts = c.getOutputTimestamp?.()
+  if (ts?.performanceTime && ts.contextTime !== undefined) return ts.contextTime + (perfMs - ts.performanceTime) / 1000
+  return c.currentTime + (perfMs - performance.now()) / 1000 - (c.outputLatency || c.baseLatency || 0)
+}
+
+/**
+ * Metronom-Klick (kurz); betont auf der Eins. Geplant auf der Audio-Uhr. Gibt die Absage zurück:
+ * Ein Klick, der noch nicht klang, bleibt dann stumm (Pause, neuer Durchgang).
+ */
+export function click(perfMs: number, accent = false): () => void {
+  try {
+    const c = audioContext()
+    const t = Math.max(c.currentTime, audioTimeAt(perfMs))
+    const osc = c.createOscillator()
+    const gain = c.createGain()
+    osc.frequency.value = accent ? 1760 : 1320
+    gain.gain.setValueAtTime(0.0001, t)
+    gain.gain.exponentialRampToValueAtTime(accent ? 0.32 : 0.18, t + 0.002)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05)
+    osc.connect(gain).connect(c.destination)
+    osc.start(t)
+    osc.stop(t + 0.07)
+    return () => {
+      try {
+        gain.disconnect()
+      } catch {
+        // schon vorbei
+      }
+    }
+  } catch {
+    // ohne Klick geht es auch
+    return () => {}
+  }
+}
