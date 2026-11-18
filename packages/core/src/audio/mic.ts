@@ -27,6 +27,9 @@ export class MicListener {
   private timer: number | null = null
   private cal: Calibration | null = null
   private calFrames: Frame[] = []
+  /** Abstände der Analyse-Frames (ms): Ist der Timer ausgebremst, wird die Erkennung ungenauer */
+  private gaps: number[] = []
+  private lastFrameAt = 0
   private calUntil = 0
   status: MicStatus = 'off'
 
@@ -58,6 +61,8 @@ export class MicListener {
       const onset = new OnsetDetector(() => this.cal, undefined, undefined, undefined, undefined, profile)
       const buf = new Float32Array(this.analyser.fftSize)
       this.calFrames = []
+      this.gaps = []
+      this.lastFrameAt = 0
       this.calUntil = performance.now() + CALIBRATION_MS
       this.set('calibrating')
       this.timer = window.setInterval(() => {
@@ -65,6 +70,11 @@ export class MicListener {
         this.analyser.getFloatTimeDomainData(buf)
         const frame = analyzer.analyze(buf)
         const now = performance.now()
+        if (this.lastFrameAt) {
+          this.gaps.push(now - this.lastFrameAt)
+          if (this.gaps.length > 3000) this.gaps.splice(0, 1000)
+        }
+        this.lastFrameAt = now
         if (this.status === 'calibrating') {
           this.calFrames.push(frame)
           this.cb.onLevel?.(Math.min(1, frame.rms * 8), [])
@@ -88,6 +98,21 @@ export class MicListener {
   /** Ruhemessung des Raums (nach dem Start), für den Lernmodus */
   get calibration() {
     return this.cal
+  }
+
+  /**
+   * Was das Gerät wirklich eingestellt hat (Echo-Unterdrückung & Co. trotz Wunsch an?),
+   * Abtastrate und Frame-Abstände: für die Diagnose
+   */
+  get info() {
+    const track = this.stream?.getAudioTracks()[0]
+    const g = [...this.gaps].sort((a, b) => a - b)
+    const q = (p: number) => (g.length ? Math.round(g[Math.min(g.length - 1, Math.floor(g.length * p))] * 10) / 10 : null)
+    return {
+      settings: track?.getSettings?.() ?? null,
+      sampleRate: this.analyser?.context.sampleRate ?? null,
+      frameGapMs: { n: g.length, p50: q(0.5), p95: q(0.95), max: q(1) },
+    }
   }
 
   /** Der Mikrofon-Strom, z. B. für einen Mitschnitt */

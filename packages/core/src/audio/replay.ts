@@ -16,9 +16,9 @@ const CALIBRATION_MS = 900
 const FFT = 8192
 
 /** Frames wie im MicListener: Fenster endet jeweils am aktuellen Zeitpunkt */
-export function framesOf(pcm: Float32Array, sampleRate: number) {
+export function framesOf(pcm: Float32Array, sampleRate: number, hopMs = HOP_MS) {
   const an = new NoteAnalyzer(sampleRate, FFT)
-  const hop = Math.round((sampleRate * HOP_MS) / 1000)
+  const hop = Math.round((sampleRate * hopMs) / 1000)
   const out: { tMs: number; frame: Frame }[] = []
   for (let end = FFT; end <= pcm.length; end += hop) {
     out.push({ tMs: (end / sampleRate) * 1000, frame: an.analyze(pcm.subarray(end - FFT, end)) })
@@ -38,6 +38,8 @@ export interface PracticeReplay {
   /** Schritte des Stücks und wie weit der Durchgang kam */
   steps: number
   reached: number
+  /** alle erkannten Anschläge (Ton, Zeitpunkt) */
+  onsets: { midi: number; tMs: number }[]
 }
 
 /** Einen Durchgang im Warte-Modus nachspielen */
@@ -47,19 +49,25 @@ export function replayPractice(
   lesson: Lesson,
   stage: Stage,
   profile: ProfileLookup | null = null,
+  /** Analyse-Takt; die App will 20 ms, ein ausgebremster Timer liefert seltener */
+  opts: { hopMs?: number } = {},
 ): PracticeReplay {
-  const frames = framesOf(pcm, sampleRate)
+  const frames = framesOf(pcm, sampleRate, opts.hopMs)
   const cal = quietCalibration(frames)
   const passes: PassResult[] = []
   const session = new WaitSession(lesson, stage, (r) => passes.push(r))
   const onset = new OnsetDetector(() => cal, undefined, undefined, undefined, undefined, () => profile)
   const wrong: PracticeReplay['wrong'] = []
+  const onsets: PracticeReplay['onsets'] = []
   const seen = new Set<object>()
   const t0 = frames[0]?.tMs ?? 0
   for (const { tMs, frame } of frames) {
     if (tMs - t0 < CALIBRATION_MS) continue
     if (session.finished) break
-    for (const m of onset.push(frame, tMs, session.expected)) session.input({ midi: m, tMs, source: 'mic' })
+    for (const m of onset.push(frame, tMs, session.expected)) {
+      onsets.push({ midi: m, tMs })
+      session.input({ midi: m, tMs, source: 'mic' })
+    }
     session.tick(tMs)
     for (const f of session.feedback) {
       if (f.kind === 'wrong' && !seen.has(f)) {
@@ -68,7 +76,7 @@ export function replayPractice(
       }
     }
   }
-  return { passes, wrong, steps: session.steps.length, reached: session.index }
+  return { passes, wrong, steps: session.steps.length, reached: session.index, onsets }
 }
 
 /**

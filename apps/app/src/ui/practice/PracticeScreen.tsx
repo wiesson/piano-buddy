@@ -240,7 +240,7 @@ export function PracticeScreen({
     if (rec.empty) return
     try {
       const { data, audio, summary } = await rec.finish(
-        { lessonId: lesson.id, stage, reason, result: result ?? null, profile: !!loadProfile() },
+        { lessonId: lesson.id, stage, reason, result: result ?? null, profile: !!loadProfile(), mic: mic?.info ?? null },
         mic?.calibration ?? null,
       )
       await upload('practice', summary, data, audio)

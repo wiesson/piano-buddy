@@ -56,6 +56,15 @@ describe('Warte-Modus', () => {
     expect(s.wrongCount).toBe(0)
   })
 
+  it('Mikrofon: ein Oberton des erwarteten Tons ist kein Fehler, per MIDI schon', () => {
+    for (const source of ['mic', 'midi'] as const) {
+      const { s, play } = run('lh-fuenf', 'L')
+      play(n('C3'), source) // getroffen, jetzt ist D3 dran
+      s.input({ midi: n('E5'), tMs: 1200, source }) // 5. Teilton des eben gespielten C3
+      expect(s.wrongCount, source).toBe(source === 'mic' ? 0 : 1)
+    }
+  })
+
   it('braucht für einen Akkord alle Töne', () => {
     const { s, play, wait } = run('vier-akkorde', 'R')
     play(n('C4'))

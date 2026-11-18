@@ -27,7 +27,12 @@ export interface Frame {
   rms: number
   /** Energie im letzten Viertel des Fensters relativ zum Rest: groß = gerade erst angeschlagen */
   freshness: number
+  /** Hüllkurven des Fensters je Band (voll, höhenbetont) in 5-ms-Blöcken, neuester Block zuletzt */
+  env?: Float32Array[]
 }
+
+/** Blocklänge der Hüllkurve für das Anschlags-Gate */
+export const ENV_BLOCK_MS = 5
 
 export class NoteAnalyzer {
   readonly fftSize: number
@@ -109,7 +114,45 @@ export class NoteAnalyzer {
       }
       salience[j] = s
     }
-    return { amp, salience, rms: Math.sqrt(sum / fftSize), freshness: (tail * 3) / (head + 1e-12) }
+    return { amp, salience, rms: Math.sqrt(sum / fftSize), freshness: (tail * 3) / (head + 1e-12), env: this.envelope(samples) }
+  }
+
+  /**
+   * Hüllkurven in 5-ms-Blöcken, am Fensterende ausgerichtet (für das Anschlags-Gate), in zwei
+   * Bändern: voll (Basstöne) und höhenbetont (Differenz benachbarter Samples). Obere Teiltöne
+   * klingen schnell ab, ein neuer Anschlag sticht dort auch über einem nachklingenden Bass heraus.
+   */
+  private envelope(samples: ArrayLike<number>): Float32Array[] {
+    const B = Math.max(1, Math.round((this.sampleRate * ENV_BLOCK_MS) / 1000))
+    const n = Math.floor(this.fftSize / B)
+    const off = this.fftSize - n * B
+    const full = new Float64Array(n)
+    const high = new Float64Array(n)
+    for (let k = 0; k < n; k++) {
+      let e = 0
+      let h = 0
+      for (let i = Math.max(1, off + k * B); i < off + (k + 1) * B; i++) {
+        const x = samples[i]
+        const d = x - samples[i - 1]
+        e += x * x
+        h += d * d
+      }
+      full[k] = e
+      high[k] = h
+    }
+    // RMS über 20 ms (4 Blöcke): Tiefe Töne ohne Grundton schwanken in kürzeren Fenstern so stark,
+    // dass eine einzelne Spitze wie ein Anschlag aussähe
+    const smooth = (block: Float64Array) => {
+      const env = new Float32Array(n)
+      const W = 4
+      for (let k = 0; k < n; k++) {
+        let e = 0
+        for (let j = Math.max(0, k - W + 1); j <= k; j++) e += block[j]
+        env[k] = Math.sqrt(e / (Math.min(W, k + 1) * B))
+      }
+      return env
+    }
+    return [smooth(full), smooth(high)]
   }
 }
 
@@ -133,6 +176,8 @@ const PARTIALS: [number, number][] = [...SUBS, [28, 5], [31, 6]]
 export interface Calibration {
   /** Ruhe-Salienz je Note (Raumrauschen, Lüfter, Brummen) */
   noise: Float64Array
+  /** Ruhe-Pegel der Hüllkurven je Band (90. Perzentil), Grundlage für die Mindesthöhe eines Anschlags */
+  envFloor?: number[]
 }
 
 export function calibrate(frames: Frame[]): Calibration {
@@ -143,7 +188,12 @@ export function calibrate(frames: Frame[]): Calibration {
     // 90. Perzentil, damit kurze Geräusche während der Kalibrierung nicht die Schwelle bestimmen
     noise[j] = vals[Math.floor(vals.length * 0.9)] ?? 0
   }
-  return { noise }
+  const bands = frames[0]?.env?.length ?? 0
+  const envFloor = Array.from({ length: bands }, (_, b) => {
+    const v = frames.flatMap((f) => (f.env?.[b] ? Array.from(f.env[b]) : [])).sort((x, y) => x - y)
+    return v[Math.floor(v.length * 0.9)] ?? 0
+  })
+  return { noise, envFloor: bands ? envFloor : undefined }
 }
 
 export interface DetectOptions {
@@ -326,6 +376,37 @@ export function heardNotes(
  */
 /** So lange gilt ein erkannter Anschlag als nachklingend (Obertöne erklären) */
 const RING_MS = 2000
+/**
+ * Nach einem Anschlag gilt für diesen Ton so lange sein laufender Spitzenpegel als Vergleichswert
+ * für „Energie steigt“. Sonst vergleicht er noch ~270 ms mit der Stille vor dem Anschlag, und ein
+ * einziger flackernder Frame zählt denselben Ton ein zweites Mal (Doppelzählung).
+ */
+const HOLD_MS = 150
+/**
+ * Anschlags-Gate: Ein Ton zählt nur, wenn kurz vorher die Hüllkurve gesprungen ist (innerhalb von
+ * 20 ms um mindestens 40 % des danach erreichten Pegels). Klavier hat das, Summen, Singen und
+ * Gleiten nicht. Ein Anschlag deckt jeden Ton höchstens einmal.
+ */
+const ATTACK_RISE_BLOCKS = 4 // 20 ms
+const ATTACK_PEAK_BLOCKS = 6 // Spitzenpegel in den 30 ms danach
+const ATTACK_RATIO = 0.4
+/**
+ * …und der Pegel muss dann schon zu 60 % stehen. Ein linearer Einsatz aus der Stille (Summen,
+ * „hm“) erreicht das Verhältnis oben in seinen ersten 20 ms immer genau, egal wie langsam er ist;
+ * beides zugleich schafft nur ein schneller Anstieg wie der Hammer auf der Saite.
+ */
+const ATTACK_ARRIVED = 0.6
+const ATTACK_MERGE_MS = 60
+/** So lange nach dem Anschlag darf ein Ton noch bestätigt werden (Erkennung braucht ~90–120 ms) */
+const ATTACK_MAX_AGE_MS = 300
+/** Mindestsprung als Vielfaches des Ruhe-Pegels */
+const ATTACK_FLOOR = 4
+
+interface Attack {
+  tMs: number
+  ratio: number
+  used: Set<number>
+}
 
 export class OnsetDetector {
   private hist: Float64Array[]
@@ -339,6 +420,15 @@ export class OnsetDetector {
   private lastTransient = -Infinity
   /** Zuletzt erkannte Anschläge: Sie klingen nach, ihre Obertöne sind keine eigenen Töne */
   private ringing = new Map<number, number>()
+  /** Vergleichswert halten: bis wann und auf welchem Spitzenpegel je Ton */
+  private holdUntil: Float64Array
+  private holdPeak: Float64Array
+  /** Hüllkurve nach absolutem 5-ms-Block (Frames überlappen; neuere Werte überschreiben ältere) */
+  private env: Map<number, number>[] = []
+  private envEvaluated = -Infinity
+  private attacks: Attack[] = []
+  /** Gate an, sobald Frames eine Hüllkurve tragen (NoteAnalyzer); Tests mit Hand-Frames ohne */
+  gate = true
 
   constructor(
     private cal: () => Calibration | null,
@@ -354,6 +444,56 @@ export class OnsetDetector {
     this.histA1 = Array.from({ length: historyFrames }, () => new Float64Array(n))
     this.count = new Uint8Array(n)
     this.lastOnset = new Float64Array(n).fill(-Infinity)
+    this.holdUntil = new Float64Array(n).fill(-Infinity)
+    this.holdPeak = new Float64Array(n)
+  }
+
+  /** Hüllkurven des Frames einsortieren und neu auswertbare Blöcke auf Anschläge prüfen */
+  private trackAttacks(f: Frame, tMs: number) {
+    const bands = f.env
+    if (!bands?.length) return
+    const len = bands[0].length
+    const newest = Math.round(tMs / ENV_BLOCK_MS)
+    bands.forEach((env, i) => {
+      const map = (this.env[i] ??= new Map())
+      for (let k = 0; k < len; k++) map.set(newest - (len - 1 - k), env[k])
+      for (const b of map.keys()) if (b < newest - 400) map.delete(b)
+    })
+    const floors = this.cal()?.envFloor ?? []
+    // Anschlag in einem Band: schneller Sprung, der einen großen Teil des Folgepegels ausmacht
+    const ratioAt = (map: Map<number, number>, floor: number, b: number) => {
+      const now = map.get(b)
+      const before = map.get(b - ATTACK_RISE_BLOCKS)
+      if (now === undefined || before === undefined) return 0
+      const d = now - before
+      if (d <= floor * ATTACK_FLOOR || d <= 0) return 0
+      let peak = 0
+      for (let j = b; j <= b + ATTACK_PEAK_BLOCKS; j++) peak = Math.max(peak, map.get(j) ?? 0)
+      const ratio = d / (peak + 1e-12)
+      return ratio >= ATTACK_RATIO && now >= ATTACK_ARRIVED * peak ? ratio : 0
+    }
+    const from = Math.max(this.envEvaluated + 1, newest - len + 1 + ATTACK_RISE_BLOCKS)
+    for (let b = from; b <= newest - ATTACK_PEAK_BLOCKS; b++) {
+      this.envEvaluated = b
+      const ratio = Math.max(...this.env.map((map, i) => ratioAt(map, floors[i] ?? 0, b)))
+      if (!ratio) continue
+      const at = b * ENV_BLOCK_MS
+      const last = this.attacks[this.attacks.length - 1]
+      if (last && at - last.tMs < ATTACK_MERGE_MS) {
+        last.ratio = Math.max(last.ratio, ratio)
+        continue
+      }
+      this.attacks.push({ tMs: at, ratio, used: new Set() })
+    }
+    this.attacks = this.attacks.filter((a) => tMs - a.tMs <= ATTACK_MAX_AGE_MS)
+  }
+
+  /** Gibt es einen frischen Anschlag, den dieser Ton noch nicht verbraucht hat? Dann verbrauchen. */
+  private takeAttack(m: number, tMs: number) {
+    const a = this.attacks.find((x) => tMs - x.tMs <= ATTACK_MAX_AGE_MS && !x.used.has(m))
+    if (!a) return false
+    a.used.add(m)
+    return true
   }
 
   /**
@@ -365,6 +505,8 @@ export class OnsetDetector {
     const n = MAX_MIDI - MIN_MIDI + 1
     const onsets: number[] = []
     if (f.freshness > 1.3) this.lastTransient = tMs
+    const gated = this.gate && !!f.env
+    if (gated) this.trackAttacks(f, tMs)
     const transient = tMs - this.lastTransient < 160
     const profile = this.profile()
     const soundingExpected = [...expected].filter((m) => isSounding(f, m, expected, cal, this.opt, profile))
@@ -407,13 +549,21 @@ export class OnsetDetector {
       const need = expected.has(m) ? 2 : 3
       const ok = rising && sounding && f.freshness < 3
       this.count[j] = ok ? Math.min(255, this.count[j] + 1) : 0
-      if (this.count[j] === need && tMs - this.lastOnset[j] > this.refractoryMs) {
+      if (this.count[j] === need && tMs - this.lastOnset[j] > this.refractoryMs && (!gated || this.takeAttack(m, tMs))) {
         onsets.push(m)
         this.lastOnset[j] = tMs
         this.ringing.set(m, tMs)
+        this.holdUntil[j] = tMs + HOLD_MS
+        this.holdPeak[j] = 0
       }
     }
     this.hist[this.pos].set(f.salience)
+    // Vergleichswert halten (siehe HOLD_MS): Die Historie dieses Tons zeigt seinen Spitzenpegel
+    for (let j = 0; j < n; j++) {
+      if (tMs >= this.holdUntil[j]) continue
+      this.holdPeak[j] = Math.max(this.holdPeak[j], f.salience[j])
+      for (const h of this.hist) h[j] = this.holdPeak[j]
+    }
     for (let j = 0; j < n; j++) this.histA1[this.pos][j] = f.amp[j * HARMONICS]
     this.pos = (this.pos + 1) % this.hist.length
     this.filled = Math.min(this.filled + 1, this.hist.length)

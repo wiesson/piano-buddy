@@ -22,6 +22,9 @@ const WRONG_DELAY_MS = 350
 const HOLD_SHARE = 0.8
 const HOLD_MIN_QUARTERS = 2
 
+/** Halbtonabstände der Teiltöne 2 bis 10 über dem Grundton */
+const OVERTONE_STEPS = [12, 19, 24, 28, 31, 34, 36, 38, 40]
+
 export interface Feedback {
   midi: number
   /** short: langer Ton zu früh losgelassen (Hinweis, kein Fehler) */
@@ -101,7 +104,18 @@ export class WaitSession {
     // Gehört der Ton weder hierher noch zum nächsten Schritt, ist er sofort falsch: Die
     // Rückmeldung kommt mit dem Anschlag, nicht spürbar danach
     const r = this.recent[this.recent.length - 1]
-    if (r && !r.used && !this.upcoming.has(r.midi)) this.wrong(r, e.tMs)
+    if (r && !r.used && !this.upcoming.has(r.midi)) {
+      // Mikrofon: Ein Oberton eines gerade gespielten oder erwarteten Tons ist kein Fehler des
+      // Spielers, sondern ein Hörfehler der Erkennung (MIDI meldet exakt und zählt weiter)
+      if (e.source === 'mic' && this.isOvertone(r.midi)) r.used = true
+      else this.wrong(r, e.tMs)
+    }
+  }
+
+  /** Liegt der Ton auf einem Teilton (2. bis 10.) eines Tons dieses, des vorigen oder des nächsten Schritts? */
+  private isOvertone(midi: number) {
+    const near = [this.steps[this.index - 1], this.step, this.steps[this.index + 1]]
+    return near.some((st) => st?.notes.some((n) => OVERTONE_STEPS.includes(midi - n.midi)))
   }
 
   /** Töne des nächsten Schritts (können vor dem Weiterspringen ankommen) */
