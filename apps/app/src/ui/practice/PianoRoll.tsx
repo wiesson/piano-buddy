@@ -501,8 +501,9 @@ function AccessibleKeys({
       home={home}
       // Enter oder Leertaste: ein kurzer Anschlag, kein Halten
       onPlay={(m: number) => {
+        // Enter/Leertaste: ein Anschlag; losgelassen wird nach der Notenlänge, nicht nach 300 ms
         const r = onKey(m)
-        if (r) window.setTimeout(r, 300)
+        if (r) window.setTimeout(r, 1800)
       }}
     >
       {keys.map((m) => {

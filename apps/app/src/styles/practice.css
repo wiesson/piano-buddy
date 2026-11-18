@@ -773,3 +773,69 @@
     animation: none;
   }
 }
+
+/* Ansicht umschalten: Fallend · Beides · Noten (UI SDK Segmented Control) */
+.view-switch {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--bg-2);
+}
+.view-switch-indicator {
+  position: absolute;
+  z-index: -1;
+  top: var(--segmented-control-indicator-top);
+  left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width);
+  height: var(--segmented-control-indicator-height);
+  border-radius: 99px;
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
+  transition: left 0.2s, width 0.2s;
+}
+.view-switch-item {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+.view-switch-item[data-checked] {
+  color: var(--fg);
+}
+/* Beides: Notenzeile oben, fallende Noten mit Klaviatur darunter */
+.sheet-stage.both {
+  grid-template-rows: minmax(180px, 38%) minmax(0, 1fr);
+}
+.sheet-roll {
+  position: relative;
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-switch-indicator {
+    transition: none;
+  }
+}
+
+/* Hinweis „Womit spielst du?“ nicht über die Notenzeile legen */
+.lane-hint.lane-hint-both {
+  top: calc(38% + 16px);
+}
+.lane-hint.lane-hint-sheet {
+  top: auto;
+  bottom: clamp(110px, 22dvh, 200px);
+}
+@media (max-width: 640px) {
+  .view-switch-item {
+    padding: 0 10px;
+  }
+}
+
+/* Hinweis „länger halten“: kurz über der Bahn */
+.lane-hint.hold-hint {
+  top: 40%;
+  color: var(--fg);
+  font-weight: 600;
+}

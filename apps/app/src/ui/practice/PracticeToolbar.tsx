@@ -3,6 +3,7 @@ import type { MicStatus } from '@piano/core/audio/mic'
 import { canPairBluetooth, showBluetoothPairing } from '../../input/midi'
 import { t } from '@piano/core/i18n'
 import { MicMeter } from './MicMeter'
+import { ViewSwitch, type ViewMode } from './ViewSwitch'
 import type { MidiState } from './useMidiInput'
 
 /** Untere Leiste der Übe-Seite: eine Zeile, seitlich wischbar, Reihenfolge immer gleich */
@@ -17,6 +18,8 @@ export function PracticeToolbar(p: {
   canRestart: boolean
   onRestart: () => void
   onCalibrate?: () => void
+  mode: ViewMode
+  onMode: (v: ViewMode) => void
 }) {
   const listening = p.micStatus === 'listening' || p.micStatus === 'calibrating'
   const midiLabel =
@@ -52,6 +55,7 @@ export function PracticeToolbar(p: {
         {p.demo ? t.practice.demoStop : t.practice.demo}
       </button>
       <span className="spacer" />
+      <ViewSwitch value={p.mode} onChange={p.onMode} />
       <button className="icon-button" onClick={p.onRestart} disabled={!p.canRestart} aria-label={t.practice.restart}>
         <RestartIcon />
       </button>

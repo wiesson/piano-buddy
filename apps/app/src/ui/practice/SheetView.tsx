@@ -55,12 +55,15 @@ export default function SheetView({
   view,
   showNames,
   showFingers,
+  forceBand = false,
 }: {
   lesson: Lesson
   stage: Stage
   view: () => RollView
   showNames: boolean
   showFingers: boolean
+  /** Immer das wandernde Band, auch schmal (in „Beides“ ist die Notenzeile niedrig) */
+  forceBand?: boolean
 }) {
   const box = useRef<HTMLDivElement>(null)
   const track = useRef<HTMLDivElement>(null)
@@ -86,7 +89,7 @@ export default function SheetView({
     const host = track.current
     if (!host || size.w < 50) return
     host.innerHTML = ''
-    const layout: Drawn['layout'] = size.w < 600 ? 'lines' : 'band'
+    const layout: Drawn['layout'] = size.w < 600 && !forceBand ? 'lines' : 'band'
     const scale = layout === 'lines' ? 0.9 : Math.max(0.85, Math.min(1.3, (size.h - 24) / SYSTEM_H))
     const avail = size.w / scale - 16
     const active = (hand: 'L' | 'R') => stage === 'LR' || stage === hand
@@ -261,7 +264,7 @@ export default function SheetView({
     host.style.top = layout === 'band' ? `${Math.max(8, (size.h - SYSTEM_H * scale) / 2)}px` : '8px'
     drawn.current = { marks, lineTops, scale, layout }
     lastBeat.current = NaN
-  }, [notation, stage, size, showNames, showFingers])
+  }, [notation, stage, size, showNames, showFingers, forceBand])
 
   // Cursor und Klassen folgen der Übung (eigener Loop, ohne React-Neuzeichnen)
   const lastBeat = useRef(NaN)

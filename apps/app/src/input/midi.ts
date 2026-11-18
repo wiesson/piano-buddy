@@ -24,6 +24,7 @@ interface PianoMidiPlugin {
   stop(): Promise<void>
   showBluetooth(): Promise<void>
   addListener(event: 'noteOn', fn: (d: { note: number; velocity: number }) => void): Promise<PluginListenerHandle>
+  addListener(event: 'noteOff', fn: (d: { note: number }) => void): Promise<PluginListenerHandle>
   addListener(event: 'devices', fn: (d: { devices: string[] }) => void): Promise<PluginListenerHandle>
 }
 
@@ -48,6 +49,8 @@ export async function connectMidi(
     const subs = await Promise.all([
       // Ankunftszeit im Web-Teil; die Host-Zeitstempel von CoreMIDI abzubilden ist STU-1228
       PianoMidi.addListener('noteOn', (d) => onNote({ midi: d.note, velocity: d.velocity, tMs: performance.now() })),
+      // Loslassen kommt als Anschlagstärke 0 (für die Haltedauer langer Töne)
+      PianoMidi.addListener('noteOff', (d) => onNote({ midi: d.note, velocity: 0, tMs: performance.now() })),
       PianoMidi.addListener('devices', (d) => onDevices(d.devices)),
     ])
     const { devices } = await PianoMidi.start()
@@ -69,7 +72,10 @@ export async function connectMidi(
           const d = e.data
           if (!d || d.length < 3) return
           // Zeitstempel der Quelle (gleiche Zeitbasis wie performance.now()), nicht die Ankunftszeit
-          if ((d[0] & 0xf0) === 0x90 && d[2] > 0) onNote({ midi: d[1], velocity: d[2], tMs: e.timeStamp })
+          const kind = d[0] & 0xf0
+          if (kind === 0x90 && d[2] > 0) onNote({ midi: d[1], velocity: d[2], tMs: e.timeStamp })
+          // Note-Off (0x8n, oder 0x9n mit Stärke 0): als Anschlagstärke 0 melden
+          else if (kind === 0x80 || kind === 0x90) onNote({ midi: d[1], velocity: 0, tMs: e.timeStamp })
         }
       })
       onDevices(names)

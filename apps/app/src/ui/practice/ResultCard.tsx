@@ -92,6 +92,7 @@ export function ResultCard({
           : t.practice.progress(clean, CLEAN_GOAL)}
       </p>
       {result.unverified > 0 && <p className="result-note">{t.practice.unverified(result.unverified)}</p>}
+      {result.short > 0 && <p className="result-note">{t.practice.shortNote(result.short)}</p>}
       <p className="result-hint">{done && nextStage ? t.practice.keepPlayingNext(t.stage[nextStage]) : t.practice.keepPlaying}</p>
       <div className="result-actions">
         <button className="primary result-go" onClick={primary.run}>

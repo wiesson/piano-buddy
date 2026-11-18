@@ -9,3 +9,10 @@ export interface NoteOn {
   tMs: number
   source: InputSource
 }
+
+/** Taste losgelassen (Bildschirm, Computertastatur, MIDI). Das Mikrofon liefert das nicht. */
+export interface NoteOff {
+  midi: number
+  tMs: number
+  source: InputSource
+}

@@ -100,14 +100,17 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Note-On (Status 0x9n mit Anschlagstärke > 0) aus den MIDI-1.0-Paketen lesen.
     private func handle(_ list: UnsafePointer<MIDIPacketList>) {
+        // (Ton, Stärke); Stärke 0 heißt losgelassen
         var notes: [(UInt8, UInt8)] = []
         for packet in list.unsafeSequence() {
             let bytes = Array(packet.bytes())
             var i = 0
             while i < bytes.count {
                 let status = bytes[i]
-                if status & 0xF0 == 0x90, i + 2 < bytes.count {
-                    if bytes[i + 2] > 0 { notes.append((bytes[i + 1], bytes[i + 2])) }
+                if (status & 0xF0 == 0x90 || status & 0xF0 == 0x80), i + 2 < bytes.count {
+                    // Note-On mit Stärke 0 oder Note-Off: losgelassen
+                    let velocity = status & 0xF0 == 0x80 ? 0 : bytes[i + 2]
+                    notes.append((bytes[i + 1], velocity))
                     i += 3
                 } else if status & 0x80 != 0 {
                     // andere Statusmeldungen: Datenbytes überspringen
@@ -121,7 +124,11 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
         guard !notes.isEmpty else { return }
         DispatchQueue.main.async { [weak self] in
             for (note, velocity) in notes {
-                self?.notifyListeners("noteOn", data: ["note": Int(note), "velocity": Int(velocity)])
+                if velocity == 0 {
+                    self?.notifyListeners("noteOff", data: ["note": Int(note)])
+                } else {
+                    self?.notifyListeners("noteOn", data: ["note": Int(note), "velocity": Int(velocity)])
+                }
             }
         }
     }

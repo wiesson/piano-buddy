@@ -8,7 +8,7 @@ import { useStoreVersion } from '../../sync/hooks'
 import { lookupFrom, loadProfile } from '@piano/core/audio/profile'
 import { MicListener, type MicStatus } from '@piano/core/audio/mic'
 import { audioContext, getPiano, holdNote, playNote, stopAll } from '@piano/core/audio/audio'
-import type { NoteOn } from '@piano/core/input/events'
+import type { NoteOff, NoteOn } from '@piano/core/input/events'
 import { keyToMidi } from '@piano/core/input/keyboard'
 import { fingerToMidi, keyToFinger } from '@piano/core/input/fingerKeys'
 import { t, localized } from '@piano/core/i18n'
@@ -25,7 +25,8 @@ import { PracticeToolbar } from './PracticeToolbar'
 import { useMidiInput } from './useMidiInput'
 import { ViewMenu } from './ViewMenu'
 import { AppBar } from '@piano/ui/shared/AppBar'
-import { getPref, setPref } from './prefs'
+import { getPref, getPrefValue, setPref, setPrefValue } from './prefs'
+import { VIEW_MODES, type ViewMode } from './ViewSwitch'
 import { usePrefersLight } from '@piano/ui/shared/usePrefersLight'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { BackIcon } from '@piano/ui/shared/icons'
@@ -69,9 +70,13 @@ export function PracticeScreen({
   const [showFingers, setShowFingersState] = useState(() => getPref('fingers', true))
   const setShowNames = (v: boolean) => (setPref('names', v), setShowNamesState(v))
   // Noten statt fallender Balken; die Klaviatur darunter lässt sich ausblenden
-  const [sheet, setSheetState] = useState(() => getPref('sheet', false))
+  // Ansicht: fallende Noten, beides (Zwischenschritt) oder Noten. Früher ein An/Aus „sheet“.
+  const [mode, setModeState] = useState<ViewMode>(() =>
+    getPrefValue('view', VIEW_MODES, getPref('sheet', false) ? 'sheet' : 'roll'),
+  )
+  const setMode = (v: ViewMode) => (setPrefValue('view', v), setModeState(v))
+  const sheet = mode === 'sheet'
   const [sheetKeys, setSheetKeysState] = useState(() => getPref('sheetkeys', true))
-  const setSheet = (v: boolean) => (setPref('sheet', v), setSheetState(v))
   const setSheetKeys = (v: boolean) => (setPref('sheetkeys', v), setSheetKeysState(v))
   /** Letzte Eingabe: In der Notenansicht leuchtet die Taste erst, wenn man 3 s zögert */
   const lastInputRef = useRef(performance.now())
@@ -151,8 +156,26 @@ export function PracticeScreen({
     force((x) => x + 1)
   }, [lesson.id, stages])
 
+  /** Losgelassen: an die Sitzung (lange Töne halten), Hinweis bei zu frühem Loslassen */
+  const [shortHint, setShortHint] = useState(false)
+  const shortTimer = useRef<number | null>(null)
+  const release = useCallback((e: NoteOff) => {
+    const s = sessionRef.current
+    if (!s) return
+    const before = s.shortCount
+    s.release(e)
+    if (s.shortCount > before) {
+      setShortHint(true)
+      if (shortTimer.current) window.clearTimeout(shortTimer.current)
+      shortTimer.current = window.setTimeout(() => setShortHint(false), 1600)
+    }
+  }, [])
+
+
   // MIDI: führt die Übung; läuft das Mikrofon mit, ist MIDI die Wahrheit für die Messung
   const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput((n) => {
+    // Anschlagstärke 0 heißt losgelassen (Note-Off)
+    if (n.velocity === 0) return release({ midi: n.midi, tMs: n.tMs, source: 'midi' })
     if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
     input({ midi: n.midi, tMs: n.tMs, source: 'midi' })
   })
@@ -201,6 +224,13 @@ export function PracticeScreen({
       held.delete(e.code)
     }
     const releaseAll = () => (held.forEach((r) => r()), held.clear())
+    const hold = (code: string, m: number) => {
+      const stopSound = micRef.current?.status !== 'listening' ? holdNote(m) : undefined
+      held.set(code, () => {
+        stopSound?.()
+        release({ midi: m, tMs: performance.now(), source: 'keys' })
+      })
+    }
     const down = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
       let m: number | null
@@ -210,7 +240,7 @@ export function PracticeScreen({
       } else m = keyToMidi(e.code, base)
       if (m === null) return
       e.preventDefault()
-      if (micRef.current?.status !== 'listening' && !held.has(e.code)) held.set(e.code, holdNote(m))
+      if (!held.has(e.code)) hold(e.code, m)
       input({ midi: m, tMs: performance.now(), source: 'keys' })
     }
     window.addEventListener('keydown', down)
@@ -222,7 +252,7 @@ export function PracticeScreen({
       window.removeEventListener('blur', releaseAll)
       releaseAll()
     }
-  }, [input, lowest, fingerKeys, stageNotes])
+  }, [input, release, lowest, fingerKeys, stageNotes])
 
   // Display wach halten, solange geübt wird
   useEffect(() => {
@@ -240,14 +270,18 @@ export function PracticeScreen({
   }, [])
 
   /** Bildschirmtaste gedrückt; gibt das Loslassen zurück (Ton klingt, solange der Finger liegt) */
+  /** Bildschirmtaste gedrückt; gibt das Loslassen zurück (Ton und Haltedauer) */
   const onKey = useCallback(
     (m: number) => {
       audioContext()
-      const release = micRef.current?.status !== 'listening' ? holdNote(m) : undefined
+      const stopSound = micRef.current?.status !== 'listening' ? holdNote(m) : undefined
       input({ midi: m, tMs: performance.now(), source: 'touch' })
-      return release
+      return () => {
+        stopSound?.()
+        release({ midi: m, tMs: performance.now(), source: 'touch' })
+      }
     },
-    [input],
+    [input, release],
   )
 
   const toggleMic = () => {
@@ -298,19 +332,27 @@ export function PracticeScreen({
       beatRef.current = beat
     } else {
       // Warte-Modus: weich zum aktuellen Schritt gleiten
-      const target = s?.finished ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2 : (s?.beat ?? 0)
+      // Beim Halten eines langen Tons läuft die Bahn in Echtzeit weiter: Der Balken schiebt sich
+      // in die Taste, in den Noten wandert der Cursor über die Notenlänge
+      const hold = s?.holdProgress(now)
+      const holdBeats = s?.holding ? s.holding.beats * 0.8 : 0
+      const target = s?.finished
+        ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2
+        : (s?.beat ?? 0) + (hold ?? 0) * holdBeats
       beatRef.current += (target - beatRef.current) * 0.25
       if (Math.abs(target - beatRef.current) < 0.002) beatRef.current = target
       beat = beatRef.current
     }
-    const arrived = d ? true : Math.abs(beat - (s?.beat ?? 0)) < 0.4
+    const arrived = d ? true : Math.abs(beat - (s?.beat ?? 0)) < 0.4 || !!s?.holding
     return {
       notes: stageNotes,
       rangeNotes: lesson.notes,
-      beat: d ? beat : arrived ? (s?.beat ?? beat) : beat,
+      beat: d || s?.holding ? beat : arrived ? (s?.beat ?? beat) : beat,
       expected: d || arrived ? expected : new Set(),
       struck,
-      flashes: (s?.feedback ?? []).map((f) => ({ midi: f.midi, kind: f.kind, age: now - f.tMs })),
+      flashes: (s?.feedback ?? [])
+        .filter((f) => f.kind !== 'short')
+        .map((f) => ({ midi: f.midi, kind: f.kind as 'hit' | 'wrong', age: now - f.tMs })),
       heard: heardRef.current,
       // Vorspielen: klingende Tasten bleiben unten; sonst federt die Taste in ~300 ms zurück
       press: (m: number) => {
@@ -353,7 +395,6 @@ export function PracticeScreen({
             fingerKeys={fingerKeys}
             onFingerKeys={setFingerKeys}
             sheet={sheet}
-            onSheet={setSheet}
             sheetKeys={sheetKeys}
             onSheetKeys={setSheetKeys}
           />
@@ -365,7 +406,22 @@ export function PracticeScreen({
       </div>
 
       <main className="stage-area">
-        {sheet ? (
+        {mode === 'both' ? (
+          <div className="sheet-stage both">
+            <Suspense fallback={<div className="sheet-view" />}>
+              <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} forceBand />
+            </Suspense>
+            <div className="sheet-roll">
+              <PianoRoll
+                view={view}
+                beatsPerBar={lesson.beatsPerBar}
+                onKey={onKey}
+                expected={[...(sessionRef.current?.expected ?? [])]}
+                paper={paper}
+              />
+            </div>
+          </div>
+        ) : sheet ? (
           <div className={`sheet-stage${sheetKeys ? '' : ' no-keys'}`}>
             <Suspense fallback={<div className="sheet-view" />}>
               <SheetView lesson={lesson} stage={stage} view={view} showNames={showNames} showFingers={showFingers} />
@@ -392,8 +448,9 @@ export function PracticeScreen({
           />
         )}
         {!played && !result && micStatus === 'off' && midi.state === 'off' && (
-          <p className="lane-hint">{t.practice.noInputHint}</p>
+          <p className={`lane-hint lane-hint-${mode}`}>{t.practice.noInputHint}</p>
         )}
+        {shortHint && <p className="lane-hint hold-hint">{t.practice.holdLonger}</p>}
         {comparing && bench && (
           <BenchPanel
             side={stage === 'R' ? 'left' : 'right'}
@@ -427,6 +484,8 @@ export function PracticeScreen({
         canRestart={!!s && (s.index > 0 || !!result)}
         onRestart={again}
         onCalibrate={onCalibrate}
+        mode={mode}
+        onMode={setMode}
       />
     </div>
   )
