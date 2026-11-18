@@ -18,7 +18,7 @@
     "react-dom": "catalog:",
     "@piano/core": "workspace:*",
     "@tanstack/react-router": "catalog:",
-    "vexflow": "5.2.0"
+    "vexflow": "5.3.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
