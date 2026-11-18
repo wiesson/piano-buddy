@@ -337,9 +337,13 @@ export function PianoRoll({
 
       }
 
-      // Tastenbett: dunkel in den Fugen zwischen den Tasten
+      // Tastenbett: dunkel in den Fugen zwischen den Tasten. Es endet, wo die Rundung der weißen
+      // Tasten beginnt: Darunter scheint der Seitengrund durch, die runden Tastenenden stehen frei
+      // statt auf einer harten Kante zur Leiste darunter.
       g.fillStyle = C.keyBed
-      g.fillRect(0, keyTop, W, keyH)
+      g.fillRect(0, keyTop, W, Math.max(0, keyH - geoW.radius))
+      // ohne Bett jeden Frame leeren, sonst bliebe der Umriss einer eben gedrückten Taste stehen
+      g.clearRect(0, keyTop + Math.max(0, keyH - geoW.radius), W, geoW.radius + 1)
 
       // Filzstreifen über der Tastatur
       g.fillStyle = C.felt
