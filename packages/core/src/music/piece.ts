@@ -223,7 +223,8 @@ export function sliceNotes(notes: ScoreNote[], start: number, end: number): Scor
     .map((n) => ({ ...n, start: round(n.start - start), dur: round(Math.min(n.dur, end - n.start)) }))
 }
 
-export type Version = 'easy' | 'full'
+/** Fassung: eigene Stücke kennen leicht und Original, eingebaute auch Mittel */
+export type Version = 'easy' | 'medium' | 'full'
 
 export interface PathStep {
   lesson: Lesson

@@ -22,7 +22,7 @@ import { PianoRoll, TAG_MS, keyboardHeight, type RollView } from './PianoRoll'
 import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 import { TempoBar } from './TempoBar'
-import { StageMenu } from './StageMenu'
+import { StageMenu, type VersionChoice } from './StageMenu'
 import { SettingsMenu } from './SettingsMenu'
 import { useMidiInput } from './useMidiInput'
 import { keepAwake } from '../../input/midi'
@@ -82,6 +82,7 @@ export function PracticeScreen({
   onBack,
   onNextLesson,
   onCalibrate,
+  versions,
 }: {
   lesson: Lesson
   /** Stufe aus der Adresse; ohne sie die erste, die noch nicht sitzt */
@@ -91,6 +92,8 @@ export function PracticeScreen({
   onNextLesson?: () => void
   /** Mikrofon einlernen (Lernmodus) */
   onCalibrate?: () => void
+  /** Fassung des Stücks wählen (im Stufen-Sheet) */
+  versions?: VersionChoice
 }) {
   const stages = useMemo(() => stagesFor(lesson), [lesson])
   useStoreVersion()
@@ -930,6 +933,7 @@ export function PracticeScreen({
               goal={localized(lesson.goal)}
               demo={demo}
               onToggleDemo={toggleDemo}
+              versions={versions}
             />
           </span>
         }

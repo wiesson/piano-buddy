@@ -42,7 +42,7 @@ export interface Lesson {
  *   "C4+E4+G4:4:1+3+5"  Akkord über 4 Schläge
  *   "-:2"        Pause über 2 Schläge
  */
-function voice(hand: Hand, src: string): ScoreNote[] {
+export function voice(hand: Hand, src: string): ScoreNote[] {
   const out: ScoreNote[] = []
   let t = 0
   for (const tok of src.trim().split(/\s+/)) {
@@ -81,6 +81,25 @@ const lesson = (l: Omit<Lesson, 'notes'> & { left?: string; right?: string }): L
     (a, b) => a.start - b.start || a.midi - b.midi,
   ),
 })
+
+/**
+ * Kanon: rechts erst die Lage H–Fis, dann rutscht der Daumen auf A; der dritte Finger setzt über
+ * den Daumen aufs G. Links eine Lage, die sich nur dehnt (Daumen auf D3, kleiner Finger bis D2).
+ */
+const KANON_RIGHT =
+  'Fis5:2:5 E5:2:4 D5:2:3 Cis5:2:2 H4:2:1 A4:2:1 H4:2:2 Cis5:2:3 ' +
+  'D5:2:4 Cis5:2:3 H4:2:2 A4:2:1 G4:2:3 Fis4:2:2 G4:2:3 E4:2:1 D4+Fis4+A4:4:1+3+5'
+const KANON_LEFT =
+  'D3:2:1 A2:2:4 H2:2:3 Fis2:2:5 G2:2:3 D2:2:5 G2:2:3 A2:2:2 ' +
+  'D3:2:1 A2:2:4 H2:2:3 Fis2:2:5 G2:2:3 D2:2:5 G2:2:3 A2:2:2 D2:4:5'
+
+/** Gymnopédie: rechts dritter Finger aufs Fis, beim H rutscht der Daumen eine Taste tiefer */
+const GYMNO_RIGHT = '-:6 -:1 Fis5:1:3 A5:1:5 G5:1:4 Fis5:1:3 Cis5:1:1 H4:1:1 Cis5:1:2 D5:1:3 A4:3:1 Fis4:6:1'
+
+/** Für Elise links: gebrochener Akkord, kleiner Finger auf dem Grundton, Daumen oben */
+const ELISE_LEFT =
+  '-:6 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5 E2:0.5:5 E3:0.5:2 Gis3:0.5:1 -:1.5 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5 ' +
+  '-:3 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5 E2:0.5:5 E3:0.5:2 Gis3:0.5:1 -:1.5 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5'
 
 export const LESSONS: Lesson[] = [
   lesson({
@@ -130,20 +149,21 @@ export const LESSONS: Lesson[] = [
     right: 'C4:1:1 D4:1:2 E4:1:3 F4:1:4 G4:1:5 F4:1:4 E4:1:3 D4:1:2 C4:4:1',
   }),
   lesson({
-    id: 'entchen',
-    illustration: '/illustrations/ducklings.jpg',
-    title: { de: 'Alle meine Entchen', en: 'All My Little Ducklings' },
+    id: 'mary',
+    illustration: '/illustrations/mary.jpg',
+    title: { de: 'Mary hat ein kleines Lamm', en: 'Mary Had a Little Lamb' },
     goal: {
-      de: 'Das erste Lied. Rechts die Melodie, links ein Ton pro Takt.',
-      en: 'Your first song. Melody on the right, one note per bar on the left.',
+      de: 'Das erste Lied. Rechts reichen drei Finger, links wechseln Grundton und Quinte wie eine Begleitung.',
+      en: 'Your first song. Three fingers are enough on the right, the left alternates root and fifth like an accompaniment.',
     },
     bpm: 84,
     beatsPerBar: 4,
     right:
-      'C4:1:1 D4:1:2 E4:1:3 F4:1:4 G4:2:5 G4:2:5 A4:1:5 A4:1:5 A4:1:5 A4:1:5 G4:4:4 ' +
-      'A4:1:5 A4:1:5 A4:1:5 A4:1:5 G4:4:4 F4:1:4 F4:1:4 F4:1:4 F4:1:4 E4:2:3 E4:2:3 ' +
-      'D4:1:2 D4:1:2 D4:1:2 D4:1:2 C4:4:1',
-    left: 'C3:4:5 C3:4:5 F3:4:2 C3:4:5 F3:4:2 C3:4:5 G3:4:1 C3:4:5 G3:4:1 C3:4:5',
+      'E4:1:3 D4:1:2 C4:1:1 D4:1:2 E4:1:3 E4:1:3 E4:2:3 D4:1:2 D4:1:2 D4:2:2 E4:1:3 G4:1:5 G4:2:5 ' +
+      'E4:1:3 D4:1:2 C4:1:1 D4:1:2 E4:1:3 E4:1:3 E4:1:3 E4:1:3 D4:1:2 D4:1:2 E4:1:3 D4:1:2 C4:4:1',
+    left:
+      'C3:2:5 G3:2:1 C3:2:5 G3:2:1 G3:2:1 D3:2:4 C3:2:5 G3:2:1 ' +
+      'C3:2:5 G3:2:1 C3:2:5 G3:2:1 G3:2:1 D3:2:4 C3:4:5',
   }),
   lesson({
     id: 'haenschen',
@@ -165,36 +185,20 @@ export const LESSONS: Lesson[] = [
       'G3:4:1 G3:4:1 C3:4:5 C3:4:5 C3:4:5 G3:4:1 C3:4:5 C3:4:5',
   }),
   lesson({
-    id: 'mary',
-    illustration: '/illustrations/mary.jpg',
-    title: { de: 'Mary hat ein kleines Lamm', en: 'Mary Had a Little Lamb' },
+    id: 'entchen',
+    illustration: '/illustrations/ducklings.jpg',
+    title: { de: 'Alle meine Entchen', en: 'All My Little Ducklings' },
     goal: {
-      de: 'Links neu: Grundton und Quinte im Wechsel, wie eine Begleitung. Rechts reichen drei Finger.',
-      en: 'New on the left: root and fifth in turn, like an accompaniment. Three fingers are enough on the right.',
+      de: 'Neu: Beim A rutscht die rechte Hand eine Taste nach oben, danach zurück. Links ein Ton pro Takt.',
+      en: 'New: for the A your right hand slides up one key, then back. One note per bar on the left.',
     },
     bpm: 84,
     beatsPerBar: 4,
     right:
-      'E4:1:3 D4:1:2 C4:1:1 D4:1:2 E4:1:3 E4:1:3 E4:2:3 D4:1:2 D4:1:2 D4:2:2 E4:1:3 G4:1:5 G4:2:5 ' +
-      'E4:1:3 D4:1:2 C4:1:1 D4:1:2 E4:1:3 E4:1:3 E4:1:3 E4:1:3 D4:1:2 D4:1:2 E4:1:3 D4:1:2 C4:4:1',
-    left:
-      'C3:2:5 G3:2:1 C3:2:5 G3:2:1 G3:2:1 D3:2:4 C3:2:5 G3:2:1 ' +
-      'C3:2:5 G3:2:1 C3:2:5 G3:2:1 G3:2:1 D3:2:4 C3:4:5',
-  }),
-  lesson({
-    id: 'ode',
-    illustration: '/illustrations/ode.jpg',
-    title: { de: 'Ode an die Freude', en: 'Ode to Joy' },
-    goal: {
-      de: 'Beethoven, ganz in der C-Lage. Achte auf die punktierten Stellen.',
-      en: 'Beethoven, entirely in C position. Watch the dotted rhythms.',
-    },
-    bpm: 80,
-    beatsPerBar: 4,
-    right:
-      'E4:1:3 E4:1:3 F4:1:4 G4:1:5 G4:1:5 F4:1:4 E4:1:3 D4:1:2 C4:1:1 C4:1:1 D4:1:2 E4:1:3 E4:1.5:3 D4:0.5:2 D4:2:2 ' +
-      'E4:1:3 E4:1:3 F4:1:4 G4:1:5 G4:1:5 F4:1:4 E4:1:3 D4:1:2 C4:1:1 C4:1:1 D4:1:2 E4:1:3 D4:1.5:2 C4:0.5:1 C4:2:1',
-    left: 'C3:4:5 G3:4:1 C3:4:5 G3:4:1 C3:4:5 G3:4:1 C3:4:5 G3:2:1 C3:2:5',
+      'C4:1:1 D4:1:2 E4:1:3 F4:1:4 G4:2:5 G4:2:5 A4:1:5 A4:1:5 A4:1:5 A4:1:5 G4:4:4 ' +
+      'A4:1:5 A4:1:5 A4:1:5 A4:1:5 G4:4:4 F4:1:4 F4:1:4 F4:1:4 F4:1:4 E4:2:3 E4:2:3 ' +
+      'D4:1:2 D4:1:2 D4:1:2 D4:1:2 C4:4:1',
+    left: 'C3:4:5 C3:4:5 F3:4:2 C3:4:5 F3:4:2 C3:4:5 G3:4:1 C3:4:5 G3:4:1 C3:4:5',
   }),
   lesson({
     id: 'jingle',
@@ -214,6 +218,21 @@ export const LESSONS: Lesson[] = [
     left:
       'C3:4:5 C3:4:5 C3:4:5 C3:4:5 F3:4:2 C3:4:5 G3:4:1 G3:4:1 ' +
       'C3:4:5 C3:4:5 C3:4:5 C3:4:5 F3:4:2 C3:4:5 G3:4:1 C3:4:5',
+  }),
+  lesson({
+    id: 'ode',
+    illustration: '/illustrations/ode.jpg',
+    title: { de: 'Ode an die Freude', en: 'Ode to Joy' },
+    goal: {
+      de: 'Beethoven, ganz in der C-Lage. Achte auf die punktierten Stellen.',
+      en: 'Beethoven, entirely in C position. Watch the dotted rhythms.',
+    },
+    bpm: 80,
+    beatsPerBar: 4,
+    right:
+      'E4:1:3 E4:1:3 F4:1:4 G4:1:5 G4:1:5 F4:1:4 E4:1:3 D4:1:2 C4:1:1 C4:1:1 D4:1:2 E4:1:3 E4:1.5:3 D4:0.5:2 D4:2:2 ' +
+      'E4:1:3 E4:1:3 F4:1:4 G4:1:5 G4:1:5 F4:1:4 E4:1:3 D4:1:2 C4:1:1 C4:1:1 D4:1:2 E4:1:3 D4:1.5:2 C4:0.5:1 C4:2:1',
+    left: 'C3:4:5 G3:4:1 C3:4:5 G3:4:1 C3:4:5 G3:4:1 C3:4:5 G3:2:1 C3:2:5',
   }),
   lesson({
     id: 'tonleiter',
@@ -242,7 +261,8 @@ export const LESSONS: Lesson[] = [
     bpm: 70,
     beatsPerBar: 4,
     right: 'C4+E4+A4:4:1+2+5 C4+F4+A4:4:1+3+5 C4+E4+G4:4:1+3+5 H3+D4+G4:4:1+2+5',
-    left: 'A2:4:1 F2:4:3 C3:4:1 G2:4:2',
+    // Links eine Lage F2–C3: kleiner Finger auf F, Daumen auf C
+    left: 'A2:4:3 F2:4:5 C3:4:1 G2:4:4',
   }),
   lesson({
     id: 'pop-begleitung',
@@ -271,12 +291,8 @@ export const LESSONS: Lesson[] = [
     bpm: 60,
     beatsPerBar: 4,
     key: 2,
-    right:
-      'Fis5:2 E5:2 D5:2 Cis5:2 H4:2 A4:2 H4:2 Cis5:2 ' +
-      'D5:2 Cis5:2 H4:2 A4:2 G4:2 Fis4:2 G4:2 E4:2 D4+Fis4+A4:4',
-    left:
-      'D3:2 A2:2 H2:2 Fis2:2 G2:2 D2:2 G2:2 A2:2 ' +
-      'D3:2 A2:2 H2:2 Fis2:2 G2:2 D2:2 G2:2 A2:2 D2:4',
+    right: KANON_RIGHT,
+    left: KANON_LEFT,
   }),
   lesson({
     id: 'gymnopedie',
@@ -289,12 +305,12 @@ export const LESSONS: Lesson[] = [
     bpm: 66,
     beatsPerBar: 3,
     key: 2,
-    right: '-:6 -:1 Fis5:1 A5:1 G5:1 Fis5:1 Cis5:1 H4:1 Cis5:1 D5:1 A4:3 Fis4:6',
+    right: GYMNO_RIGHT,
     left:
-      'G2:1 H3+D4+Fis4:2 D2:1 A3+Cis4+Fis4:2 ' +
-      'G2:1 H3+D4+Fis4:2 D2:1 A3+Cis4+Fis4:2 G2:1 H3+D4+Fis4:2 D2:1 A3+Cis4+Fis4:2 ' +
+      'G2:1:5 H3+D4+Fis4:2:4+2+1 D2:1:5 A3+Cis4+Fis4:2:5+3+1 ' +
+      'G2:1:5 H3+D4+Fis4:2:4+2+1 D2:1:5 A3+Cis4+Fis4:2:5+3+1 G2:1:5 H3+D4+Fis4:2:4+2+1 D2:1:5 A3+Cis4+Fis4:2:5+3+1 ' +
       // Das Fis hält jetzt die Melodie: links nur noch die beiden unteren Akkordtöne
-      'G2:1 H3+D4:2 D2:1 A3+Cis4:2',
+      'G2:1:5 H3+D4:2:3+1 D2:1:5 A3+Cis4:2:3+1',
   }),
   lesson({
     id: 'elise',
@@ -318,9 +334,7 @@ export const LESSONS: Lesson[] = [
       'A4:1:1 -:0.5 C4:0.5:1 E4:0.5:2 A4:0.5:3 ' +
       'H4:1:4 -:0.5 E4:0.5:1 C5:0.5:5 H4:0.5:4 ' +
       'A4:3:3',
-    left:
-      '-:6 A2:0.5 E3:0.5 A3:0.5 -:1.5 E2:0.5 E3:0.5 Gis3:0.5 -:1.5 A2:0.5 E3:0.5 A3:0.5 -:1.5 ' +
-      '-:3 A2:0.5 E3:0.5 A3:0.5 -:1.5 E2:0.5 E3:0.5 Gis3:0.5 -:1.5 A2:0.5 E3:0.5 A3:0.5 -:1.5',
+    left: ELISE_LEFT,
   }),
   lesson({
     id: 'clair',
@@ -336,17 +350,17 @@ export const LESSONS: Lesson[] = [
     key: -5,
     // Ab Takt 5 hält das Original rechts einen Ton unter den Achteln; hier wird er zur ersten Achtel
     right:
-      '-:2 F5+As5:4 Des5+F5:4 C5+Es5:1 Des5+F5:1 C5+Es5:7 ' +
-      'B4+Des5:1 C5+Es5:1 B4+Des5:1.5 F5:3 Des5:2.5 As4+C5:1 B4+Des5:1 As4+C5:6 ' +
-      'Ges4:1 B4:1 C5:1 B4:1 Es5:1 B4:1 Ges4+As4:1 B4:1 As4:1 ' +
-      'Es4:1 Ges4:1 As4:1 Ges4:3 Es4+F4:3 ' +
-      'Des4:1 F4:1 Ges4:1 F4:1 B4:1 F4:1 Es4:1 F4:1 Es4:1 ' +
-      'B3:1 Des4:1 Es4:1 Des4:3 As3+C4:3 ' +
-      '-:2 F4+As4:7',
+      '-:2 F5+As5:4:3+5 Des5+F5:4:2+4 C5+Es5:1:1+3 Des5+F5:1:2+4 C5+Es5:7:1+3 ' +
+      'B4+Des5:1:1+3 C5+Es5:1:2+4 B4+Des5:1.5:1+3 F5:3:5 Des5:2.5:3 As4+C5:1:1+2 B4+Des5:1:2+3 As4+C5:6:1+2 ' +
+      'Ges4:1:1 B4:1:2 C5:1:3 B4:1:2 Es5:1:5 B4:1:2 Ges4+As4:1:1+2 B4:1:3 As4:1:2 ' +
+      'Es4:1:1 Ges4:1:2 As4:1:3 Ges4:3:2 Es4+F4:3:1+2 ' +
+      'Des4:1:1 F4:1:2 Ges4:1:3 F4:1:2 B4:1:5 F4:1:2 Es4:1:1 F4:1:2 Es4:1:1 ' +
+      'B3:1:1 Des4:1:2 Es4:1:3 Des4:3:2 As3+C4:3:1+2 ' +
+      '-:2 F4+As4:7:2+4',
     left:
-      '-:1 F4+As4:8 Ges4+A4:9 F4+As4:9 Es4+Ges4:9 ' +
-      'Des4+Es4:6 C4+Es4:3 B3+Des4:6 A3+C4:3 As3+B3:6 Ges3:3 F3+As3:6 Es3+Ges3:1.5 As2:1.5 ' +
-      'Des2:9',
+      '-:1 F4+As4:8:3+1 Ges4+A4:9:3+1 F4+As4:9:3+1 Es4+Ges4:9:3+1 ' +
+      'Des4+Es4:6:2+1 C4+Es4:3:3+1 B3+Des4:6:3+1 A3+C4:3:3+1 As3+B3:6:2+1 Ges3:3:3 F3+As3:6:3+1 Es3+Ges3:1.5:3+1 As2:1.5:5 ' +
+      'Des2:9:5',
   }),
 ]
 

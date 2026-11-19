@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Attempt } from '../sync/store'
 import type { Stage } from '../music/lessons'
-import { addDays, dailyPlan, dayKey, stageStates, stateFor, streak } from './plan'
+import { addDays, coveredByHigher, dailyPlan, dayKey, stageStates, stateFor, streak } from './plan'
 
 /** Ein Versuch an einem Tag (Mittag in der Zeitzone des Geräts), Reihenfolge über die Minute */
 let seq = 0
@@ -104,6 +104,41 @@ describe('Tagesplan', () => {
     const a = [...three(D1, 'lh-fuenf', 'L'), ...three(D1, 'rh-fuenf', 'R'), ...three(D1, 'wechsel', 'L')]
     const reviews = dailyPlan(a, day(1)).items.filter((i) => i.kind === 'review')
     expect(reviews.map((r) => r.lessonId)).toEqual(['lh-fuenf', 'rh-fuenf'])
+  })
+})
+
+describe('Fassungen im Fortschritt', () => {
+  it('Versuche einer Fassung zählen nur für diese Fassung', () => {
+    const states = stageStates(three(D1, 'kanon~leicht', 'R'))
+    expect(stateFor(states, 'kanon~leicht', 'R')!.status).toBe('learned')
+    expect(stateFor(states, 'kanon', 'R')!.status).toBe('new')
+  })
+
+  it('der Fokus folgt dem Lernpfad durch die Fassungen', () => {
+    // Bis einschließlich Entchen gelernt: als Nächstes Jingle Bells leicht
+    const ids = ['lh-fuenf', 'rh-fuenf', 'wechsel', 'parallel', 'mary', 'haenschen', 'entchen']
+    const a = ids.flatMap((id) =>
+      (['L', 'R', 'LR'] as const).flatMap((s) => (id === 'lh-fuenf' && s !== 'L') || (id === 'rh-fuenf' && s !== 'R') ? [] : three(D1, id, s)),
+    )
+    const focus = dailyPlan(a, day(1)).items.find((i) => i.kind === 'focus')
+    expect(focus).toMatchObject({ lessonId: 'jingle~leicht', stage: 'L' })
+  })
+
+  it('wer das Original kann, muss die leichtere Fassung nicht nachholen', () => {
+    const before = ['lh-fuenf', 'rh-fuenf', 'wechsel', 'parallel', 'mary', 'haenschen', 'entchen'].flatMap((id) =>
+      (['L', 'R', 'LR'] as const).flatMap((s) => (id === 'lh-fuenf' && s !== 'L') || (id === 'rh-fuenf' && s !== 'R') ? [] : three(D1, id, s)),
+    )
+    // Jingle Bells im Original gelernt (alle Hände): weder leicht noch mittel kommen als Fokus
+    const jingle = (['L', 'R', 'LR'] as const).flatMap((s) => three(D1, 'jingle', s))
+    const focus = dailyPlan([...before, ...jingle], day(1)).items.find((i) => i.kind === 'focus')
+    expect(focus).toMatchObject({ lessonId: 'ode~leicht', stage: 'L' })
+  })
+
+  it('nur dieselbe Hand zählt: rechts im Original gelernt erledigt links in der leichten Fassung nicht', () => {
+    const states = stageStates(three(D1, 'jingle', 'R'))
+    expect(coveredByHigher(states, 'jingle~leicht', 'R')).toBe(true)
+    expect(coveredByHigher(states, 'jingle~leicht', 'L')).toBe(false)
+    expect(coveredByHigher(states, 'jingle', 'R')).toBe(false)
   })
 })
 

@@ -233,6 +233,12 @@ export const de = {
     keepPlaying: 'oder einfach weiterspielen',
   },
 
+  versions: {
+    label: 'Fassung',
+    hint: (rec: string) => `Empfohlen: ${rec}. Jede Fassung zählt für sich, wähl, was dir liegt.`,
+    recommendedMark: 'empfohlen',
+  },
+
   stages: {
     title: 'Stufen',
     open: (stage: string) => `Stufe: ${stage}. Stufen und Fortschritt öffnen`,
@@ -423,7 +429,7 @@ export const de = {
     pause: 'Anhalten',
     position: 'Stelle im Stück',
     version: 'Fassung',
-    versions: { full: 'Original', easy: 'Leicht' } as Record<'full' | 'easy', string>,
+    versions: { full: 'Original', medium: 'Mittel', easy: 'Leicht' } as Record<'full' | 'medium' | 'easy', string>,
     handsTitle: 'Hände',
     handsNote: 'Welche Spur welche Hand spielt. Eine Spur für beide Hände teilt die App am Trennton.',
     hand: { L: 'Links', R: 'Rechts', split: 'Geteilt', off: 'Aus' } as Record<'L' | 'R' | 'split' | 'off', string>,

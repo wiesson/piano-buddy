@@ -1,25 +1,40 @@
-import { LESSONS, stagesFor, type Lesson } from '../music/lessons'
+import { stagesFor, type Lesson, type Stage } from '../music/lessons'
+import { LEVELS, PATH, parseVersionId, versionId, versionsOf } from '../music/versions'
 import { store } from '../sync/store'
 import { CLEAN_GOAL } from './goal'
 import { dailyPlan, dayKey, stageStates, streak, type StageState } from './plan'
 
-/** Sitzen alle Stufen eines Stücks? */
-export const lessonDone = (l: Lesson) => stagesFor(l).every((s) => store.cleanCount(l.id, s) >= CLEAN_GOAL)
+/** Sitzt die Stufe, in dieser Fassung oder in einer schwereren desselben Stücks? */
+function stageDone(l: Lesson, s: Stage): boolean {
+  const { pieceId, level } = parseVersionId(l.id)
+  return LEVELS.slice(LEVELS.indexOf(level)).some((lv) => store.cleanCount(versionId(pieceId, lv), s) >= CLEAN_GOAL)
+}
 
-/** Das erste Stück im Lernpfad, das noch nicht sitzt */
-export const nextLesson = () => LESSONS.find((l) => !lessonDone(l))
+/** Sitzen alle Stufen einer Fassung (auch über eine schwerere Fassung desselben Stücks)? */
+export const lessonDone = (l: Lesson) => stagesFor(l).every((s) => stageDone(l, s))
 
-/** Gelernte Stufen, alle Stufen, saubere Durchgänge insgesamt */
+/** Der erste Schritt im Lernpfad (Stück in einer Fassung), der noch nicht sitzt */
+export const nextLesson = () => PATH.find((l) => !lessonDone(l))
+
+/**
+ * Die Fassung, die wir für ein Stück empfehlen: die leichteste, die noch nicht sitzt; sitzt
+ * alles, das Original. Der Nutzer darf jede wählen.
+ */
+export function recommendedVersion(pieceId: string): Lesson {
+  const vs = versionsOf(pieceId)
+  return vs.find((l) => !lessonDone(l)) ?? vs[vs.length - 1]
+}
+
+/** Gelernte Stufen, alle Stufen (über alle Fassungen im Lernpfad), saubere Durchgänge insgesamt */
 export function totals() {
   let total = 0
   let learned = 0
   let clean = 0
-  for (const l of LESSONS)
+  for (const l of PATH)
     for (const s of stagesFor(l)) {
-      const n = store.cleanCount(l.id, s)
       total++
-      clean += n
-      if (n >= CLEAN_GOAL) learned++
+      clean += store.cleanCount(l.id, s)
+      if (stageDone(l, s)) learned++
     }
   return { total, learned, clean }
 }

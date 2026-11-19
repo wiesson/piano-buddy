@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { LESSONS, type Lesson } from '@piano/core/music/lessons'
-import { lessonDone, nextLesson, totals } from '@piano/core/practice/progress'
+import type { Lesson } from '@piano/core/music/lessons'
+import { PIECE_ORDER, parseVersionId, versionsOf } from '@piano/core/music/versions'
+import { lessonDone, nextLesson, recommendedVersion, totals } from '@piano/core/practice/progress'
 import { t } from '@piano/core/i18n'
 import { audioContext } from '@piano/core/audio/audio'
 import { Logo } from '@piano/ui/shared/icons'
@@ -24,10 +25,12 @@ export function AppHome({ synced }: { synced: boolean }) {
   const next = nextLesson()
   const { total, learned, clean } = totals()
   const started = clean > 0
+  const nextPiece = next && parseVersionId(next.id).pieceId
+  // Ein Stück öffnet in der empfohlenen Fassung (die leichteste, die noch nicht sitzt)
   const open = (l: Lesson) => {
     // Der Tipp ist die Geste, mit der Browser Klang erlauben
     audioContext()
-    void navigate({ to: '/play/$lessonId', params: { lessonId: l.id } })
+    void navigate({ to: '/play/$lessonId', params: { lessonId: recommendedVersion(parseVersionId(l.id).pieceId).id } })
   }
 
   return (
@@ -58,9 +61,20 @@ export function AppHome({ synced }: { synced: boolean }) {
             {t.home.pathTitle}
           </h2>
           <ol className="pb-path">
-            {LESSONS.map((l, i) => (
-              <LessonRow key={l.id} lesson={l} index={i} done={lessonDone(l)} isNext={l === next} onOpen={open} />
-            ))}
+            {PIECE_ORDER.map((pieceId, i) => {
+              // Die Zeile zeigt die empfohlene Fassung; erledigt ist das Stück mit dem Original
+              const versions = versionsOf(pieceId)
+              return (
+                <LessonRow
+                  key={pieceId}
+                  lesson={recommendedVersion(pieceId)}
+                  index={i}
+                  done={lessonDone(versions[versions.length - 1])}
+                  isNext={pieceId === nextPiece}
+                  onOpen={open}
+                />
+              )
+            })}
           </ol>
           <p className="pb-note">{t.home.pathNote}</p>
         </section>

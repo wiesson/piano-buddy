@@ -1,5 +1,6 @@
-import { LESSONS, type Lesson } from './lessons'
+import type { Lesson } from './lessons'
 import { learningPath, type PathStep, type Piece } from './piece'
+import { ALL_LESSONS, PATH } from './versions'
 
 /**
  * Eigene Stücke liegen nur auf diesem Gerät (localStorage), nie auf unserem Server: Die Dateien
@@ -85,21 +86,21 @@ export function pieceOfLesson(lessonId: string): Piece | undefined {
   return pieces.list().find((p) => lessonId.startsWith(`own-${p.id}-`))
 }
 
-/** Lektion nach Kennung: eingebaute Stücke und Lernfassungen eigener Stücke */
+/** Lektion nach Kennung: eingebaute Stücke in jeder Fassung und Lernfassungen eigener Stücke */
 export function lessonById(id: string): Lesson | undefined {
-  const builtIn = LESSONS.find((l) => l.id === id)
+  const builtIn = ALL_LESSONS.find((l) => l.id === id)
   if (builtIn) return builtIn
   const piece = pieceOfLesson(id)
   return piece ? pathOf(piece).find((s) => s.lesson.id === id)?.lesson : undefined
 }
 
-/** Die Lektion danach: im Lernpfad des eigenen Stücks oder in der eingebauten Reihenfolge */
+/** Die Lektion danach: im Lernpfad des eigenen Stücks oder im eingebauten Lernpfad (Stück und Fassung) */
 export function lessonAfter(id: string): Lesson | undefined {
   const piece = pieceOfLesson(id)
   if (piece) {
     const path = pathOf(piece)
     return path[path.findIndex((s) => s.lesson.id === id) + 1]?.lesson
   }
-  const i = LESSONS.findIndex((l) => l.id === id)
-  return i < 0 ? undefined : LESSONS[i + 1]
+  const i = PATH.findIndex((l) => l.id === id)
+  return i < 0 ? undefined : PATH[i + 1]
 }

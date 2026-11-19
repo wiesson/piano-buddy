@@ -231,6 +231,12 @@ export const en: Messages = {
     keepPlaying: 'or just keep playing',
   },
 
+  versions: {
+    label: 'Version',
+    hint: (rec: string) => `Recommended: ${rec}. Each version counts on its own, pick what suits you.`,
+    recommendedMark: 'recommended',
+  },
+
   stages: {
     title: 'Stages',
     open: (stage: string) => `Stage: ${stage}. Open stages and progress`,
@@ -421,7 +427,7 @@ export const en: Messages = {
     pause: 'Pause',
     position: 'Position in the piece',
     version: 'Version',
-    versions: { full: 'Original', easy: 'Easy' },
+    versions: { full: 'Original', medium: 'Medium', easy: 'Easy' },
     handsTitle: 'Hands',
     handsNote: 'Which track plays which hand. A track for both hands is split at the split note.',
     hand: { L: 'Left', R: 'Right', split: 'Split', off: 'Off' },

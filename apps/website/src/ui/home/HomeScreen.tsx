@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { LESSONS, type Lesson } from '@piano/core/music/lessons'
 import { lessonDone, nextLesson, totals } from '@piano/core/practice/progress'
+import { parseVersionId } from '@piano/core/music/versions'
 import { t, localized } from '@piano/core/i18n'
 import { Logo } from '@piano/ui/shared/icons'
 import { AboutDialog } from '@piano/ui/shared/AboutDialog'
@@ -142,7 +143,7 @@ export function HomeScreen({ onOpen }: { onOpen: (l: Lesson) => void }) {
               <p className="pb-body">{t.home.pathLede}</p>
               <ol className="pb-path">
                 {LESSONS.map((l, i) => (
-                  <LessonRow key={l.id} lesson={l} index={i} done={lessonDone(l)} isNext={l === next} onOpen={onOpen} />
+                  <LessonRow key={l.id} lesson={l} index={i} done={lessonDone(l)} isNext={!!next && parseVersionId(next.id).pieceId === l.id} onOpen={onOpen} />
                 ))}
               </ol>
               <p className="pb-note">{t.home.pathNote}</p>

@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import type { Stage } from '@piano/core/music/lessons'
+import { LEVELS, type Level } from '@piano/core/music/versions'
 import { CLEAN_GOAL } from '@piano/core/practice/goal'
 import { dayKey } from '@piano/core/practice/plan'
 import type { Best } from '@piano/core/practice/score'
@@ -21,6 +23,14 @@ function whenOf(due: string): string {
   return days === 1 ? t.stages.tomorrow : t.stages.inDays(days)
 }
 
+/** Fassungen eines Stücks: welche es gibt, welche läuft, welche wir empfehlen */
+export interface VersionChoice {
+  current: Level
+  available: Level[]
+  recommended: Level
+  onChange: (l: Level) => void
+}
+
 /**
  * Stufen-Chip unter dem Titel („Rechts ★★ ›“) und dahinter das Sheet mit allen Stufen: Punkte
  * (saubere Durchgänge), bester Durchgang, in welchem Tempo es schon sauber war, nächste
@@ -38,6 +48,7 @@ export function StageMenu({
   goal,
   demo,
   onToggleDemo,
+  versions,
 }: {
   stages: Stage[]
   stage: Stage
@@ -51,6 +62,8 @@ export function StageMenu({
   goal: string
   demo: boolean
   onToggleDemo: () => void
+  /** Fassung wählen (Leicht, Mittel, Original); nur bei Stücken mit mehreren Fassungen */
+  versions?: VersionChoice
 }) {
   const b = best(stage)
   const [open, setOpen] = useState(false)
@@ -72,6 +85,26 @@ export function StageMenu({
         </>
       }
     >
+      {versions && (
+        <div className="version-pick">
+          {/* Alle drei Plätze bleiben stehen; was es für dieses Stück nicht gibt, ist ausgegraut */}
+          <SegmentedControl
+            className="view-switch version-switch"
+            aria-label={t.versions.label}
+            value={versions.current}
+            onValueChange={(v) => v && v !== versions.current && (setOpen(false), versions.onChange(v as Level))}
+          >
+            <SegmentedControlIndicator className="view-switch-indicator" />
+            {LEVELS.map((lv) => (
+              <SegmentedControlItem key={lv} value={lv} className="view-switch-item" disabled={!versions.available.includes(lv)}>
+                {t.pieces.versions[lv]}
+                {lv === versions.recommended && <span className="version-rec" aria-label={t.versions.recommendedMark} />}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+          <small className="version-hint">{t.versions.hint(t.pieces.versions[versions.recommended])}</small>
+        </div>
+      )}
       <p className="stage-sheet-goal">{goal}</p>
       <div className="set-rows">
         {stages.map((s) => {

@@ -1,5 +1,5 @@
 import type { Stage } from '@piano/core/music/lessons'
-import { LESSONS } from '@piano/core/music/lessons'
+import { lessonById } from '@piano/core/music/pieceStore'
 import { today } from '@piano/core/practice/progress'
 import { localized, t } from '@piano/core/i18n'
 
@@ -22,7 +22,7 @@ export function Today({ onOpen }: { onOpen: (lessonId: string, stage: Stage) => 
       </div>
       <ol className="today-list">
         {plan.items.map((it) => {
-          const lesson = LESSONS.find((l) => l.id === it.lessonId)
+          const lesson = lessonById(it.lessonId)
           if (!lesson) return null
           const state = it.done ? (it.kind === 'review' ? (it.passed ? t.plan.passed : t.plan.retry) : '✓') : ''
           return (

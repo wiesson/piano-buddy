@@ -1,4 +1,5 @@
-import { LESSONS, stagesFor, type Lesson, type Stage } from '../music/lessons'
+import { stagesFor, type Lesson, type Stage } from '../music/lessons'
+import { LEVELS, PATH, parseVersionId } from '../music/versions'
 import type { Attempt } from '../sync/store'
 import { CLEAN_GOAL } from './goal'
 
@@ -86,7 +87,7 @@ function stateOf(lessonId: string, stage: Stage, attempts: Attempt[]): StageStat
 }
 
 /** Zustand aller Stufen aller Stücke */
-export function stageStates(attempts: Attempt[], lessons: Lesson[] = LESSONS): Map<string, StageState> {
+export function stageStates(attempts: Attempt[], lessons: Lesson[] = PATH): Map<string, StageState> {
   const byKey = new Map<string, Attempt[]>()
   for (const a of attempts) {
     const k = key(a.lessonId, a.stage)
@@ -102,6 +103,19 @@ export function stageStates(attempts: Attempt[], lessons: Lesson[] = LESSONS): M
 }
 
 export const stateFor = (states: Map<string, StageState>, lessonId: string, stage: Stage) => states.get(key(lessonId, stage))
+
+/**
+ * Sitzt dieselbe Stufe schon in einer schwereren Fassung desselben Stücks? Dann ist die leichtere
+ * erledigt: Wer das Original kann, muss die leichte Fassung nicht nachholen.
+ */
+export function coveredByHigher(states: Map<string, StageState>, lessonId: string, stage: Stage, lessons: Lesson[] = PATH): boolean {
+  const { pieceId, level } = parseVersionId(lessonId)
+  const rank = LEVELS.indexOf(level)
+  return lessons.some((l) => {
+    const v = parseVersionId(l.id)
+    return v.pieceId === pieceId && LEVELS.indexOf(v.level) > rank && (states.get(key(l.id, stage))?.level ?? -1) >= 0
+  })
+}
 
 export interface PlanItem {
   lessonId: string
@@ -126,7 +140,7 @@ export const MAX_REVIEWS = 2
  * Tagesplan: bestimmt aus dem Stand vor heute (damit er sich nicht während des Übens verschiebt),
  * erledigt wird er mit den Versuchen von heute.
  */
-export function dailyPlan(attempts: Attempt[], today: string, lessons: Lesson[] = LESSONS): DailyPlan {
+export function dailyPlan(attempts: Attempt[], today: string, lessons: Lesson[] = PATH): DailyPlan {
   const before = attempts.filter((a) => dayKey(a.at) < today)
   const todays = attempts.filter((a) => dayKey(a.at) === today)
   const states = stageStates(before, lessons)
@@ -143,7 +157,9 @@ export function dailyPlan(attempts: Attempt[], today: string, lessons: Lesson[] 
       return { lessonId: s.lessonId, stage: s.stage, kind: 'review', done: t.length > 0, passed: t[0]?.clean }
     })
 
-  const focusState = order.map((k) => states.get(k)!).find((s) => s.level < 0)
+  const focusState = order
+    .map((k) => states.get(k)!)
+    .find((s) => s.level < 0 && !coveredByHigher(states, s.lessonId, s.stage, lessons))
   const items = [...reviews]
   if (focusState) {
     const t = todayOf(key(focusState.lessonId, focusState.stage))
