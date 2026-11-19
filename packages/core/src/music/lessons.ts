@@ -84,17 +84,18 @@ const lesson = (l: Omit<Lesson, 'notes'> & { left?: string; right?: string }): L
 
 /**
  * Kanon: rechts erst die Lage H–Fis, dann rutscht der Daumen auf A; der dritte Finger setzt über
- * den Daumen aufs G. Links eine Lage, die sich nur dehnt (Daumen auf D3, kleiner Finger bis D2).
+ * den Daumen aufs G, zum Schluss nimmt der zweite das E, damit der Daumen für den Akkord frei ist.
+ * Links ohne Umsetzen: Die Hand dehnt sich vom Daumen auf D3 bis zum kleinen Finger auf D2.
  */
 const KANON_RIGHT =
   'Fis5:2:5 E5:2:4 D5:2:3 Cis5:2:2 H4:2:1 A4:2:1 H4:2:2 Cis5:2:3 ' +
-  'D5:2:4 Cis5:2:3 H4:2:2 A4:2:1 G4:2:3 Fis4:2:2 G4:2:3 E4:2:1 D4+Fis4+A4:4:1+3+5'
+  'D5:2:4 Cis5:2:3 H4:2:2 A4:2:1 G4:2:3 Fis4:2:2 G4:2:3 E4:2:2 D4+Fis4+A4:4:1+3+5'
 const KANON_LEFT =
   'D3:2:1 A2:2:4 H2:2:3 Fis2:2:5 G2:2:3 D2:2:5 G2:2:3 A2:2:2 ' +
   'D3:2:1 A2:2:4 H2:2:3 Fis2:2:5 G2:2:3 D2:2:5 G2:2:3 A2:2:2 D2:4:5'
 
-/** Gymnopédie: rechts dritter Finger aufs Fis, beim H rutscht der Daumen eine Taste tiefer */
-const GYMNO_RIGHT = '-:6 -:1 Fis5:1:3 A5:1:5 G5:1:4 Fis5:1:3 Cis5:1:1 H4:1:1 Cis5:1:2 D5:1:3 A4:3:1 Fis4:6:1'
+/** Gymnopédie: rechts dritter Finger aufs Fis; vor dem H setzt die Hand einmal um, dann H–Cis–D mit 1-2-3 */
+const GYMNO_RIGHT = '-:6 -:1 Fis5:1:3 A5:1:5 G5:1:4 Fis5:1:3 Cis5:1:2 H4:1:1 Cis5:1:2 D5:1:3 A4:3:2 Fis4:6:1'
 
 /** Für Elise links: gebrochener Akkord, kleiner Finger auf dem Grundton, Daumen oben */
 const ELISE_LEFT =
@@ -327,12 +328,12 @@ export const LESSONS: Lesson[] = [
     right:
       '-:2 E5:0.5:5 Dis5:0.5:4 ' +
       'E5:0.5:5 Dis5:0.5:4 E5:0.5:5 H4:0.5:2 D5:0.5:4 C5:0.5:3 ' +
-      'A4:1:1 -:0.5 C4:0.5:1 E4:0.5:2 A4:0.5:3 ' +
-      'H4:1:4 -:0.5 E4:0.5:1 Gis4:0.5:3 H4:0.5:4 ' +
+      'A4:1:1 -:0.5 C4:0.5:1 E4:0.5:2 A4:0.5:4 ' +
+      'H4:1:5 -:0.5 E4:0.5:1 Gis4:0.5:3 H4:0.5:4 ' +
       'C5:1:5 -:0.5 E4:0.5:1 E5:0.5:5 Dis5:0.5:4 ' +
       'E5:0.5:5 Dis5:0.5:4 E5:0.5:5 H4:0.5:2 D5:0.5:4 C5:0.5:3 ' +
-      'A4:1:1 -:0.5 C4:0.5:1 E4:0.5:2 A4:0.5:3 ' +
-      'H4:1:4 -:0.5 E4:0.5:1 C5:0.5:5 H4:0.5:4 ' +
+      'A4:1:1 -:0.5 C4:0.5:1 E4:0.5:2 A4:0.5:4 ' +
+      'H4:1:5 -:0.5 E4:0.5:1 C5:0.5:5 H4:0.5:4 ' +
       'A4:3:3',
     left: ELISE_LEFT,
   }),
@@ -352,13 +353,13 @@ export const LESSONS: Lesson[] = [
     right:
       '-:2 F5+As5:4:3+5 Des5+F5:4:2+4 C5+Es5:1:1+3 Des5+F5:1:2+4 C5+Es5:7:1+3 ' +
       'B4+Des5:1:1+3 C5+Es5:1:2+4 B4+Des5:1.5:1+3 F5:3:5 Des5:2.5:3 As4+C5:1:1+2 B4+Des5:1:2+3 As4+C5:6:1+2 ' +
-      'Ges4:1:1 B4:1:2 C5:1:3 B4:1:2 Es5:1:5 B4:1:2 Ges4+As4:1:1+2 B4:1:3 As4:1:2 ' +
-      'Es4:1:1 Ges4:1:2 As4:1:3 Ges4:3:2 Es4+F4:3:1+2 ' +
+      'Ges4:1:1 B4:1:2 C5:1:3 B4:1:2 Es5:1:5 B4:1:2 Ges4+As4:1:1+3 B4:1:4 As4:1:3 ' +
+      'Es4:1:1 Ges4:1:3 As4:1:4 Ges4:3:3 Es4+F4:3:1+2 ' +
       'Des4:1:1 F4:1:2 Ges4:1:3 F4:1:2 B4:1:5 F4:1:2 Es4:1:1 F4:1:2 Es4:1:1 ' +
-      'B3:1:1 Des4:1:2 Es4:1:3 Des4:3:2 As3+C4:3:1+2 ' +
+      'B3:1:1 Des4:1:3 Es4:1:4 Des4:3:3 As3+C4:3:1+2 ' +
       '-:2 F4+As4:7:2+4',
     left:
-      '-:1 F4+As4:8:3+1 Ges4+A4:9:3+1 F4+As4:9:3+1 Es4+Ges4:9:3+1 ' +
+      '-:1 F4+As4:8:4+2 Ges4+A4:9:3+1 F4+As4:9:4+2 Es4+Ges4:9:5+3 ' +
       'Des4+Es4:6:2+1 C4+Es4:3:3+1 B3+Des4:6:3+1 A3+C4:3:3+1 As3+B3:6:2+1 Ges3:3:3 F3+As3:6:3+1 Es3+Ges3:1.5:3+1 As2:1.5:5 ' +
       'Des2:9:5',
   }),

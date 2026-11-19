@@ -43,6 +43,24 @@ function refinger(notes: ScoreNote[], hand: Hand, fingers: number[]): ScoreNote[
   return notes.map((n) => (n.hand === hand ? { ...n, finger: fingers[i++] } : n))
 }
 
+/**
+ * Clair ab Takt 5: Debussy hält den Melodieton über den Taktstrich, darunter beginnt eine kurze
+ * Mittelstimme. `easyNotes` nähme die Mittelstimme als Melodie; hier fällt sie weg, und der
+ * Melodieton davor klingt weiter.
+ */
+function tieOver(notes: ScoreNote[], hand: Hand, beats: number[]): ScoreNote[] {
+  const at = (b: number) => (n: ScoreNote) => n.hand === hand && Math.abs(n.start - b) < 1e-6
+  let out = notes.map((n) => ({ ...n }))
+  for (const b of beats) {
+    const inner = out.find(at(b))
+    const held = out.find((n) => n.hand === hand && Math.abs(n.start + n.dur - b) < 1e-6)
+    if (!inner || !held) continue
+    held.dur += inner.dur
+    out = out.filter((n) => n !== inner)
+  }
+  return out
+}
+
 /** Um Halbtöne verschieben; die Schreibweise folgt der Zieltonart C-Dur (nur weiße Tasten erwartet) */
 const transpose = (notes: ScoreNote[], semis: number): ScoreNote[] =>
   notes.map((n) => ({ ...n, midi: n.midi + semis, spelling: noteName(n.midi + semis) }))
@@ -78,6 +96,13 @@ const right = (id: string) => original(id).notes.filter((n) => n.hand === 'R')
 
 /** Clair, links ein Ton pro Takt (F Ges F Es Des B As F Des): absteigend fingern statt immer mit dem dritten */
 const CLAIR_EASY_LEFT = [2, 1, 2, 3, 4, 1, 2, 4, 5]
+
+/** Clair leicht und mittel: Melodie und ein Ton pro Takt, Melodie ab Takt 5 gehalten (9/8: Takt 5 beginnt bei Schlag 36) */
+const clairEasy = () => tieOver(refinger(easyNotes(original('clair').notes, 9), 'L', CLAIR_EASY_LEFT), 'R', [36, 45, 54, 63])
+
+/** Basstöne im Wechsel: tiefer Ton mit dem kleinen Finger, höherer mit dem Daumen, statt jedes Mal umzusetzen */
+const alternateBass = (notes: ScoreNote[], low: number) =>
+  notes.map((n) => (n.hand === 'L' ? { ...n, finger: n.midi <= low ? 5 : 1 } : n))
 
 const JINGLE_A = 'E4:1:3 E4:1:3 E4:2:3 E4:1:3 E4:1:3 E4:2:3 E4:1:3 G4:1:5 C4:1:1 D4:1:2 E4:4:3 '
 
@@ -175,7 +200,7 @@ const VARIANTS: Lesson[] = [
     key: 0,
     notes: hands(
       'C3:2:1 G2:2:4 A2:2:3 E2:2:5 F2:2:3 C2:2:5 F2:2:3 G2:2:2 ' + 'C3:2:1 G2:2:4 A2:2:3 E2:2:5 F2:2:3 C2:2:5 F2:2:3 G2:2:2 C2:4:5',
-      'E5:2:5 D5:2:4 C5:2:3 H4:2:2 A4:2:1 G4:2:1 A4:2:2 H4:2:3 ' + 'C5:2:4 H4:2:3 A4:2:2 G4:2:1 F4:2:3 E4:2:2 F4:2:3 D4:2:1 C4+E4+G4:4:1+3+5',
+      'E5:2:5 D5:2:4 C5:2:3 H4:2:2 A4:2:1 G4:2:1 A4:2:2 H4:2:3 ' + 'C5:2:4 H4:2:3 A4:2:2 G4:2:1 F4:2:3 E4:2:2 F4:2:3 D4:2:2 C4+E4+G4:4:1+3+5',
     ),
   }),
   variant('gymnopedie', 'easy', {
@@ -183,7 +208,8 @@ const VARIANTS: Lesson[] = [
       de: 'Satie im Dreivierteltakt: Zähl eins, zwei, drei. Rechts die Melodie, links ein Basston pro Takt.',
       en: 'Satie in three-four time: count one, two, three. The melody on the right, one bass note per bar on the left.',
     },
-    notes: easyNotes(original('gymnopedie').notes, 3),
+    // G2 mit dem Daumen, D2 mit dem kleinen Finger: die Hand bleibt liegen
+    notes: alternateBass(easyNotes(original('gymnopedie').notes, 3), 38),
   }),
   variant('gymnopedie', 'medium', {
     goal: {
@@ -194,9 +220,10 @@ const VARIANTS: Lesson[] = [
       ...right('gymnopedie'),
       ...voice(
         'L',
-        'G3:1:5 H3+D4+Fis4:2:4+2+1 D3:1:5 A3+Cis4+Fis4:2:5+3+1 ' +
-          'G3:1:5 H3+D4+Fis4:2:4+2+1 D3:1:5 A3+Cis4+Fis4:2:5+3+1 G3:1:5 H3+D4+Fis4:2:4+2+1 D3:1:5 A3+Cis4+Fis4:2:5+3+1 ' +
-          'G3:1:5 H3+D4:2:3+1 D3:1:5 A3+Cis4:2:3+1',
+        // Der D-Akkord eng über dem Bass (Fis–A–Cis), damit die Hand liegen bleibt
+        'G3:1:5 H3+D4+Fis4:2:4+2+1 D3:1:5 Fis3+A3+Cis4:2:3+2+1 ' +
+          'G3:1:5 H3+D4+Fis4:2:4+2+1 D3:1:5 Fis3+A3+Cis4:2:3+2+1 G3:1:5 H3+D4+Fis4:2:4+2+1 D3:1:5 Fis3+A3+Cis4:2:3+2+1 ' +
+          'G3:1:5 H3+D4:2:3+1 D3:1:5 Fis3+A3:2:3+2',
       ),
     ]),
   }),
@@ -207,7 +234,8 @@ const VARIANTS: Lesson[] = [
     },
     beatUnit: 4,
     bpm: 72,
-    notes: easyNotes(original('elise').notes, 3),
+    // A2 mit dem Daumen, E2 mit dem kleinen Finger
+    notes: alternateBass(easyNotes(original('elise').notes, 3), 40),
   }),
   variant('elise', 'medium', {
     goal: {
@@ -216,7 +244,15 @@ const VARIANTS: Lesson[] = [
     },
     beatUnit: 4,
     bpm: 72,
-    notes: original('elise').notes,
+    // Der E-Dur-Akkord eng (E3–Gis3–H3) statt über eine Dezime
+    notes: sorted([
+      ...right('elise'),
+      ...voice(
+        'L',
+        '-:6 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5 E3:0.5:5 Gis3:0.5:3 H3:0.5:1 -:1.5 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5 ' +
+          '-:3 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5 E3:0.5:5 Gis3:0.5:3 H3:0.5:1 -:1.5 A2:0.5:5 E3:0.5:2 A3:0.5:1 -:1.5',
+      ),
+    ]),
   }),
   variant('clair', 'easy', {
     goal: {
@@ -224,14 +260,15 @@ const VARIANTS: Lesson[] = [
       en: 'Clair de Lune in C major, without black keys: the melody on the right, one note per bar on the left. New: 9/8, nine eighths per bar, counted in three groups.',
     },
     key: 0,
-    notes: transpose(refinger(easyNotes(original('clair').notes, 9), 'L', CLAIR_EASY_LEFT), -1),
+    // Zum Schluss der Bass eine Oktave höher, ohne Sprung
+    notes: transpose(clairEasy(), -1).map((n) => (n.hand === 'L' && n.start >= 72 ? { ...n, midi: n.midi + 12, finger: 5 } : n)),
   }),
   variant('clair', 'medium', {
     goal: {
       de: 'In Des-Dur wie im Original, aber rechts nur die Melodie und links ein Ton pro Takt.',
       en: 'In D-flat major as in the original, but only the melody on the right and one note per bar on the left.',
     },
-    notes: refinger(easyNotes(original('clair').notes, 9), 'L', CLAIR_EASY_LEFT),
+    notes: clairEasy(),
   }),
 ]
 
