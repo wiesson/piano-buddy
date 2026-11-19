@@ -22,9 +22,10 @@ Live: **[pianobuddy.fyi](https://pianobuddy.fyi)**
 - **Progress on every device:** a local-first practice log syncs through Convex. No account,
   devices pair with an 8-character code.
 - **Works offline** as a PWA; fonts, icons and the app shell are cached.
-- **14 pieces, all public domain:** five-finger patterns, children's songs (Alle meine Entchen,
+- **16 pieces, all public domain:** five-finger patterns, children's songs (Alle meine Entchen,
   Lightly Row, Mary Had a Little Lamb), Ode to Joy, Jingle Bells, the C major scale, four pop
-  chords with a moving left hand, Pachelbel's Canon and the opening of Für Elise.
+  chords with a moving left hand, Pachelbel's Canon and the openings of Satie's Gymnopédie No. 1,
+  Für Elise and Debussy's Clair de Lune.
 
 <p>
   <img src=".github/assets/home.png" width="300" alt="Home page on an iPhone">

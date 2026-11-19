@@ -4,7 +4,8 @@ import { pianoKeys } from './pianoKeys'
 import { t } from '@piano/core/i18n'
 import type { ScoreNote } from '@piano/core/music/lessons'
 import { isBlack } from '@piano/core/music/notes'
-import { displayNoteName, displayNoteLabel } from '@piano/core/i18n/noteNames'
+import { displayNoteName, displayNoteLabel, spelledNoteName } from '@piano/core/i18n/noteNames'
+import { spell } from '@piano/core/music/notation'
 
 export interface RollView {
   notes: ScoreNote[]
@@ -417,7 +418,8 @@ export function PianoRoll({
           let ly = by + bh - label * 0.85
           if (v.showNames) {
             g.font = `800 ${label}px ${font}`
-            g.fillText(displayNoteName(n.midi), bx + bw / 2, ly)
+            // wie in den Noten geschrieben (As in Des-Dur); ohne Schreibweise wie bisher mit Kreuz
+            g.fillText(n.spelling ? spelledNoteName(spell(n)) : displayNoteName(n.midi), bx + bw / 2, ly)
             ly -= label * 1.15
           }
           if (showFinger) {

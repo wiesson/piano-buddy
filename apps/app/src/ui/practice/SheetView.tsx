@@ -15,7 +15,7 @@ import {
 } from 'vexflow/bravura'
 import type { Lesson, Stage } from '@piano/core/music/lessons'
 import { notationOf, type NotationItem } from '@piano/core/music/notation'
-import { displayNoteName } from '@piano/core/i18n/noteNames'
+import { spelledNoteName } from '@piano/core/i18n/noteNames'
 import type { RollView } from './PianoRoll'
 
 /**
@@ -228,7 +228,7 @@ export default function SheetView({
             if (showNames && active(hand)) {
               const ys = n.getYs()
               it.keys.forEach((kk, i) => {
-                const name = displayNoteName(kk.midi)
+                const name = spelledNoteName(kk)
                 const tx = document.createElementNS('http://www.w3.org/2000/svg', 'text')
                 tx.setAttribute('x', String(headX + headW / 2))
                 tx.setAttribute('y', String(ys[i] + 2.4))

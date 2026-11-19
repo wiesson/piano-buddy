@@ -279,6 +279,24 @@ export const LESSONS: Lesson[] = [
       'D3:2 A2:2 H2:2 Fis2:2 G2:2 D2:2 G2:2 A2:2 D2:4',
   }),
   lesson({
+    id: 'gymnopedie',
+    illustration: '/illustrations/gymnopedie.jpg',
+    title: { de: 'Gymnopédie No. 1 (Anfang)', en: 'Gymnopédie No. 1 (opening)' },
+    goal: {
+      de: 'Satie, langsam und ruhig. Links pendelt es zwischen tiefem Bass und Akkord, rechts schwebt die Melodie darüber.',
+      en: 'Satie, slow and calm. The left hand swings between a low bass note and a chord, the melody floats above on the right.',
+    },
+    bpm: 66,
+    beatsPerBar: 3,
+    key: 2,
+    right: '-:6 -:1 Fis5:1 A5:1 G5:1 Fis5:1 Cis5:1 H4:1 Cis5:1 D5:1 A4:3 Fis4:6',
+    left:
+      'G2:1 H3+D4+Fis4:2 D2:1 A3+Cis4+Fis4:2 ' +
+      'G2:1 H3+D4+Fis4:2 D2:1 A3+Cis4+Fis4:2 G2:1 H3+D4+Fis4:2 D2:1 A3+Cis4+Fis4:2 ' +
+      // Das Fis hält jetzt die Melodie: links nur noch die beiden unteren Akkordtöne
+      'G2:1 H3+D4:2 D2:1 A3+Cis4:2',
+  }),
+  lesson({
     id: 'elise',
     illustration: '/illustrations/elise.jpg',
     title: { de: 'Für Elise (Anfang)', en: 'Für Elise (opening)' },
@@ -303,6 +321,32 @@ export const LESSONS: Lesson[] = [
     left:
       '-:6 A2:0.5 E3:0.5 A3:0.5 -:1.5 E2:0.5 E3:0.5 Gis3:0.5 -:1.5 A2:0.5 E3:0.5 A3:0.5 -:1.5 ' +
       '-:3 A2:0.5 E3:0.5 A3:0.5 -:1.5 E2:0.5 E3:0.5 Gis3:0.5 -:1.5 A2:0.5 E3:0.5 A3:0.5 -:1.5',
+  }),
+  lesson({
+    id: 'clair',
+    illustration: '/illustrations/clairdelune.jpg',
+    title: { de: 'Clair de Lune (Anfang)', en: 'Clair de Lune (opening)' },
+    goal: {
+      de: 'Debussy in Des-Dur, fünf schwarze Tasten. Erst sinken Terzen in beiden Händen, dann kreisen rechts Achtel abwärts. Ein Schlag ist eine Achtel.',
+      en: 'Debussy in D-flat major, five black keys. First thirds sink in both hands, then eighths circle downwards on the right. One beat is an eighth note.',
+    },
+    bpm: 92,
+    beatsPerBar: 9,
+    beatUnit: 8,
+    key: -5,
+    // Ab Takt 5 hält das Original rechts einen Ton unter den Achteln; hier wird er zur ersten Achtel
+    right:
+      '-:2 F5+As5:4 Des5+F5:4 C5+Es5:1 Des5+F5:1 C5+Es5:7 ' +
+      'B4+Des5:1 C5+Es5:1 B4+Des5:1.5 F5:3 Des5:2.5 As4+C5:1 B4+Des5:1 As4+C5:6 ' +
+      'Ges4:1 B4:1 C5:1 B4:1 Es5:1 B4:1 Ges4+As4:1 B4:1 As4:1 ' +
+      'Es4:1 Ges4:1 As4:1 Ges4:3 Es4+F4:3 ' +
+      'Des4:1 F4:1 Ges4:1 F4:1 B4:1 F4:1 Es4:1 F4:1 Es4:1 ' +
+      'B3:1 Des4:1 Es4:1 Des4:3 As3+C4:3 ' +
+      '-:2 F4+As4:7',
+    left:
+      '-:1 F4+As4:8 Ges4+A4:9 F4+As4:9 Es4+Ges4:9 ' +
+      'Des4+Es4:6 C4+Es4:3 B3+Des4:6 A3+C4:3 As3+B3:6 Ges3:3 F3+As3:6 Es3+Ges3:1.5 As2:1.5 ' +
+      'Des2:9',
   }),
 ]
 
