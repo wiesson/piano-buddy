@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import type { Lesson } from '@piano/core/music/lessons'
 import { elementsOf, newElements } from '@piano/core/music/elements'
@@ -95,7 +95,9 @@ function PatternRow({
   onActive: () => void
   onOpen: (l: Lesson) => void
 }) {
-  const lesson = popLesson({ ...startCell(), pattern })
+  // Einmal pro Muster erzeugen: Der Player startet neu, sobald sich `notes` ändert, und rendert
+  // während der Wiedergabe jedes Bild; ein neues Array pro Render hielte ihn sofort wieder an
+  const lesson = useMemo(() => popLesson({ ...startCell(), pattern }), [pattern])
   const player = usePiecePlayer(lesson.notes, lesson.bpm)
   // Nur ein Muster klingt: startet ein anderes, hört dieses auf
   useEffect(() => {
@@ -149,7 +151,7 @@ function Grid({ patterns, onOpen }: { patterns: PatternId[]; onOpen: (l: Lesson)
     const next = { ...current, [a]: v } as Cell
     setCell(validCell(next) ? next : { ...next, pattern: patterns[0] })
   }
-  const lesson = popLesson(current)
+  const lesson = useMemo(() => popLesson(current), [current.prog, current.key, current.pattern, current.voicing, current.role])
   const fresh = newElements(knownElements(store.attempts()), lesson)
   const all = shown(elementsOf(lesson))
   return (
