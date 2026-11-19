@@ -1,6 +1,6 @@
 import { barOf, notesForStage, type Hand, type Lesson, type ScoreNote, type Stage } from '../music/lessons'
 import type { NoteOff, NoteOn } from '../input/events'
-import type { PassResult } from './session'
+import type { Judgement, PassResult, Verdict } from './session'
 
 /**
  * Mitspiel-Modus: Das Stück läuft im Tempo durch, nach einem Takt Einzähler. Jeder Ton wird
@@ -194,6 +194,8 @@ export class TempoSession {
   private holdGraded = true
   /** Gespult: Der Durchgang beginnt an diesem Schlag (0: von vorn). Töne davor zählen nicht */
   from = 0
+  /** Wird für jeden Anschlag genau einmal mit seinem Urteil aufgerufen */
+  onJudge?: (j: Judgement) => void
 
   constructor(
     readonly lesson: Lesson,
@@ -319,15 +321,28 @@ export class TempoSession {
     return e.source === 'mic' ? e.tMs - MIC_LATENCY_MS : e.tMs
   }
 
+  private judge(e: NoteOn, verdict: Verdict, step = -1, deltaMs?: number) {
+    this.onJudge?.({
+      ...(e.id !== undefined ? { id: e.id } : {}),
+      midi: e.midi,
+      tMs: e.tMs,
+      source: e.source,
+      verdict,
+      step,
+      atMs: e.tMs,
+      ...(deltaMs !== undefined ? { deltaMs } : {}),
+    })
+  }
+
   input(e: NoteOn) {
-    if (!this.running) return
+    if (!this.running) return this.judge(e, 'ignored')
     const t = this.onsetOf(e)
     const win = e.source === 'mic' ? windowsFor(this.beat, 'mic') : this.win
     // Dieselbe Taste neu angeschlagen, ohne dass ein Loslassen kam: Der vorige Ton endet hier
     for (const n of this.notes) if (n.midi === e.midi && n.onMs !== null && n.offMs === null) this.release({ ...e, tMs: t })
     // Vor dem ersten Fenster (während des Einzählers) zählt nichts: man sucht noch die Hand
     const first = this.counted.find((n) => n.state === 'pending')
-    if (first && t < this.timeOf(first.start) - win.near && this.beatAt(t) < this.countTo) return
+    if (first && t < this.timeOf(first.start) - win.near && this.beatAt(t) < this.countTo) return this.judge(e, 'ignored')
     let best: JudgedNote | null = null
     let bestD = Infinity
     for (const n of this.counted) {
@@ -342,6 +357,7 @@ export class TempoSession {
       this.wrong++
       this.wrongBars.push(Math.max(1, barOf(this.lesson, Math.max(0, this.beatAt(t)))))
       this.feedback.push({ midi: e.midi, kind: 'wrong', tMs: e.tMs })
+      this.judge(e, 'wrong')
       return
     }
     best.state = Math.abs(bestD) <= win.onTime ? 'onTime' : 'near'
@@ -350,6 +366,7 @@ export class TempoSession {
     best.source = e.source
     if (e.source === 'mic') this.holdGraded = false
     this.sourceHits[e.source] = (this.sourceHits[e.source] ?? 0) + 1
+    this.judge(e, best.state === 'onTime' ? 'hit' : bestD < 0 ? 'early' : 'late', this.notes.indexOf(best), best.deltaMs)
     this.feedback.push({
       midi: e.midi,
       kind: best.state === 'onTime' ? 'hit' : bestD < 0 ? 'early' : 'late',

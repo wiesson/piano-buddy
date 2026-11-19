@@ -39,6 +39,13 @@ export interface RollView {
   countIn?: { n: number; frac: number } | null
   /** Beim Spulen: Taktnummer an jedem Taktstrich, mit Deckkraft (blendet nach dem Loslassen aus) */
   barLabels?: { alpha: number; label: (beat: number) => string }
+  /**
+   * Warten, Variante B: Beginn des Schritts, der gerade spielbar ist. Gesetzt, leuchten seine
+   * Tasten und Blöcke sofort, auch wenn die Bahn noch dorthin gleitet. Ohne: erst an der Linie.
+   */
+  stepStart?: number
+  /** Rückmeldung (Varianten): Treffer weiß aufblitzen oder kräftig grün; Akkordtöne abhaken */
+  feel?: { hit: 'soft' | 'green'; check: boolean; wrong: 'red' | 'soft' }
 }
 
 /** Ab so vielen Pixeln wird aus einem Tipp in die Bahn ein Spulen */
@@ -69,6 +76,8 @@ const DARK = {
   ebonyPressed: '#3a2d28',
   felt: '#8e2f2b',
   wrong: '#e0533f',
+  hit: '#5fbf7e',
+  onHit: '#1d1512',
   L: '#4f9db5',
   R: '#d3a04d',
   // Schrift auf den Blöcken der linken und rechten Hand
@@ -93,6 +102,8 @@ const PAPER: typeof DARK = {
   ebonyPressed: '#4c4038',
   felt: '#d0603f',
   wrong: '#c2412d',
+  hit: '#3c9a5b',
+  onHit: '#fffcf6',
   L: '#2f6f7a',
   R: '#d9a441',
   onL: '#fffcf6',
@@ -332,6 +343,10 @@ export function PianoRoll({
 
       // „jetzt“ ist eine Note, deren Zeitspanne die aktuelle Position enthält
       const sounding = (n: ScoreNote) => n.start <= v.beat + 1e-6 && v.beat < n.start + n.dur - 1e-6
+      // Variante B: Der spielbare Schritt ist „jetzt“, egal wo die Bahn gerade steht
+      const current = (n: ScoreNote) => (v.stepStart !== undefined ? Math.abs(n.start - v.stepStart) < 1e-6 : sounding(n))
+      const green = v.feel?.hit === 'green'
+      const check = !!v.feel?.check
       const geoW = keyGeometry(l.keyW - 2, false)
       const geoB = keyGeometry(l.keyW * 0.6, true)
 
@@ -387,7 +402,7 @@ export function PianoRoll({
         const kg = black ? geoB : geoW
         // weiße Tasten beginnen 1 px eingerückt (Fuge), die Einlage kommt dazu
         const pad = (black ? 0 : 1) + kg.inset
-        const isNow = v.expected.has(n.midi) && sounding(n)
+        const isNow = v.expected.has(n.midi) && current(n)
         const past = n.start < v.beat - 1e-6
         const color = C[n.hand]
         const look = v.judge?.(n)
@@ -429,8 +444,11 @@ export function PianoRoll({
         }
         g.shadowBlur = 0
         if (isNow && v.struck.has(n.midi)) {
-          g.fillStyle = 'rgba(255,255,255,0.35)'
+          // Abgehakt: grün (Variante B) bzw. heller
+          g.fillStyle = check ? C.hit : 'rgba(255,255,255,0.35)'
+          g.globalAlpha = check ? 0.8 : 1
           g.fill()
+          g.globalAlpha = 1
         }
         // Beschriftung unten im Block: Notenname und Finger. Die Schrift richtet sich nach der
         // Blockhöhe, damit auch kurze Viertel ihren Fingersatz zeigen (quer am Telefon).
@@ -514,9 +532,15 @@ export function PianoRoll({
       g.fillRect(0, laneBottom, W, feltH)
 
       // Tastatur
-      const flashOf = (m: number) => v.flashes.find((f) => f.midi === m)
+      // Der jüngste Blitz zählt: Falsch und gleich danach richtig zeigt den Treffer (STU-1285)
+      const flashOf = (m: number) => {
+        let best: RollView['flashes'][number] | undefined
+        // Gleich alt (ein MIDI-Paket): der später eingetragene gewinnt
+        for (const f of v.flashes) if (f.midi === m && (!best || f.age <= best.age)) best = f
+        return best
+      }
       const handOf = (m: number) =>
-        v.hint === false ? undefined : v.notes.find((n) => n.midi === m && v.expected.has(m) && sounding(n))?.hand
+        v.hint === false ? undefined : v.notes.find((n) => n.midi === m && v.expected.has(m) && current(n))?.hand
       // Sichtbarer Elfenbein-Bereich unter den schwarzen Tasten: Die Einlage füllt ihn mit
       // gleichem Abstand nach oben (zur schwarzen Taste), zu den Seiten und nach unten.
       const blackH = keyH * 0.62
@@ -553,18 +577,36 @@ export function PianoRoll({
         const iw = kw - kg.inset * 2
         const ih = black ? h * 0.42 : whiteInlayH
         const iy = bottom - kg.inset - ih
-        if (hand) {
+        // Abgehakt (Variante B): Getroffene Töne des Schritts bleiben grün, auch ohne Leuchthilfe
+        const done = check && v.struck.has(m) && v.expected.has(m)
+        if (done) {
+          g.fillStyle = C.hit
+          roundRect(g, ix, iy, iw, ih, kg.inner)
+          g.fill()
+        } else if (hand) {
           g.fillStyle = C[hand]
           g.globalAlpha = v.struck.has(m) ? 1 : 0.85
           roundRect(g, ix, iy, iw, ih, kg.inner)
           g.fill()
           g.globalAlpha = 1
         }
-        if (flash) {
+        if (flash?.kind === 'wrong' && v.feel?.wrong === 'soft') {
+          // Leise: nur ein roter Rand in der Einlage, kurz (nichts beschämt)
+          g.strokeStyle = C.wrong
+          g.lineWidth = 2.5
+          g.globalAlpha = Math.max(0, 1 - flash.age / 500)
+          roundRect(g, ix + 1.25, keyTop + kg.inset + 1.25, iw - 2.5, h - sink - kg.inset * 2 - 2.5, [0, 0, kg.inner, kg.inner])
+          g.stroke()
+          g.globalAlpha = 1
+        } else if (flash) {
           // Rückmeldung füllt die ganze Taste innerhalb desselben Abstands
           const a = Math.max(0, 1 - flash.age / 900)
-          g.fillStyle = flash.kind === 'wrong' ? C.wrong : 'rgba(255,255,255,0.9)'
-          g.globalAlpha = a * (flash.kind === 'wrong' ? 0.85 : 0.5)
+          const strong = green && flash.kind === 'hit'
+          g.fillStyle = flash.kind === 'wrong' ? C.wrong : strong ? C.hit : 'rgba(255,255,255,0.9)'
+          // Grün: 300 ms voll, dann ausblenden
+          g.globalAlpha = strong
+            ? 0.95 * Math.min(1, Math.max(0, 1 - (flash.age - 300) / 600))
+            : a * (flash.kind === 'wrong' ? 0.85 : 0.5)
           // oben eckig wie die Taste (außen 0 → innen 0), unten Tastenradius − Abstand
           roundRect(g, ix, keyTop + kg.inset, iw, h - sink - kg.inset * 2, [0, 0, kg.inner, kg.inner])
           g.fill()
@@ -579,10 +621,10 @@ export function PianoRoll({
           g.globalAlpha = 1
         }
         // Namen: C immer zur Orientierung, alle anderen mit Schalter; immer mittig in der Einlage
-        if (!black && (dim ? m % 12 === 0 : v.showNames || m % 12 === 0 || hand)) {
-          g.font = `${hand ? 800 : 600} ${labelSize}px ${font}`
+        if (!black && (dim ? m % 12 === 0 : v.showNames || m % 12 === 0 || hand || done)) {
+          g.font = `${hand || done ? 800 : 600} ${labelSize}px ${font}`
           // Kontrast auf Elfenbein: C etwa 7:1, übrige etwa 4,6:1; gedimmte Tasten bewusst schwächer
-          g.fillStyle = hand ? (hand === 'L' ? C.onL : C.onR) : dim ? '#a69a8a' : m % 12 === 0 ? '#4f4137' : '#6f6052'
+          g.fillStyle = done ? C.onHit : hand ? (hand === 'L' ? C.onL : C.onR) : dim ? '#a69a8a' : m % 12 === 0 ? '#4f4137' : '#6f6052'
           g.fillText(m % 12 === 0 ? displayNoteLabel(m) : displayNoteName(m), ix + iw / 2, iy + ih / 2 + 1)
         }
       }

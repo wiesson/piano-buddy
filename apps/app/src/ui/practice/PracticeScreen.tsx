@@ -37,10 +37,27 @@ import { useReportUpload } from '../../diagnostics/upload'
 import { usePrefersLight } from '@piano/ui/shared/usePrefersLight'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { BackIcon } from '@piano/ui/shared/icons'
+import { debugRing } from '../../debug/ring'
+import type { StepInfo } from '../../debug/DebugLayer'
+import { getVariant, isBlind, useVariant, variantName, type Variant } from './variants'
 
 // Notenansicht mit VexFlow: eigener Chunk, lädt erst beim Umschalten
 const loadSheetView = () => import('./SheetView')
 const SheetView = lazy(loadSheetView)
+// Debug-Ebene (STU-1286): eigener Chunk, lädt erst beim Einschalten
+const DebugLayer = lazy(() => import('../../debug/DebugLayer'))
+/** So oft auf den Titel tippen (je höchstens 600 ms Abstand), um die Debug-Ebene zu schalten */
+const DEBUG_TAPS = 5
+/** So lange das Haltepedal treten, um aus der Debug-Ebene zu melden */
+const PEDAL_REPORT_MS = 1200
+
+/** Fristen und Nachsicht des Warte-Modus aus der Variante */
+const waitOptions = (v: Variant) => ({ carryMs: v.carryMs, wrongDelayMs: v.wrongDelayMs, strayDelay: v.strayDelay, repeatOk: v.repeatOk })
+/** Jede Sitzung meldet ihre Urteile an den Ring der Debug-Ebene */
+function wired<S extends WaitSession | TempoSession>(s: S): S {
+  s.onJudge = (j) => debugRing.judge(j)
+  return s
+}
 
 const TEMPO_VALUES = TEMPO_LADDER.map(String)
 const sessionParts = createParts(practiceSession, { root: 'main' })
@@ -150,6 +167,26 @@ export function PracticeScreen({
   const diagnosticsRef = useRef(diagnostics)
   diagnosticsRef.current = diagnostics && !!upload
   const recorderRef = useRef<PracticeRecorder | null>(null)
+  // Debug-Ebene: versteckt, fünfmal auf den Titel tippen (auch in der iOS-App)
+  const [debug, setDebugState] = useState(() => getPref('debug', false))
+  const setDebug = (v: boolean) => (setPref('debug', v), setDebugState(v))
+  const titleTaps = useRef<number[]>([])
+  const onTitleTap = () => {
+    const now = performance.now()
+    const prev = titleTaps.current
+    titleTaps.current = prev.length && now - prev[prev.length - 1] < 600 ? [...prev, now] : [now]
+    if (titleTaps.current.length >= DEBUG_TAPS) {
+      titleTaps.current = []
+      setDebug(!debug)
+    }
+  }
+  const reportRef = useRef<(() => void) | null>(null)
+  const variant = useVariant()
+  const variantRef = useRef(variant)
+  variantRef.current = variant
+  /** Tasten, die im letzten Bild leuchteten (Debug: angenommen, bevor die Taste leuchtete?) */
+  const litRef = useRef<ReadonlySet<number>>(new Set())
+  const phaseRef = useRef('waiting')
   /** Letzte Eingabe: In der Notenansicht leuchtet die Taste erst, wenn man 3 s zögert */
   const lastInputRef = useRef(performance.now())
   const setShowFingers = (v: boolean) => (setPref('fingers', v), setShowFingersState(v))
@@ -262,7 +299,7 @@ export function PracticeScreen({
     stopDemoRef.current()
     cancelClicks()
     audioContext()
-    const s = new TempoSession(lesson, prev.stage, prev.tempo, (r) => onPassRef.current(r))
+    const s = wired(new TempoSession(lesson, prev.stage, prev.tempo, (r) => onPassRef.current(r)))
     if (!full && prev.partial) {
       s.seek(prev.from)
       s.resume(performance.now())
@@ -303,14 +340,14 @@ export function PracticeScreen({
   useEffect(() => {
     cancelClicks()
     if (tempo === 'wait') {
-      const s = new WaitSession(lesson, stage, (r) => onPassRef.current(r))
+      const s = wired(new WaitSession(lesson, stage, (r) => onPassRef.current(r), waitOptions(getVariant())))
       s.restart()
       sessionRef.current = s
       tempoRef.current = null
       beatRef.current = s.beat
     } else {
       sessionRef.current = null
-      tempoRef.current = new TempoSession(lesson, stage, tempo, (r) => onPassRef.current(r))
+      tempoRef.current = wired(new TempoSession(lesson, stage, tempo, (r) => onPassRef.current(r)))
     }
     setResult(null)
     force((x) => x + 1)
@@ -323,7 +360,17 @@ export function PracticeScreen({
     const carried = carryRef.current
     carryRef.current = null
     if (carried) queueMicrotask(() => inputRef.current({ ...carried, tMs: performance.now() }))
+    // Sitzung wird ersetzt oder die Seite verlassen: Offenes bekommt sein Urteil
+    const own = sessionRef.current
+    return () => own?.drain()
   }, [lesson, stage, tempo, startTempo])
+
+  // Variante umgeschaltet: Fristen gelten sofort, ohne neuen Durchgang
+  useEffect(() => {
+    const s = sessionRef.current
+    if (s) Object.assign(s, waitOptions(variant))
+    debugRing.mark('setting', `${variantName(variant) || 'custom'}${isBlind() ? ' (blind)' : ''}`)
+  }, [variant])
 
   const stopDemo = () => {
     if (!demoRef.current) return
@@ -356,9 +403,15 @@ export function PracticeScreen({
     (e: NoteOn) => {
       lastInputRef.current = performance.now()
       pressRef.current.set(e.midi, performance.now())
+      // Ein Anschlag, ein Eintrag: Der Ton, der die Stufe gewechselt hat, kommt mit seiner Kennung wieder
+      const strike =
+        debugRing.get(e.id) ?? debugRing.strike(e, { expected: expectedRef.current(), lit: litRef.current.has(e.midi), phase: phaseRef.current })
+      strike.verdict = undefined
+      e = { ...e, id: strike.id }
       // Vorspielen: Eine Taste beendet es, wie man ein Intro überspringt (sie selbst zählt nicht)
       if (demoRef.current) {
         if (e.source !== 'mic') stopDemoRef.current()
+        debugRing.control(strike, 'demo')
         return
       }
       setPlayed(true)
@@ -368,8 +421,9 @@ export function PracticeScreen({
         // Pause fort (sie selbst zählt nicht). Das Mikrofon nie: Es hört auch Sprechen und
         // Nachklang. Nach dem Ende frühestens 1,2 s später, sonst zählt der Nachklang.
         if (!ts.started || ts.finished || ts.paused) {
-          if (e.source === 'mic') return
-          if (ts.finished && performance.now() - finishedAtRef.current < 1200) return
+          if (e.source === 'mic') return debugRing.control(strike, 'mic')
+          if (ts.finished && performance.now() - finishedAtRef.current < 1200) return debugRing.control(strike, 'echo')
+          debugRing.control(strike, ts.paused ? 'resume' : 'start')
           if (ts.paused) resumeRef.current()
           else startTempo()
           return
@@ -381,7 +435,7 @@ export function PracticeScreen({
       const s = sessionRef.current
       if (!s) return
       if (s.finished) {
-        if (performance.now() - finishedAtRef.current < 1200) return
+        if (performance.now() - finishedAtRef.current < 1200) return debugRing.control(strike, 'echo')
         const st = stageRef.current
         const next = stages[stages.indexOf(st) + 1]
         // Eine geübte Stelle wiederholt sich, bis man zurück an den Anfang spult
@@ -390,6 +444,7 @@ export function PracticeScreen({
           setResult(null)
         } else if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
           // Angesagt auf der Ergebniskarte; der Ton zählt in der neuen Stufe
+          debugRing.mark('setting', `stage ${next}`)
           carryRef.current = e
           setStage(next)
           return
@@ -400,7 +455,11 @@ export function PracticeScreen({
       }
       const before = s.index
       s.input(e)
-      if (s.index !== before && !s.finished) announce(t.practice.nextNotes([...s.expected].map(displayNoteLabel).join(', ')))
+      if (s.index !== before && !s.finished) {
+        const names = [...s.expected].map(displayNoteLabel).join(', ')
+        announce(t.practice.nextNotes(names))
+        debugRing.mark('step', names)
+      }
       force((x) => x + 1)
     },
     [lesson.id, stages, startTempo],
@@ -418,21 +477,41 @@ export function PracticeScreen({
 
   /** Losgelassen: Haltedauer (Mitspielen) bzw. lange Töne halten (Warten) */
   const release = useCallback((e: NoteOff) => {
+    debugRing.release(e)
     if (tempoRef.current) return tempoRef.current.release(e)
     sessionRef.current?.release(e)
   }, [])
 
   // MIDI: führt die Übung; läuft das Mikrofon mit, ist MIDI die Wahrheit für die Messung
-  const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput((n) => {
-    if (n.velocity === 0) return release({ midi: n.midi, tMs: n.tMs, source: 'midi' })
-    if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
-    input({ midi: n.midi, tMs: n.tMs, source: 'midi' })
-  })
+  // Haltepedal lange treten: melden (nur mit Debug-Ebene)
+  const pedalTimer = useRef<number | undefined>(undefined)
+  const pedalDown = useRef(false)
+  const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput(
+    (n) => {
+      if (n.velocity === 0) return release({ midi: n.midi, tMs: n.tMs, source: 'midi' })
+      if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
+      input({ midi: n.midi, tMs: n.tMs, source: 'midi', velocity: n.velocity })
+    },
+    (p) => {
+      // Stufenloses Pedal sendet beim Treten viele Werte: nur der Wechsel zählt
+      if (p.down === pedalDown.current) return
+      pedalDown.current = p.down
+      debugRing.mark('pedal', p.down ? '▼' : '▲', p.tMs)
+      window.clearTimeout(pedalTimer.current)
+      if (p.down) pedalTimer.current = window.setTimeout(() => reportRef.current?.(), PEDAL_REPORT_MS)
+    },
+  )
+  useEffect(() => () => window.clearTimeout(pedalTimer.current), [])
   // Klavier getrennt, während es läuft: anhalten, statt lauter verpasste Töne zu werten
   const midiCount = midi.devices.length
   const midiCountRef = useRef(midiCount)
   useEffect(() => {
-    if (midiCountRef.current > 0 && midiCount === 0) pauseRef.current('midi')
+    if (midiCountRef.current > 0 && midiCount === 0) {
+      pauseRef.current('midi')
+      // Ohne Klavier kein Loslassen des Pedals mehr: lange Treten zählt nicht
+      window.clearTimeout(pedalTimer.current)
+      pedalDown.current = false
+    }
     midiCountRef.current = midiCount
   }, [midiCount])
 
@@ -640,6 +719,7 @@ export function PracticeScreen({
       showNames,
       showFingers,
       keysOnly: sheet,
+      feel: { hit: variantRef.current.hit, check: variantRef.current.check, wrong: variantRef.current.wrong },
     }
     const pressOf = (m: number) => {
       const at = pressRef.current.get(m)
@@ -697,7 +777,7 @@ export function PracticeScreen({
           .map((n) => ({ midi: n.midi, hand: n.hand, beats: beat - (n.start + n.dur), long: n.hold === 'long' })),
         countIn: ts.countInShown(now),
         press: pressOf,
-        hint: !sheet || now - lastInputRef.current > 3000,
+        hint: !sheet || now - lastInputRef.current > variantRef.current.helpMs,
       }
     }
 
@@ -726,12 +806,21 @@ export function PracticeScreen({
     if (Math.abs(target - beatRef.current) < 0.002) beatRef.current = target
     const arrived = Math.abs(beatRef.current - (s?.beat ?? 0)) < 0.4 || !!s?.holding
     const expected = s?.expected ?? new Set<number>()
+    const vr = variantRef.current
+    // Variante B: Der Schritt ist „jetzt“, sobald er spielbar ist, nicht erst an der Linie
+    const playable = vr.lit === 'playable' && !!s?.step && !s.finished
+    const help =
+      vr.help === 'stuck'
+        ? // Hilfe nach Zögern seit Beginn des Schritts oder sofort nach einem Fehler; Suchtöne schieben sie nicht hinaus
+          !!s && (now - s.stepStartedAt > vr.helpMs || s.stepMissed)
+        : now - lastInputRef.current > vr.helpMs
     return {
       ...base,
       notes: stageNotes,
       // Nie einrasten: Ein Sprung auf den Zielschlag wäre der Ruck kurz vor jedem Ton
       beat: beatRef.current,
-      expected: arrived ? expected : new Set(),
+      ...(playable ? { stepStart: s!.step!.start } : {}),
+      expected: arrived || playable ? expected : new Set(),
       struck: s?.struck ?? new Set(),
       flashes: (s?.feedback ?? [])
         .filter((f) => f.kind !== 'short')
@@ -741,8 +830,8 @@ export function PracticeScreen({
         .filter((f) => f.kind === 'short')
         .map((f) => ({ midi: f.midi, text: t.tempo.short, age: now - f.tMs })),
       press: pressOf,
-      // In den Noten leuchtet die Taste erst nach 3 s Zögern, oder wenn jemand die Starttaste sucht
-      hint: !sheet || now - lastInputRef.current > 3000 || (!!s && !s.started && s.graceMisses > 0),
+      // In den Noten leuchtet die Taste erst nach Zögern (Variante), oder wenn jemand die Starttaste sucht
+      hint: !sheet || help || (!!s && !s.started && s.graceMisses > 0),
     }
   }, [lesson.notes, lesson.beatsPerBar, lesson.bpm, stageNotes, lastBeat, showNames, showFingers, sheet])
 
@@ -774,6 +863,13 @@ export function PracticeScreen({
     }
     if (labels > 0) v = { ...v, barLabels: { alpha: labels, label: barLabel } }
     shownBeatRef.current = v.beat
+    // Debug: welche Tasten jetzt leuchten (wie in der Pianorolle) und wann das Bild kam
+    const at = v.stepStart ?? v.beat
+    const sound = (n: { start: number; dur: number }) =>
+      v.stepStart !== undefined ? Math.abs(n.start - at) < 1e-6 : n.start <= at + 1e-6 && at < n.start + n.dur - 1e-6
+    litRef.current =
+      v.hint === false ? new Set() : new Set([...v.expected].filter((m) => v.notes.some((n) => n.midi === m && sound(n))))
+    debugRing.frame(now)
     return v
   }, [rawView, barLabel])
 
@@ -788,7 +884,7 @@ export function PracticeScreen({
       cancelClicks()
       const first = Math.min(...ts.notes.map((n) => n.start))
       // Zurück an den Anfang: ein frischer Durchgang, der wieder zählt
-      if (beat <= first + 1e-6) tempoRef.current = new TempoSession(lesson, ts.stage, ts.tempo, (r) => onPassRef.current(r))
+      if (beat <= first + 1e-6) tempoRef.current = wired(new TempoSession(lesson, ts.stage, ts.tempo, (r) => onPassRef.current(r)))
       else {
         ts.seek(beat)
         pauseReasonRef.current = 'seek'
@@ -889,6 +985,24 @@ export function PracticeScreen({
           : s?.started
             ? 'playing'
             : 'waiting'
+  phaseRef.current = phase
+  useEffect(() => debugRing.mark('phase', phase), [phase])
+  const stepInfo = (): StepInfo | null => {
+    const cur = sessionRef.current
+    if (!cur) return null
+    return { index: cur.index, total: cur.steps.length, expected: [...cur.expected] }
+  }
+  const reportContext = () => ({
+    lessonId: lesson.id,
+    stage,
+    tempo: String(tempo),
+    view: mode,
+    phase,
+    variant: { ...getVariant() },
+    variantName: variantName(getVariant()),
+    blind: isBlind(),
+    inputs: { midi: midi.state === 'on' ? midi.devices : [], mic: micStatus },
+  })
   const noInput = micStatus === 'off' && midi.state === 'off'
   const join = (...parts: (string | false)[]) => parts.filter(Boolean).join(' ') || null
   /** Takt, ab dem gerade eine Stelle geübt wird (0: von vorn) */
@@ -921,7 +1035,9 @@ export function PracticeScreen({
         }
         title={
           <span className="title-stack">
-            <span className="appbar-text">{localized(lesson.title)}</span>
+            <span className="appbar-text" onClick={onTitleTap}>
+              {localized(lesson.title)}
+            </span>
             <StageMenu
               stages={stages}
               stage={stage}
@@ -1011,6 +1127,19 @@ export function PracticeScreen({
           <p className={`lane-hint${sheet ? ' lane-hint-sheet' : hasBand ? ' lane-hint-band' : ''}`} style={{ '--keys-h': `${keysH}px` } as React.CSSProperties}>
             {laneHint}
           </p>
+        )}
+        {debug && (
+          <Suspense fallback={null}>
+            <DebugLayer
+              ring={debugRing}
+              phase={phase}
+              step={stepInfo}
+              context={reportContext}
+              upload={upload}
+              reportRef={reportRef}
+              onOff={() => setDebug(false)}
+            />
+          </Suspense>
         )}
         {demo && (
           <button type="button" className="demo-stop" onClick={stopDemo}>

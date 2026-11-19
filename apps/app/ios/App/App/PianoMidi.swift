@@ -158,38 +158,54 @@ public class PianoMidiPlugin: CAPPlugin, CAPBridgedPlugin {
     /// rekonstruiert). Mit gemeldet wird die Host-Zeit beim Absenden: JavaScript rechnet daraus
     /// auf performance.now() um, sodass die Laufzeit über die Capacitor-Brücke nicht zählt.
     private func handle(_ list: UnsafePointer<MIDIPacketList>) {
-        // (Ton, Stärke, Zeit in ms); Stärke 0 heißt losgelassen
-        var notes: [(UInt8, UInt8, Double)] = []
+        // In Reihenfolge des Pakets: Ton (Stärke 0 heißt losgelassen) oder Haltepedal (CC64)
+        enum Event { case note(UInt8, UInt8, Double), pedal(Bool, Double) }
+        var events: [Event] = []
         for packet in list.unsafeSequence() {
             let bytes = Array(packet.bytes())
             // Zeitstempel 0 heißt „jetzt“
             let stamp = packet.pointee.timeStamp
             let tMs = stamp == 0 ? PianoMidiPlugin.hostMs(mach_absolute_time()) : PianoMidiPlugin.hostMs(stamp)
-            var i = 0
-            while i < bytes.count {
-                let status = bytes[i]
-                if (status & 0xF0 == 0x90 || status & 0xF0 == 0x80), i + 2 < bytes.count {
-                    // Note-On mit Stärke 0 oder Note-Off: losgelassen
-                    let velocity = status & 0xF0 == 0x80 ? 0 : bytes[i + 2]
-                    notes.append((bytes[i + 1], velocity, tMs))
-                    i += 3
-                } else if status & 0x80 != 0 {
-                    // andere Statusmeldungen: Datenbytes überspringen
-                    let kind = status & 0xF0
-                    i += (kind == 0xC0 || kind == 0xD0) ? 2 : (status >= 0xF0 ? 1 : 3)
-                } else {
-                    i += 1
+            // Byte für Byte: Echtzeit-Bytes (F8–FF) dürfen überall stehen, auch mitten in einer
+            // Meldung, und stören sie nicht. Running Status (Folgemeldungen ohne Statusbyte) wird
+            // mitgelesen, falls ein Treiber ihn durchreicht; sonst gingen Akkordtöne verloren.
+            var status: UInt8 = 0
+            var data: [UInt8] = []
+            for b in bytes {
+                if b >= 0xF8 { continue }
+                if b >= 0x80 {
+                    // Kanalmeldungen gelten als Running Status, Systemmeldungen (SysEx) heben ihn auf
+                    status = b < 0xF0 ? b : 0
+                    data = []
+                    continue
                 }
+                guard status != 0 else { continue }
+                data.append(b)
+                let kind = status & 0xF0
+                let needed = (kind == 0xC0 || kind == 0xD0) ? 1 : 2
+                guard data.count == needed else { continue }
+                if kind == 0x90 || kind == 0x80 {
+                    // Note-On mit Stärke 0 oder Note-Off: losgelassen
+                    events.append(.note(data[0], kind == 0x80 ? 0 : data[1], tMs))
+                } else if kind == 0xB0 && data[0] == 64 {
+                    events.append(.pedal(data[1] >= 64, tMs))
+                }
+                data = []
             }
         }
-        guard !notes.isEmpty else { return }
+        guard !events.isEmpty else { return }
         DispatchQueue.main.async { [weak self] in
             let sent = PianoMidiPlugin.hostMs(mach_absolute_time())
-            for (note, velocity, tMs) in notes {
-                if velocity == 0 {
-                    self?.notifyListeners("noteOff", data: ["note": Int(note), "t": tMs, "sent": sent])
-                } else {
-                    self?.notifyListeners("noteOn", data: ["note": Int(note), "velocity": Int(velocity), "t": tMs, "sent": sent])
+            for event in events {
+                switch event {
+                case let .note(note, velocity, tMs):
+                    if velocity == 0 {
+                        self?.notifyListeners("noteOff", data: ["note": Int(note), "t": tMs, "sent": sent])
+                    } else {
+                        self?.notifyListeners("noteOn", data: ["note": Int(note), "velocity": Int(velocity), "t": tMs, "sent": sent])
+                    }
+                case let .pedal(down, tMs):
+                    self?.notifyListeners("pedal", data: ["down": down, "t": tMs, "sent": sent])
                 }
             }
         }

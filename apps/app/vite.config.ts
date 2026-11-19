@@ -1,4 +1,6 @@
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vite-plus'
 import react from '@vitejs/plugin-react'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
@@ -16,9 +18,19 @@ const cap = process.env.CAP === '1'
 const lan = process.env.LAN === '1'
 const base = cap ? '/' : '/app/'
 const pkg = (p: string) => fileURLToPath(new URL(`../../packages/${p}/src`, import.meta.url))
+// Version für Meldungen aus der Debug-Ebene: Paketversion und Commit
+const version = (() => {
+  const v = (JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version: string }).version
+  try {
+    return `${v}+${execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()}`
+  } catch {
+    return v
+  }
+})()
 
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(version) },
   // .env.local (VITE_CONVEX_URL) liegt im Wurzelverzeichnis des Repos
   envDir: '../..',
   resolve: { alias: { '@piano/core': pkg('core'), '@piano/ui': pkg('ui') } },

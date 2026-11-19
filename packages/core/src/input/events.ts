@@ -8,6 +8,10 @@ export interface NoteOn {
   midi: number
   tMs: number
   source: InputSource
+  /** Anschlagstärke 1–127, nur wo die Quelle sie misst (MIDI) */
+  velocity?: number
+  /** Kennung des Anschlags (Debug-Ebene): kommt im Urteil zurück */
+  id?: number
 }
 
 /** Taste losgelassen (Bildschirm, Computertastatur, MIDI). Das Mikrofon liefert das nicht. */

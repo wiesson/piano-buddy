@@ -320,3 +320,24 @@ describe('Spulen beim Mitspielen', () => {
     expect(results[0].from).toBeUndefined()
   })
 })
+
+describe('Tempo: Urteil je Anschlag', () => {
+  it('gibt jedem Anschlag genau ein Urteil: Einzähler, pünktlich, knapp, falsch, Pause', () => {
+    const { s } = session()
+    const log: [number, string][] = []
+    s.onJudge = (j) => log.push([j.midi, j.verdict])
+    on(s, C, 1000) // im Einzähler: man sucht die Hand
+    on(s, C, 4020) // pünktlich
+    on(s, D, 4800) // 200 ms früh: knapp
+    on(s, F, 5500) // falsch (E ist dran, F erst bei 7000)
+    s.pause(5600)
+    on(s, E, 5700) // angehalten
+    expect(log).toEqual([
+      [C, 'ignored'],
+      [C, 'hit'],
+      [D, 'early'],
+      [F, 'wrong'],
+      [E, 'ignored'],
+    ])
+  })
+})

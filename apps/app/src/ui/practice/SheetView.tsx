@@ -263,11 +263,11 @@ export default function SheetView({
     // Breit: das System steht mittig im Blatt statt oben
     host.style.top = layout === 'band' ? `${Math.max(8, (size.h - SYSTEM_H * scale) / 2)}px` : '8px'
     drawn.current = { marks, lineTops, scale, layout }
-    lastBeat.current = NaN
+    lastBeat.current = ''
   }, [notation, stage, size, showNames, showFingers, forceBand])
 
   // Cursor und Klassen folgen der Übung (eigener Loop, ohne React-Neuzeichnen)
-  const lastBeat = useRef(NaN)
+  const lastBeat = useRef('')
   useEffect(() => {
     let raf = 0
     const loop = () => {
@@ -308,13 +308,16 @@ export default function SheetView({
       cur.classList.toggle('hand-L', !!active.find((mk) => Math.abs(mk.start - v.beat) < EPS && mk.hand === 'L') && !active.find((mk) => Math.abs(mk.start - v.beat) < EPS && mk.hand === 'R'))
 
       // Klassen nur bei neuem Schritt setzen
-      if (v.beat === lastBeat.current) return
-      lastBeat.current = v.beat
+      // Variante B: Der spielbare Schritt ist „jetzt“, auch während die Bahn noch gleitet
+      const now = v.stepStart ?? v.beat
+      const sig = `${v.beat}|${now}|${[...v.expected].join(',')}`
+      if (sig === lastBeat.current) return
+      lastBeat.current = sig
       for (const mk of d.marks) {
         if (!mk.el) continue
         const on = stage === 'LR' || mk.hand === stage
         mk.el.classList.toggle('is-done', on && mk.start < v.beat - EPS)
-        mk.el.classList.toggle('is-now', on && Math.abs(mk.start - v.beat) < EPS && mk.midis.some((m) => v.expected.has(m)))
+        mk.el.classList.toggle('is-now', on && Math.abs(mk.start - now) < EPS && mk.midis.some((m) => v.expected.has(m)))
       }
     }
     raf = requestAnimationFrame(loop)

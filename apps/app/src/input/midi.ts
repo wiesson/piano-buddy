@@ -16,6 +16,12 @@ export interface MidiNote {
   tMs: number
 }
 
+/** Haltepedal (CC64) getreten oder losgelassen; Zeitbasis performance.now() */
+export interface MidiPedal {
+  down: boolean
+  tMs: number
+}
+
 export interface MidiHandle {
   stop(): void
 }
@@ -29,6 +35,8 @@ interface PianoMidiPlugin {
   addListener(event: 'noteOn', fn: (d: { note: number; velocity: number; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
   addListener(event: 'noteOff', fn: (d: { note: number; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
   addListener(event: 'devices', fn: (d: { devices: string[] }) => void): Promise<PluginListenerHandle>
+  /** Haltepedal (fehlt in älteren App-Versionen) */
+  addListener(event: 'pedal', fn: (d: { down: boolean; t?: number; sent?: number }) => void): Promise<PluginListenerHandle>
 }
 
 const PianoMidi = registerPlugin<PianoMidiPlugin>('PianoMidi')
@@ -59,6 +67,7 @@ export const keepAwake = async (on: boolean) => {
 export async function connectMidi(
   onNote: (n: MidiNote) => void,
   onDevices: (names: string[]) => void,
+  onPedal?: (p: MidiPedal) => void,
 ): Promise<MidiHandle> {
   const kind = midiKind()
   if (kind === 'native') {
@@ -75,6 +84,11 @@ export async function connectMidi(
       // Loslassen kommt als Anschlagstärke 0 (für die Haltedauer)
       PianoMidi.addListener('noteOff', (d) => onNote({ midi: d.note, velocity: 0, tMs: local(d, true) })),
       PianoMidi.addListener('devices', (d) => onDevices(d.devices)),
+      PianoMidi.addListener('pedal', (d) => {
+        const now = performance.now()
+        const tMs = typeof d.t === 'number' && typeof d.sent === 'number' ? clock.toLocal(d.t, d.sent, now) : now
+        onPedal?.({ down: d.down, tMs })
+      }),
     ])
     const { devices } = await PianoMidi.start()
     onDevices(devices)
@@ -99,6 +113,8 @@ export async function connectMidi(
           if (kind === 0x90 && d[2] > 0) onNote({ midi: d[1], velocity: d[2], tMs: e.timeStamp })
           // Note-Off (0x8n, oder 0x9n mit Stärke 0): als Anschlagstärke 0 melden
           else if (kind === 0x80 || kind === 0x90) onNote({ midi: d[1], velocity: 0, tMs: e.timeStamp })
+          // Haltepedal: ab 64 getreten
+          else if (kind === 0xb0 && d[1] === 64) onPedal?.({ down: d[2] >= 64, tMs: e.timeStamp })
         }
       })
       onDevices(names)

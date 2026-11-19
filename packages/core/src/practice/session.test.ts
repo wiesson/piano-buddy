@@ -287,3 +287,150 @@ describe('Spulen im Warte-Modus', () => {
     expect(results[1].from).toBeUndefined()
   })
 })
+
+describe('Warte-Modus: Urteil je Anschlag', () => {
+  /** Session mit Protokoll der Urteile (Ton, Urteil) */
+  function judged(opts = {}) {
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const s = new WaitSession(lesson('lh-fuenf'), 'L', () => {}, opts)
+    s.restart()
+    const log: [string, string][] = []
+    s.onJudge = (j) => log.push([String(j.midi), j.verdict])
+    const at = (midi: string, tMs: number) => {
+      s.input({ midi: n(midi), tMs, source: 'midi' })
+      s.tick(tMs)
+    }
+    return { s, log, at, name: (m: string) => String(n(m)) }
+  }
+
+  it('gibt jedem Anschlag genau ein Urteil: Schonfrist, Treffer, falsch, übernommen, verworfen', () => {
+    const { s, log, at, name } = judged()
+    at('E3', 100) // vor dem ersten richtigen Ton: Schonfrist
+    at('C3', 500) // Treffer, Durchgang beginnt
+    at('A3', 1000) // weder jetzt (D3) noch als Nächstes (E3): falsch
+    at('E3', 1500) // zu früh: wartet auf D3
+    at('D3', 1600) // Treffer, dann zählt E3 für den neuen Schritt
+    at('G3', 1700) // F3 ist dran, G3 als Nächstes: offen
+    s.restart() // offen beim Neustart: verworfen
+    expect(log).toEqual([
+      [name('E3'), 'grace'],
+      [name('C3'), 'hit'],
+      [name('A3'), 'wrong'],
+      [name('D3'), 'hit'],
+      [name('E3'), 'carried'],
+      [name('G3'), 'dropped'],
+    ])
+  })
+
+  it('wertet einen zu frühen Ton nach der eingestellten Frist als falsch', () => {
+    const { s, log, at, name } = judged({ wrongDelayMs: 1000 })
+    at('C3', 500)
+    at('E3', 1000) // nächster Schritt nach D3
+    s.tick(1900)
+    expect(log).toEqual([[name('C3'), 'hit']])
+    s.tick(2000)
+    expect(log).toEqual([
+      [name('C3'), 'hit'],
+      [name('E3'), 'wrong'],
+    ])
+  })
+
+  it('übernimmt einen Ton für den neuen Schritt nur innerhalb der eingestellten Frist', () => {
+    for (const [carryMs, expected] of [
+      [450, 'carried'],
+      [100, 'wrong'],
+    ] as const) {
+      const { s, log, at, name } = judged({ carryMs })
+      at('C3', 500)
+      at('E3', 1400) // 200 ms vor D3
+      at('D3', 1600)
+      s.tick(3000)
+      expect(log.find(([m]) => m === name('E3'))?.[1], `carryMs ${carryMs}`).toBe(expected)
+    }
+  })
+})
+
+describe('Warte-Modus: nachsichtige Schalter (Variante B)', () => {
+  function judged(opts = {}) {
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const s = new WaitSession(lesson('vier-akkorde'), 'R', () => {}, opts)
+    s.restart()
+    const log: string[] = []
+    s.onJudge = (j) => log.push(j.verdict)
+    const at = (midi: string, tMs: number) => {
+      s.input({ midi: n(midi), tMs, source: 'midi' })
+      s.tick(tMs)
+    }
+    return { s, log, at }
+  }
+
+  it('repeatOk: ein nachgefasster Akkordton ist kein Fehler, ohne den Schalter schon', () => {
+    for (const repeatOk of [false, true]) {
+      const { s, log, at } = judged({ repeatOk })
+      at('C4', 100)
+      at('E4', 150)
+      at('E4', 400) // nochmal, A4 fehlt noch
+      expect(log[2], `repeatOk ${repeatOk}`).toBe(repeatOk ? 'ignored' : 'wrong')
+      expect(s.wrongCount).toBe(repeatOk ? 0 : 1)
+    }
+  })
+
+  it('strayDelay: ein Streuton wird erst nach der Frist falsch, nicht beim Anschlag', () => {
+    const { s, log, at } = judged({ strayDelay: true, wrongDelayMs: 500 })
+    at('C4', 100) // Start
+    at('C2', 200) // gehört nirgends hin
+    expect(log).toEqual(['hit'])
+    s.tick(700)
+    expect(log).toEqual(['hit', 'wrong'])
+  })
+})
+
+describe('Warte-Modus: offene Anschläge', () => {
+  it('Variante A: ein zu früher Ton, der ohne Bilder über 2 s liegen bleibt, fällt heraus statt zu zählen', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const s = new WaitSession(lesson('lh-fuenf'), 'L', () => {})
+    s.restart()
+    const log: string[] = []
+    s.onJudge = (j) => log.push(j.verdict)
+    s.input({ midi: n('C3'), tMs: 500, source: 'midi' })
+    s.input({ midi: n('E3'), tMs: 1000, source: 'midi' }) // nach D3 dran; kein tick (App im Hintergrund)
+    s.input({ midi: n('D3'), tMs: 3100, source: 'midi' })
+    expect(s.wrongCount).toBe(0)
+    expect(log).toEqual(['hit', 'dropped', 'hit'])
+  })
+
+  it('am Ende Offenes verwerfen: Das Ergebnis steht, danach kommt kein Urteil mehr', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const results: PassResult[] = []
+    const s = new WaitSession(lesson('lh-fuenf'), 'L', (r) => results.push(r), { strayDelay: true })
+    s.restart()
+    const log: string[] = []
+    s.onJudge = (j) => log.push(j.verdict)
+    let t = 0
+    for (const m of ['C3', 'D3', 'E3', 'F3', 'G3', 'F3', 'E3', 'D3']) {
+      s.input({ midi: n(m), tMs: (t += 500), source: 'midi' })
+      s.tick(t)
+    }
+    s.input({ midi: n('A3'), tMs: (t += 500), source: 'midi' }) // Streuton, gepuffert
+    s.input({ midi: n('C3'), tMs: t + 10, source: 'midi' }) // letzter Ton (Ganze: halten)
+    s.release({ midi: n('C3'), tMs: t + 20, source: 'midi' })
+    expect(results).toHaveLength(1)
+    expect(results[0].wrong).toBe(0)
+    s.tick(t + 5000)
+    expect(log.slice(-2)).toEqual(['hit', 'dropped'])
+    expect(log).toHaveLength(10)
+  })
+
+  it('repeatOk: ein nachgefasster Ton, der auch im nächsten Schritt vorkommt, wird nach der Frist kein Fehler', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const s = new WaitSession(lesson('vier-akkorde'), 'R', () => {}, { repeatOk: true, wrongDelayMs: 500 })
+    s.restart()
+    const log: string[] = []
+    s.onJudge = (j) => log.push(j.verdict)
+    s.input({ midi: n('C4'), tMs: 100, source: 'midi' })
+    s.input({ midi: n('C4'), tMs: 300, source: 'midi' }) // C4 auch im nächsten Akkord: gepuffert
+    s.tick(900)
+    expect(log).toEqual(['hit', 'ignored'])
+    expect(s.wrongCount).toBe(0)
+  })
+})

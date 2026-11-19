@@ -14,6 +14,7 @@
     "test:audio": "pnpm --filter @piano/core test:audio",
     "typecheck": "pnpm -r typecheck",
     "storybook": "pnpm --filter @piano/ui storybook",
+    "reports": "node tools/reports.mjs",
     "deploy": "convex deploy -y --cmd 'pnpm build' --cmd-url-env-var-name VITE_CONVEX_URL && pnpm --filter @piano/app deploy:worker && pnpm --filter @piano/website deploy:worker && pnpm --filter @piano/mailer deploy:worker"
   },
   "dependencies": {

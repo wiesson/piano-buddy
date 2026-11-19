@@ -1,6 +1,6 @@
 import { barOf, notesForStage, toSteps, type Lesson, type Stage, type Step } from '../music/lessons'
 import { percentOf } from './score'
-import type { NoteOff, NoteOn } from '../input/events'
+import type { InputSource, NoteOff, NoteOn } from '../input/events'
 
 /**
  * Warte-Modus: Die Noten stehen, bis die richtigen Tasten angeschlagen sind.
@@ -15,9 +15,9 @@ import type { NoteOff, NoteOn } from '../input/events'
  */
 
 /** Wie lange ein Anschlag, der kurz vor dem Schrittwechsel kam, noch für den neuen Schritt zählt */
-const CARRY_MS = 450
+export const CARRY_MS = 450
 /** Töne des nächsten Schritts erst nach dieser Frist als Fehler werten: vielleicht kamen sie nur zu früh */
-const WRONG_DELAY_MS = 350
+export const WRONG_DELAY_MS = 350
 /** Lange Töne (halbe Note und länger) müssen gehalten werden: so viel ihrer Länge im Tempo des Stücks */
 const HOLD_SHARE = 0.8
 const HOLD_MIN_QUARTERS = 2
@@ -33,6 +33,47 @@ export interface Feedback {
   /** short: langer Ton zu früh losgelassen (Hinweis, kein Fehler) */
   kind: 'hit' | 'wrong' | 'short'
   tMs: number
+}
+
+/**
+ * Was die Übe-Logik aus einem Anschlag gemacht hat. Jeder Anschlag bekommt genau ein Urteil (für
+ * die Debug-Ebene und Mitschnitte):
+ * - hit: richtig für den Schritt, der gerade dran war
+ * - carried: kam kurz vor dem Schrittwechsel und zählt für den neuen Schritt (übernommen)
+ * - early, late: Mitspielen, noch getroffen, aber knapp zu früh bzw. zu spät
+ * - wrong: falsch (zählt als Fehler)
+ * - grace: falsch vor dem ersten richtigen Ton (Schonfrist, zählt nicht)
+ * - overtone: Mikrofon hörte einen Oberton (zählt nicht)
+ * - ignored: Mitspielen außerhalb eines laufenden Durchgangs (Einzähler, Pause); Warten mit
+ *   repeatOk: eine schon getroffene Taste nochmal angeschlagen
+ * - dropped: noch offen, als der Durchgang neu begann (Neustart, Spulen)
+ */
+export type Verdict = 'hit' | 'carried' | 'early' | 'late' | 'wrong' | 'grace' | 'overtone' | 'ignored' | 'dropped'
+
+export interface Judgement {
+  /** Kennung aus dem NoteOn, falls gesetzt */
+  id?: number
+  midi: number
+  /** Zeit des Anschlags (Quelle) */
+  tMs: number
+  source: InputSource
+  verdict: Verdict
+  /** Schritt (Warten) bzw. Notenindex (Mitspielen), für den geurteilt wurde; -1: keiner */
+  step: number
+  /** Zeit des Urteils */
+  atMs: number
+  /** Mitspielen: Abweichung vom Notenbeginn in ms */
+  deltaMs?: number
+}
+
+/** Fristen des Warte-Modus (ms); ohne Angabe die Standardwerte */
+export interface WaitOptions {
+  carryMs?: number
+  wrongDelayMs?: number
+  /** Auch Streutöne (weder jetzt noch als Nächstes dran) erst nach wrongDelayMs als falsch werten */
+  strayDelay?: boolean
+  /** Eine Taste, die im Schritt schon getroffen ist, nochmal anschlagen: kein Fehler */
+  repeatOk?: boolean
 }
 
 export interface PassResult {
@@ -68,11 +109,20 @@ export class WaitSession {
   unverified = 0
   private sourceHits: Record<string, number> = {}
   feedback: Feedback[] = []
-  private recent: (NoteOn & { used: boolean })[] = []
+  /** repeat: beim Anschlag schon getroffen (mit repeatOk nie ein Fehler) */
+  private recent: (NoteOn & { used: boolean; repeat?: boolean })[] = []
+  /** Wird für jeden Anschlag genau einmal mit seinem Urteil aufgerufen */
+  onJudge?: (j: Judgement) => void
+  carryMs: number
+  wrongDelayMs: number
+  strayDelay: boolean
+  repeatOk: boolean
   private passStart = 0
   stepStartedAt = 0
   /** Woher der Anschlag eines Tons im aktuellen Schritt kam (nur losgelassene Quellen müssen halten) */
   private struckBy = new Map<number, string>()
+  /** Töne des eben abgeschlossenen Schritts (nachgefasste Akkordtöne zählen mit repeatOk nicht) */
+  private lastStruck = new Set<number>()
   /** Ein langer Ton wird gerade gehalten: weiter erst nach `until` oder beim Loslassen */
   holding: { midis: Set<number>; start: number; until: number; beats: number } | null = null
   shortCount = 0
@@ -90,8 +140,32 @@ export class WaitSession {
     readonly lesson: Lesson,
     readonly stage: Stage,
     private onPass: (r: PassResult) => void,
+    opts: WaitOptions = {},
   ) {
     this.steps = toSteps(notesForStage(lesson, stage))
+    this.carryMs = opts.carryMs ?? CARRY_MS
+    this.wrongDelayMs = opts.wrongDelayMs ?? WRONG_DELAY_MS
+    this.strayDelay = opts.strayDelay ?? false
+    this.repeatOk = opts.repeatOk ?? false
+  }
+
+  private judge(r: NoteOn, verdict: Verdict, atMs: number) {
+    this.onJudge?.({ ...(r.id !== undefined ? { id: r.id } : {}), midi: r.midi, tMs: r.tMs, source: r.source, verdict, step: this.index, atMs })
+  }
+
+  /** Offene Anschläge verwerfen (Neustart, Ende, Sitzung wird ersetzt): jeder bekommt sein Urteil */
+  drain(nowMs = performance.now()) {
+    for (const r of this.recent) {
+      if (r.used) continue
+      r.used = true
+      this.judge(r, 'dropped', nowMs)
+    }
+    this.recent = []
+  }
+
+  /** Kam im aktuellen Schritt schon ein falscher Ton? */
+  get stepMissed() {
+    return this.missedSteps.has(this.index)
   }
 
   get step(): Step | undefined {
@@ -110,17 +184,35 @@ export class WaitSession {
   input(e: NoteOn) {
     // Neuer Ton während des Haltens (andere Hand, nächster Ton): Halten endet ohne Hinweis
     if (this.holding) this.endHold(e.tMs)
-    this.recent.push({ ...e, used: false })
+    if (this.finished) return this.judge(e, 'ignored', e.tMs)
+    // Nochmal angeschlagen, was im Schritt schon sitzt (Akkord nachgefasst)
+    const again = this.struck.has(e.midi) || (this.lastStruck.has(e.midi) && e.tMs - this.stepStartedAt < this.carryMs)
+    // Ältere Anschläge fallen heraus (ohne Bilder, etwa im Hintergrund, auch ungewertet)
+    for (const r of this.recent) {
+      if (!r.used && e.tMs - r.tMs >= 2000) {
+        r.used = true
+        this.judge(r, 'dropped', e.tMs)
+      }
+    }
     this.recent = this.recent.filter((r) => e.tMs - r.tMs < 2000)
+    this.recent.push({ ...e, used: false, repeat: again })
     this.consume(e.tMs)
     // Gehört der Ton weder hierher noch zum nächsten Schritt, ist er sofort falsch: Die
     // Rückmeldung kommt mit dem Anschlag, nicht spürbar danach
     const r = this.recent[this.recent.length - 1]
-    if (r && !r.used && !this.upcoming.has(r.midi)) {
+    if (!r) return
+    if (!r.used && this.repeatOk && again && !this.upcoming.has(r.midi)) {
+      r.used = true
+      this.judge(r, 'ignored', e.tMs)
+      return
+    }
+    if (!r.used && !this.upcoming.has(r.midi)) {
       // Mikrofon: Ein Oberton eines gerade gespielten oder erwarteten Tons ist kein Fehler des
       // Spielers, sondern ein Hörfehler der Erkennung (MIDI meldet exakt und zählt weiter)
-      if (e.source === 'mic' && this.isOvertone(r.midi)) r.used = true
-      else this.wrong(r, e.tMs)
+      if (e.source === 'mic' && this.isOvertone(r.midi)) {
+        r.used = true
+        this.judge(r, 'overtone', e.tMs)
+      } else if (!this.strayDelay) this.wrong(r, e.tMs)
     }
   }
 
@@ -135,13 +227,20 @@ export class WaitSession {
     return new Set(this.steps[this.index + 1]?.notes.map((n) => n.midi) ?? [])
   }
 
-  private wrong(r: { used: boolean; midi: number; tMs: number }, nowMs: number) {
+  private wrong(r: NoteOn & { used: boolean; repeat?: boolean }, nowMs: number) {
     r.used = true
+    // Nachgefasst und nicht gebraucht: mit repeatOk kein Fehler
+    if (r.repeat && this.repeatOk) {
+      this.judge(r, 'ignored', nowMs)
+      return
+    }
     // Schonfrist: auch ein Ton, der vor dem Start kam und erst jetzt (verzögert) gewertet wird
     if (!this.started || r.tMs < this.passStart) {
       this.graceMisses++
+      this.judge(r, 'grace', nowMs)
       return
     }
+    this.judge(r, 'wrong', nowMs)
     this.wrongCount++
     this.missedSteps.add(this.index)
     this.feedback.push({ midi: r.midi, kind: 'wrong', tMs: nowMs })
@@ -176,7 +275,7 @@ export class WaitSession {
   tick(nowMs: number) {
     if (this.holding && nowMs >= this.holding.until) this.endHold(nowMs)
     for (const r of this.recent) {
-      if (!r.used && nowMs - r.tMs >= WRONG_DELAY_MS) this.wrong(r, nowMs)
+      if (!r.used && nowMs - r.tMs >= this.wrongDelayMs) this.wrong(r, nowMs)
     }
     this.feedback = this.feedback.filter((f) => nowMs - f.tMs < 900)
   }
@@ -188,8 +287,9 @@ export class WaitSession {
       const exp = this.expected
       for (const r of this.recent) {
         if (r.used || !exp.has(r.midi) || this.struck.has(r.midi)) continue
-        if (r.tMs < this.stepStartedAt - CARRY_MS) continue
+        if (r.tMs < this.stepStartedAt - this.carryMs) continue
         r.used = true
+        this.judge(r, r.tMs < this.stepStartedAt ? 'carried' : 'hit', nowMs)
         if (!this.started) {
           this.started = true
           this.passStart = r.tMs
@@ -230,10 +330,13 @@ export class WaitSession {
   /** Zum nächsten Schritt; true, wenn der Durchgang damit fertig ist */
   private advance(nowMs: number) {
     this.index++
+    this.lastStruck = this.struck
     this.struck = new Set()
     this.struckBy = new Map()
     this.stepStartedAt = nowMs
     if (this.index < this.steps.length) return false
+    // Was jetzt noch offen ist, gehört zu keinem Schritt mehr und ändert das Ergebnis nicht
+    this.drain(nowMs)
     this.onPass({
       clean: this.wrongCount === 0,
       wrong: this.wrongCount,
@@ -274,6 +377,8 @@ export class WaitSession {
   }
 
   restart() {
+    const now = performance.now()
+    this.drain(now)
     this.holding = null
     this.shortCount = 0
     this.struckBy = new Map()
@@ -281,6 +386,7 @@ export class WaitSession {
     this.fromIndex = 0
     this.fromBeat = 0
     this.struck = new Set()
+    this.lastStruck = new Set()
     this.wrongCount = 0
     this.missedSteps = new Set()
     this.started = false
@@ -289,7 +395,7 @@ export class WaitSession {
     this.sourceHits = {}
     this.recent = []
     this.passStart = 0
-    this.stepStartedAt = performance.now()
+    this.stepStartedAt = now
   }
 
   get finished() {

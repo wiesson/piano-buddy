@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { connectMidi, midiKind, type MidiHandle, type MidiNote } from '../../input/midi'
+import { connectMidi, midiKind, type MidiHandle, type MidiNote, type MidiPedal } from '../../input/midi'
 import { toast } from '@piano/ui/shared/Toaster'
 import { t } from '@piano/core/i18n'
 
@@ -29,12 +29,14 @@ const getPref = () => {
  * MIDI ein- und ausschalten. Wer es einmal verbunden hat, bekommt es beim nächsten Stück
  * automatisch wieder. `live` ist wahr, solange mindestens ein Gerät angeschlossen ist.
  */
-export function useMidiInput(onNote: (n: MidiNote) => void) {
+export function useMidiInput(onNote: (n: MidiNote) => void, onPedal?: (p: MidiPedal) => void) {
   const [midi, setMidi] = useState<MidiState>({ state: 'off', devices: [] })
   const handleRef = useRef<MidiHandle | null>(null)
   const liveRef = useRef(false)
   const noteRef = useRef(onNote)
   noteRef.current = onNote
+  const pedalRef = useRef(onPedal)
+  pedalRef.current = onPedal
 
   /** quiet: automatischer Wiederverbindungsversuch, Fehler dann ohne Meldung */
   const start = useCallback(async (quiet = false) => {
@@ -47,6 +49,7 @@ export function useMidiInput(onNote: (n: MidiNote) => void) {
           liveRef.current = devices.length > 0
           setMidi({ state: 'on', devices })
         },
+        (p) => pedalRef.current?.(p),
       )
       setPref(true)
     } catch (e) {

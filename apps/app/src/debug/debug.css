@@ -1,0 +1,210 @@
+/* Debug-Ebene: ein Werkzeug über dem Übe-Screen. Immer dunkel und durchscheinend, damit sie sich
+   klar von der App abhebt; feste Plätze, Radien konzentrisch (innen = außen − Abstand). */
+.dbg {
+  --dbg-r: 16px;
+  --dbg-pad: 6px;
+  --dbg-in: calc(var(--dbg-r) - var(--dbg-pad));
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(calc(100% - 16px), 640px);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.35;
+  color: #f3ebdd;
+  pointer-events: none;
+}
+.dbg > * {
+  pointer-events: auto;
+}
+.dbg-bar,
+.dbg-panel {
+  background: rgba(22, 15, 13, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--dbg-r);
+  padding: var(--dbg-pad);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+}
+.dbg-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.dbg-open .dbg-bar {
+  width: auto;
+}
+.dbg-panel {
+  margin-top: 6px;
+  max-height: min(48dvh, 420px);
+  display: flex;
+  flex-direction: column;
+}
+.dbg-spacer {
+  flex: 1;
+}
+.dbg-chip,
+.dbg-btn,
+.dbg-tab,
+.dbg-seg button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: rgba(243, 235, 221, 0.08);
+  border-radius: var(--dbg-in);
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dbg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.dbg-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e0533f;
+  box-shadow: 0 0 0 3px rgba(224, 83, 63, 0.25);
+}
+.dbg-primary {
+  background: #f3ebdd;
+  color: #241a17;
+  font-weight: 700;
+}
+.dbg-phase,
+.dbg-rec {
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.dbg-rec {
+  opacity: 1;
+}
+.dbg-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.dbg-tab[aria-selected='true'],
+.dbg-seg button[aria-pressed='true'] {
+  background: #f3ebdd;
+  color: #241a17;
+  font-weight: 700;
+}
+.dbg-body {
+  overflow: auto;
+  padding: 8px 4px 2px;
+  min-height: 0;
+}
+.dbg-line {
+  margin: 0 0 6px;
+}
+.dbg-muted {
+  margin: 6px 0 0;
+  opacity: 0.6;
+}
+.dbg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.dbg-table th {
+  text-align: left;
+  font-weight: 500;
+  opacity: 0.55;
+  padding: 0 6px 3px 0;
+}
+.dbg-table td {
+  padding: 2px 6px 2px 0;
+  border-top: 1px solid rgba(243, 235, 221, 0.07);
+  white-space: nowrap;
+}
+.dbg-strong {
+  font-weight: 700;
+}
+.dbg-verdict.ok {
+  color: #7fd39a;
+}
+.dbg-verdict.near {
+  color: #e7b866;
+}
+.dbg-verdict.bad {
+  color: #f07a66;
+}
+.dbg-verdict.other {
+  opacity: 0.6;
+}
+.dbg-time {
+  width: 100%;
+  height: 96px;
+  display: block;
+}
+.dbg-axis,
+.dbg-grid {
+  stroke: rgba(243, 235, 221, 0.15);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.dbg-grid {
+  stroke-dasharray: 2 4;
+}
+.dbg-label,
+.dbg-mark-text {
+  fill: #f3ebdd;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.dbg-mark {
+  stroke: #d3a04d;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.dbg-mark.phase {
+  stroke: rgba(243, 235, 221, 0.4);
+  stroke-dasharray: 3 3;
+}
+.dbg-mark.pedal {
+  stroke: #4f9db5;
+}
+.dbg-hit {
+  fill: rgba(243, 235, 221, 0.5);
+}
+.dbg-hit.ok {
+  fill: #5fbf7e;
+}
+.dbg-hit.near {
+  fill: #d3a04d;
+}
+.dbg-hit.bad {
+  fill: #e0533f;
+}
+.dbg-variants {
+  display: grid;
+  gap: 6px;
+}
+.dbg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dbg-row-label {
+  min-width: 9.5em;
+  opacity: 0.75;
+}
+.dbg-seg {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
