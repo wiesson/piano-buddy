@@ -12,7 +12,7 @@ import { INTERVALS, dayKey, stateFor } from '@piano/core/practice/plan'
 import { currentStates } from '@piano/core/practice/progress'
 import { MicListener, type MicStatus } from '@piano/core/audio/mic'
 import { audioContext, click, getPiano, holdNote, playNote, stopAll } from '@piano/core/audio/audio'
-import type { NoteOff, NoteOn } from '@piano/core/input/events'
+import { capsOf, type InputEvent, type NoteOff, type NoteOn, type Pedal } from '@piano/core/input/events'
 import { keyToMidi } from '@piano/core/input/keyboard'
 import { fingerToMidi, keyToFinger } from '@piano/core/input/fingerKeys'
 import { t, localized } from '@piano/core/i18n'
@@ -435,7 +435,7 @@ export function PracticeScreen({
       if (scrubRef.current) return debugRing.control(strike, 'scrub')
       // Vorspielen: Eine Taste beendet es, wie man ein Intro überspringt (sie selbst zählt nicht)
       if (demoRef.current) {
-        if (e.source !== 'mic') stopDemoRef.current()
+        if (capsOf(e.source).deliberate) stopDemoRef.current()
         debugRing.control(strike, 'demo')
         return
       }
@@ -446,7 +446,7 @@ export function PracticeScreen({
         // Pause fort (sie selbst zählt nicht). Das Mikrofon nie: Es hört auch Sprechen und
         // Nachklang. Nach dem Ende frühestens 1,2 s später, sonst zählt der Nachklang.
         if (!ts.started || ts.finished || ts.paused) {
-          if (e.source === 'mic') return debugRing.control(strike, 'mic')
+          if (!capsOf(e.source).deliberate) return debugRing.control(strike, 'mic')
           if (ts.finished && performance.now() - finishedAtRef.current < 1200) return debugRing.control(strike, 'echo')
           debugRing.control(strike, ts.paused ? 'resume' : 'start')
           if (ts.paused) resumeRef.current()
@@ -470,7 +470,7 @@ export function PracticeScreen({
         } else if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
           // Das Mikrofon wechselt keine Stufe: Es hört auch Sprechen und Nachklang. Weiter dann
           // mit einer Taste per MIDI oder Bildschirm oder dem Knopf auf der Karte
-          if (e.source === 'mic') return debugRing.control(strike, 'mic')
+          if (!capsOf(e.source).deliberate) return debugRing.control(strike, 'mic')
           // Angesagt auf der Ergebniskarte; der Ton zählt in der neuen Stufe
           debugRing.mark('setting', `stage ${next}`)
           carryRef.current = e
@@ -514,21 +514,22 @@ export function PracticeScreen({
   // Haltepedal lange treten: melden (nur mit Debug-Ebene)
   const pedalTimer = useRef<number | undefined>(undefined)
   const pedalDown = useRef(false)
-  const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput(
-    (n) => {
-      if (n.velocity === 0) return release({ midi: n.midi, tMs: n.tMs, source: 'midi' })
-      if (micRef.current?.status === 'listening') benchRef.current.truth(n.midi, n.tMs)
-      input({ midi: n.midi, tMs: n.tMs, source: 'midi', velocity: n.velocity })
-    },
-    (p) => {
-      // Stufenloses Pedal sendet beim Treten viele Werte: nur der Wechsel zählt
-      if (p.down === pedalDown.current) return
-      pedalDown.current = p.down
-      debugRing.mark('pedal', p.down ? '▼' : '▲', p.tMs)
-      window.clearTimeout(pedalTimer.current)
-      if (p.down) pedalTimer.current = window.setTimeout(() => reportRef.current?.(), PEDAL_REPORT_MS)
-    },
-  )
+  /** Haltepedal: zählt nicht als Halten (Anfänger halten mit dem Finger); lange treten meldet */
+  const pedal = (p: Pedal) => {
+    // Stufenloses Pedal sendet beim Treten viele Werte: nur der Wechsel zählt
+    if (p.down === pedalDown.current) return
+    pedalDown.current = p.down
+    debugRing.mark('pedal', p.down ? '▼' : '▲', p.tMs)
+    window.clearTimeout(pedalTimer.current)
+    if (p.down) pedalTimer.current = window.setTimeout(() => reportRef.current?.(), PEDAL_REPORT_MS)
+  }
+  const { midi, toggle: toggleMidi, liveRef: midiLiveRef } = useMidiInput((e: InputEvent) => {
+    if (e.type === 'off') return release(e)
+    if (e.type === 'pedal') return pedal(e)
+    // Mikrofon läuft mit: MIDI ist die Wahrheit für die Messkarte
+    if (micRef.current?.status === 'listening') benchRef.current.truth(e.midi, e.tMs)
+    input({ midi: e.midi, tMs: e.tMs, source: e.source, velocity: e.velocity })
+  })
   useEffect(() => () => window.clearTimeout(pedalTimer.current), [])
   // Klavier getrennt, während es läuft: anhalten, statt lauter verpasste Töne zu werten
   const midiCount = midi.devices.length
@@ -579,11 +580,6 @@ export function PracticeScreen({
     const mic = new MicListener({
       profile: () => profile,
       expected: () => expectedRef.current(),
-      onNote: (m, tMs) => {
-        recorderRef.current?.note(m, tMs, [...expectedRef.current()])
-        if (midiLiveRef.current) benchRef.current.mic(m, tMs)
-        else input({ midi: m, tMs, source: 'mic' })
-      },
       onFrame: (f) => recorderRef.current?.frame(f),
       onStatus: (st) => {
         setMicStatus(st)
@@ -597,9 +593,17 @@ export function PracticeScreen({
         heardRef.current = heard
       },
     })
+    // Töne kommen wie bei jeder Quelle als Ereignisse; läuft MIDI, führt MIDI, das Mikrofon wird gemessen
+    const unsubscribe = mic.subscribe((e) => {
+      if (e.type !== 'on') return
+      recorderRef.current?.note(e.midi, e.tMs, [...expectedRef.current()])
+      if (midiLiveRef.current) benchRef.current.mic(e.midi, e.tMs)
+      else input({ midi: e.midi, tMs: e.tMs, source: e.source })
+    })
     micRef.current = mic
     if (getPref('mic', false)) void mic.start()
     return () => {
+      unsubscribe()
       void flushRef.current('leave')
       mic.stop()
     }

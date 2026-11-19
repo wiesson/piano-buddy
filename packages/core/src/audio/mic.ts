@@ -1,6 +1,7 @@
 import { audioContext, setAudioSession } from './audio'
 import { NoteAnalyzer, OnsetDetector, calibrate, heardNotes, type Calibration, type Frame } from './detector'
 import type { ProfileLookup } from './profile'
+import { CAPS, type InputEvent, type InputSource } from '../input/events'
 
 export type MicStatus = 'off' | 'starting' | 'calibrating' | 'listening' | 'denied' | 'error'
 
@@ -10,7 +11,8 @@ const HOP_MS = 20
 export interface MicCallbacks {
   /** Welche Töne gerade erwartet werden (für die gezielte Prüfung) */
   expected: () => ReadonlySet<number>
-  onNote: (midi: number, tMs: number) => void
+  /** Erkannter Ton (dasselbe kommt als Ereignis über `subscribe`) */
+  onNote?: (midi: number, tMs: number) => void
   onStatus: (s: MicStatus) => void
   /** Pegel 0..1 und frei gehörte Töne, für die Anzeige */
   onLevel?: (level: number, heard: number[]) => void
@@ -20,7 +22,15 @@ export interface MicCallbacks {
   onFrame?: (frame: Frame, tMs: number) => void
 }
 
-export class MicListener {
+/**
+ * Das Mikrofon als Eingabequelle (STU-1224): Anschläge ohne Stärke, ohne Loslassen, mit
+ * Erkennungsdauer und Obertönen (`CAPS.mic`). Status, Pegel und Frames bleiben eigene Rückrufe,
+ * weil nur das Mikrofon sie hat.
+ */
+export class MicListener implements InputSource {
+  readonly kind = 'mic' as const
+  readonly caps = CAPS.mic
+  private subs = new Set<(e: InputEvent) => void>()
   private stream: MediaStream | null = null
   private source: MediaStreamAudioSourceNode | null = null
   private analyser: AnalyserNode | null = null
@@ -34,6 +44,16 @@ export class MicListener {
   status: MicStatus = 'off'
 
   constructor(private cb: MicCallbacks) {}
+
+  subscribe(fn: (e: InputEvent) => void) {
+    this.subs.add(fn)
+    return () => void this.subs.delete(fn)
+  }
+
+  private note(midi: number, tMs: number) {
+    this.cb.onNote?.(midi, tMs)
+    for (const fn of this.subs) fn({ type: 'on', midi, tMs, source: 'mic' })
+  }
 
   private set(s: MicStatus) {
     this.status = s
@@ -85,7 +105,7 @@ export class MicListener {
           return
         }
         this.cb.onFrame?.(frame, now)
-        for (const m of onset.push(frame, now, this.cb.expected())) this.cb.onNote(m, now)
+        for (const m of onset.push(frame, now, this.cb.expected())) this.note(m, now)
         this.cb.onLevel?.(Math.min(1, frame.rms * 8), heardNotes(frame, this.cal, undefined, profile()))
       }, HOP_MS)
     } catch (e) {

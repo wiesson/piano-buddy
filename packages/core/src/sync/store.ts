@@ -1,5 +1,5 @@
 import type { Stage } from '../music/lessons'
-import type { InputSource } from '../input/events'
+import type { SourceKind } from '../input/events'
 
 /**
  * Übungsprotokoll, lokal zuerst: Jeder Durchgang landet sofort im Browser und wird
@@ -15,7 +15,7 @@ export interface Attempt {
   clean: boolean
   wrong: number
   unverified: number
-  source: InputSource | string
+  source: SourceKind | string
   durationMs: number
   /** Anteil der Schritte, die beim ersten Anschlag richtig waren (fehlt bei älteren Versuchen) */
   percent?: number

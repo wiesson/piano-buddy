@@ -1,6 +1,6 @@
 import { barOf, notesForStage, toSteps, type Lesson, type Stage, type Step } from '../music/lessons'
 import { percentOf } from './score'
-import type { InputSource, NoteOff, NoteOn } from '../input/events'
+import { capsOf, type NoteOff, type NoteOn, type SourceKind } from '../input/events'
 
 /**
  * Warte-Modus: Die Noten stehen, bis die richtigen Tasten angeschlagen sind.
@@ -56,7 +56,7 @@ export interface Judgement {
   midi: number
   /** Zeit des Anschlags (Quelle) */
   tMs: number
-  source: InputSource
+  source: SourceKind
   verdict: Verdict
   /** Schritt (Warten) bzw. Notenindex (Mitspielen), für den geurteilt wurde; -1: keiner */
   step: number
@@ -217,9 +217,9 @@ export class WaitSession {
       return
     }
     if (!r.used && !this.upcoming.has(r.midi)) {
-      // Mikrofon: Ein Oberton eines gerade gespielten oder erwarteten Tons ist kein Fehler des
-      // Spielers, sondern ein Hörfehler der Erkennung (MIDI meldet exakt und zählt weiter)
-      if (e.source === 'mic' && this.isOvertone(r.midi)) {
+      // Quelle hört Obertöne (Mikrofon): Ein Teilton eines gerade gespielten oder erwarteten Tons
+      // ist kein Fehler des Spielers, sondern ein Hörfehler der Erkennung (MIDI meldet exakt)
+      if (capsOf(e.source).overtones && this.isOvertone(r.midi)) {
         r.used = true
         this.judge(r, 'overtone', e.tMs)
       } else if (!this.strayDelay) this.wrong(r, e.tMs)
@@ -305,7 +305,7 @@ export class WaitSession {
           this.passStart = r.tMs
         }
         this.struckBy.set(r.midi, r.source)
-        if (r.source === 'mic' && masked(exp, r.midi)) this.unverified++
+        if (capsOf(r.source).overtones && masked(exp, r.midi)) this.unverified++
         this.sourceHits[r.source] = (this.sourceHits[r.source] ?? 0) + 1
         this.struck.add(r.midi)
         this.feedback.push({ midi: r.midi, kind: 'hit', tMs: nowMs })
@@ -329,7 +329,8 @@ export class WaitSession {
     if (!step) return null
     const unit = this.lesson.beatUnit ?? 4
     const long = step.notes.filter(
-      (n) => (n.dur * 4) / unit >= HOLD_MIN_QUARTERS && this.struckBy.has(n.midi) && this.struckBy.get(n.midi) !== 'mic',
+      // Halten nur, wo die Quelle das Loslassen meldet (nicht das Mikrofon)
+      (n) => (n.dur * 4) / unit >= HOLD_MIN_QUARTERS && this.struckBy.has(n.midi) && capsOf(this.struckBy.get(n.midi)!).noteOff,
     )
     if (!long.length) return null
     const beats = Math.max(...long.map((n) => n.dur))

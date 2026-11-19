@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { connectMidi, midiKind, type MidiHandle, type MidiNote, type MidiPedal } from '../../input/midi'
+import { createMidiSource, midiKind } from '../../input/midi'
+import type { InputEvent, InputSource } from '@piano/core/input/events'
 import { toast } from '@piano/ui/shared/Toaster'
 import { t } from '@piano/core/i18n'
 
@@ -27,16 +28,15 @@ const getPref = () => {
 
 /**
  * MIDI ein- und ausschalten. Wer es einmal verbunden hat, bekommt es beim nächsten Stück
- * automatisch wieder. `live` ist wahr, solange mindestens ein Gerät angeschlossen ist.
+ * automatisch wieder. `live` ist wahr, solange mindestens ein Gerät angeschlossen ist. Alle
+ * Ereignisse (Anschlag, Loslassen, Pedal) kommen über `onEvent`.
  */
-export function useMidiInput(onNote: (n: MidiNote) => void, onPedal?: (p: MidiPedal) => void) {
+export function useMidiInput(onEvent: (e: InputEvent) => void) {
   const [midi, setMidi] = useState<MidiState>({ state: 'off', devices: [] })
-  const handleRef = useRef<MidiHandle | null>(null)
+  const handleRef = useRef<InputSource | null>(null)
   const liveRef = useRef(false)
-  const noteRef = useRef(onNote)
-  noteRef.current = onNote
-  const pedalRef = useRef(onPedal)
-  pedalRef.current = onPedal
+  const eventRef = useRef(onEvent)
+  eventRef.current = onEvent
 
   /**
    * Jeder Verbindungsaufbau hat eine Nummer. Endet er, nachdem die Seite schon weg ist oder MIDI
@@ -55,15 +55,14 @@ export function useMidiInput(onNote: (n: MidiNote) => void, onPedal?: (p: MidiPe
     connecting.current = true
     setMidi({ state: 'connecting', devices: [] })
     try {
-      const handle = await connectMidi(
-        (n) => live() && noteRef.current(n),
-        (devices) => {
-          if (!live()) return
-          liveRef.current = devices.length > 0
-          setMidi({ state: 'on', devices })
-        },
-        (p) => live() && pedalRef.current?.(p),
-      )
+      const handle = createMidiSource((devices) => {
+        if (!live()) return
+        liveRef.current = devices.length > 0
+        setMidi({ state: 'on', devices })
+      })
+      if (!handle) throw new Error('Kein MIDI in diesem Browser')
+      handle.subscribe((e) => live() && eventRef.current(e))
+      await handle.start()
       if (!live()) return handle.stop()
       handleRef.current = handle
       setPref(true)

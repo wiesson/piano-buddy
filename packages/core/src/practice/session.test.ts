@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { LESSONS, type Lesson, type ScoreNote } from '../music/lessons'
 import { parseNote as n } from '../music/notes'
 import { WaitSession, type PassResult } from './session'
-import type { InputSource } from '../input/events'
+import type { SourceKind } from '../input/events'
 
 const lesson = (id: string) => LESSONS.find((l) => l.id === id)!
 
@@ -12,7 +12,7 @@ function run(id: string, stage: 'L' | 'R' | 'LR') {
   const s = new WaitSession(lesson(id), stage, (r) => results.push(r))
   s.restart()
   let t = 0
-  const play = (midi: number, source: InputSource = 'midi', at = (t += 500)) => {
+  const play = (midi: number, source: SourceKind = 'midi', at = (t += 500)) => {
     s.input({ midi, tMs: at, source })
     s.tick(at)
   }

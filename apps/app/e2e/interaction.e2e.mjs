@@ -112,6 +112,8 @@ before(async () => {
     }
   }, 30_000)
   assert.ok(up, 'Dev-Server kam nicht hoch')
+  // Ein Klavier per Web MIDI, eingehängt vor jeder Seite (nur benutzt, wo MIDI eingeschaltet ist)
+  browser('--init-script', fileURLToPath(new URL('./fake-midi.js', import.meta.url)), 'open')
 })
 
 after(() => {
@@ -269,6 +271,35 @@ describe('Interaktions-Karte', () => {
     assert.equal(a.view, 'roll')
     assert.equal(a.keyHelp, 'now')
     assert.ok(a.hinted >= 5, `hinted ${a.hinted}`)
+  })
+
+  it('MIDI: jeder Anschlag genau einmal, Loslassen beendet das Halten, langes Pedal meldet', async () => {
+    await open('lh-fuenf', { midi: '1', debug: '1' }) // C3 D3 E3 F3 | G3 F3 E3 D3 | C3 (Ganze)
+    assert.ok(await until(() => ev(`return !!document.querySelector('.more-trigger [class*=input-icon]')`)), 'MIDI nicht verbunden')
+    const midi = (...bytes) => ev(`return window.fakeMidi(${JSON.stringify(bytes)})`)
+    // Kanal 1 und 2 gemischt, jeder Ton mit Loslassen (auch als Note-On mit Stärke 0)
+    for (const [i, m] of [48, 50, 52, 53, 55, 53, 52, 50].entries()) {
+      midi(0x90 + (i % 2), m, 80)
+      await sleep(40)
+      if (i % 2) midi(0x91, m, 0)
+      else midi(0x80, m, 0)
+    }
+    // Die Ganze am Schluss: früh losgelassen endet das Halten sofort (ohne Loslassen erst nach 1,5 s)
+    midi(0x90, 48, 80)
+    await sleep(150)
+    midi(0x80, 48, 0)
+    const s = await until(() => session()?.phase === 'result' && session(), 600)
+    assert.equal(s?.phase, 'result', 'Loslassen kam nicht an')
+    const a = await until(() => ev(`const a = JSON.parse(localStorage.getItem('${LOG_KEY}') || '[]'); return a[a.length - 1] ?? null`))
+    // Doppelt angekommene Töne wären im Warten Fehler
+    assert.deepEqual([a.clean, a.wrong, a.source], [true, 0, 'midi'])
+    // Haltepedal 1,2 s getreten: Debug-Ebene meldet
+    midi(0xb0, 64, 127)
+    await sleep(1400)
+    midi(0xb0, 64, 0)
+    const report = await until(() => ev(`return (window.pianoReports || []).at(-1)?.data ?? null`), 8000)
+    assert.ok(report, 'Pedal hat nicht gemeldet')
+    assert.ok(report.marks.some((m) => m.kind === 'pedal'), 'Pedal fehlt im Bericht')
   })
 
   it('Debug-Ebene: fünfmal auf den Titel öffnet sie, jeder Ton bekommt genau ein Urteil, Melden hält sie fest', async () => {

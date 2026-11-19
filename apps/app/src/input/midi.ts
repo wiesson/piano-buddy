@@ -1,30 +1,18 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
 import { HostClock } from '@piano/core/input/hostClock'
+import { CAPS, type InputEvent, type InputSource } from '@piano/core/input/events'
+import { midiEvent } from '@piano/core/input/midiMessage'
 
 /**
- * MIDI vom Klavier, auf zwei Wegen hinter einer Schnittstelle:
+ * MIDI vom Klavier als Eingabequelle (STU-1224), auf zwei Wegen hinter derselben Schnittstelle:
  * - Web MIDI in Chrome/Edge (Mac, Windows, Android)
  * - natives Plugin `PianoMidi` (CoreMIDI) in der iOS-App, weil Safari kein Web MIDI kann
+ *
+ * Beide liefern Anschlag mit Stärke, Loslassen und Haltepedal, mit dem Zeitstempel der Quelle
+ * in performance.now()-Zeit. Welche Geräte da sind, melden sie über `onDevices`.
  */
 
 export type MidiKind = 'native' | 'web' | null
-
-export interface MidiNote {
-  midi: number
-  velocity: number
-  /** Zeitbasis performance.now() */
-  tMs: number
-}
-
-/** Haltepedal (CC64) getreten oder losgelassen; Zeitbasis performance.now() */
-export interface MidiPedal {
-  down: boolean
-  tMs: number
-}
-
-export interface MidiHandle {
-  stop(): void
-}
 
 interface PianoMidiPlugin {
   start(): Promise<{ devices: string[] }>
@@ -64,69 +52,99 @@ export const keepAwake = async (on: boolean) => {
   }
 }
 
-export async function connectMidi(
-  onNote: (n: MidiNote) => void,
-  onDevices: (names: string[]) => void,
-  onPedal?: (p: MidiPedal) => void,
-): Promise<MidiHandle> {
+/** MIDI als Eingabequelle für diese Umgebung; null, wenn es hier kein MIDI gibt */
+export function createMidiSource(onDevices: (names: string[]) => void): InputSource | null {
   const kind = midiKind()
-  if (kind === 'native') {
-    const clock = new HostClock()
-    const local = (d: { note: number; t?: number; sent?: number }, off: boolean) => {
-      const now = performance.now()
-      if (typeof d.t !== 'number' || typeof d.sent !== 'number') return now
-      return off ? clock.noteOff(d.note, d.t, d.sent, now) : clock.noteOn(d.note, d.t, d.sent, now)
-    }
-    const subs = await Promise.all([
-      // Zeitstempel von CoreMIDI, auf performance.now() umgerechnet (ältere App-Versionen ohne
-      // Zeitstempel: Ankunftszeit)
-      PianoMidi.addListener('noteOn', (d) => onNote({ midi: d.note, velocity: d.velocity, tMs: local(d, false) })),
-      // Loslassen kommt als Anschlagstärke 0 (für die Haltedauer)
-      PianoMidi.addListener('noteOff', (d) => onNote({ midi: d.note, velocity: 0, tMs: local(d, true) })),
-      PianoMidi.addListener('devices', (d) => onDevices(d.devices)),
-      PianoMidi.addListener('pedal', (d) => {
-        const now = performance.now()
-        const tMs = typeof d.t === 'number' && typeof d.sent === 'number' ? clock.toLocal(d.t, d.sent, now) : now
-        onPedal?.({ down: d.down, tMs })
-      }),
-    ])
-    const { devices } = await PianoMidi.start()
-    onDevices(devices)
-    return {
-      stop() {
-        subs.forEach((s) => void s.remove())
-        void PianoMidi.stop()
-      },
-    }
+  if (kind === 'native') return new NativeMidiSource(onDevices)
+  if (kind === 'web') return new WebMidiSource(onDevices)
+  return null
+}
+
+abstract class MidiSource implements InputSource {
+  readonly kind = 'midi' as const
+  readonly caps = CAPS.midi
+  private subs = new Set<(e: InputEvent) => void>()
+  constructor(protected onDevices: (names: string[]) => void) {}
+  abstract start(): Promise<void>
+  abstract stop(): void
+  subscribe(fn: (e: InputEvent) => void) {
+    this.subs.add(fn)
+    return () => void this.subs.delete(fn)
   }
-  if (kind === 'web') {
+  protected emit(e: InputEvent) {
+    for (const fn of this.subs) fn(e)
+  }
+}
+
+/** Web MIDI: Jede Meldung kommt vollständig, mit dem Zeitstempel der Quelle (event.timeStamp) */
+class WebMidiSource extends MidiSource {
+  private access: MIDIAccess | null = null
+  /** Eigener Empfänger je Quelle: Trennen entfernt nur ihn, nie den einer neueren Verbindung */
+  private onMessage = (e: MIDIMessageEvent) => {
+    const ev = midiEvent(e.data, e.timeStamp)
+    if (ev) this.emit(ev)
+  }
+
+  async start() {
     const access = await navigator.requestMIDIAccess()
+    this.access = access
+    // Neue Geräte (Kabel eingesteckt, Bluetooth verbunden) binden sich beim Statuswechsel an;
+    // derselbe Empfänger zweimal angemeldet zählt einmal
     const bind = () => {
       const names: string[] = []
       access.inputs.forEach((input) => {
         names.push(input.name ?? 'MIDI')
-        input.onmidimessage = (e) => {
-          const d = e.data
-          if (!d || d.length < 3) return
-          // Zeitstempel der Quelle (gleiche Zeitbasis wie performance.now()), nicht die Ankunftszeit
-          const kind = d[0] & 0xf0
-          if (kind === 0x90 && d[2] > 0) onNote({ midi: d[1], velocity: d[2], tMs: e.timeStamp })
-          // Note-Off (0x8n, oder 0x9n mit Stärke 0): als Anschlagstärke 0 melden
-          else if (kind === 0x80 || kind === 0x90) onNote({ midi: d[1], velocity: 0, tMs: e.timeStamp })
-          // Haltepedal: ab 64 getreten
-          else if (kind === 0xb0 && d[1] === 64) onPedal?.({ down: d[2] >= 64, tMs: e.timeStamp })
-        }
+        input.addEventListener('midimessage', this.onMessage)
       })
-      onDevices(names)
+      this.onDevices(names)
     }
-    access.onstatechange = bind
+    access.addEventListener('statechange', bind)
+    this.unbind = () => access.removeEventListener('statechange', bind)
     bind()
-    return {
-      stop() {
-        access.onstatechange = null
-        access.inputs.forEach((i) => (i.onmidimessage = null))
-      },
-    }
   }
-  throw new Error('Kein MIDI in diesem Browser')
+
+  private unbind = () => {}
+
+  stop() {
+    const access = this.access
+    this.access = null
+    if (!access) return
+    this.unbind()
+    access.inputs.forEach((i) => i.removeEventListener('midimessage', this.onMessage))
+  }
+}
+
+/**
+ * iOS-App: CoreMIDI im Plugin liest die Bytes (auch Running Status) und meldet fertige
+ * Ereignisse mit Host-Zeit; die Host-Uhr rechnet sie auf performance.now() um, sodass die
+ * Laufzeit über die Capacitor-Brücke nicht zählt. Ältere App-Versionen ohne Zeitstempel: Ankunft.
+ */
+class NativeMidiSource extends MidiSource {
+  private handles: PluginListenerHandle[] = []
+
+  async start() {
+    const clock = new HostClock()
+    const local = (d: { note?: number; t?: number; sent?: number }, kind: 'on' | 'off' | 'pedal') => {
+      const now = performance.now()
+      if (typeof d.t !== 'number' || typeof d.sent !== 'number') return now
+      if (kind === 'on') return clock.noteOn(d.note!, d.t, d.sent, now)
+      if (kind === 'off') return clock.noteOff(d.note!, d.t, d.sent, now)
+      return clock.toLocal(d.t, d.sent, now)
+    }
+    this.handles = await Promise.all([
+      PianoMidi.addListener('noteOn', (d) => this.emit({ type: 'on', midi: d.note, velocity: d.velocity, tMs: local(d, 'on'), source: 'midi' })),
+      PianoMidi.addListener('noteOff', (d) => this.emit({ type: 'off', midi: d.note, tMs: local(d, 'off'), source: 'midi' })),
+      PianoMidi.addListener('pedal', (d) => this.emit({ type: 'pedal', down: d.down, tMs: local(d, 'pedal'), source: 'midi' })),
+      PianoMidi.addListener('devices', (d) => this.onDevices(d.devices)),
+    ])
+    const { devices } = await PianoMidi.start()
+    this.onDevices(devices)
+  }
+
+  stop() {
+    const handles = this.handles
+    this.handles = []
+    handles.forEach((h) => void h.remove())
+    void PianoMidi.stop()
+  }
 }

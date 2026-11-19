@@ -1,5 +1,5 @@
 import { barOf, notesForStage, type Hand, type Lesson, type ScoreNote, type Stage } from '../music/lessons'
-import type { NoteOff, NoteOn } from '../input/events'
+import { CAPS, capsOf, type NoteOff, type NoteOn } from '../input/events'
 import type { Judgement, PassResult, Verdict } from './session'
 
 /**
@@ -30,9 +30,9 @@ export function beatMs(bpm: number, tempo: number): number {
 }
 
 /** Das Mikrofon meldet einen Ton erst nach der Erkennung (Median der Messkarte etwa 110 ms) */
-export const MIC_LATENCY_MS = 110
+export const MIC_LATENCY_MS = CAPS.mic.latencyMs
 /** Mehr Fenster für das Mikrofon: Seine Erkennungszeit schwankt */
-export const MIC_EXTRA_MS = 40
+export const MIC_EXTRA_MS = CAPS.mic.timingMs
 
 /** Ton gilt als zu kurz, wenn er vor diesem Anteil seiner Länge losgelassen wird */
 export const SHORT_SHARE = 0.55
@@ -57,7 +57,8 @@ export interface Windows {
  * ±25 % (150 bis 250 ms), zu lang ab einem halben Schlag (mindestens 250 ms) über das Ende.
  */
 export function windowsFor(beat: number, source?: string): Windows {
-  const extra = source === 'mic' ? MIC_EXTRA_MS : 0
+  // Quellen mit unscharfem Zeitpunkt (Mikrofon) bekommen entsprechend breitere Fenster
+  const extra = source ? capsOf(source).timingMs : 0
   return {
     onTime: clamp(0.1 * beat, 60, 110) + extra,
     near: clamp(0.25 * beat, 150, 250) + extra,
@@ -327,7 +328,7 @@ export class TempoSession {
 
   /** Ankunftszeit auf den Anschlag zurückrechnen (Mikrofon: Erkennungsdauer) */
   private onsetOf(e: NoteOn) {
-    return e.source === 'mic' ? e.tMs - MIC_LATENCY_MS : e.tMs
+    return e.tMs - capsOf(e.source).latencyMs
   }
 
   private judge(e: NoteOn, verdict: Verdict, step = -1, deltaMs?: number) {
@@ -346,7 +347,7 @@ export class TempoSession {
   input(e: NoteOn) {
     if (!this.running) return this.judge(e, 'ignored')
     const t = this.onsetOf(e)
-    const win = e.source === 'mic' ? windowsFor(this.beat, 'mic') : this.win
+    const win = capsOf(e.source).timingMs ? windowsFor(this.beat, e.source) : this.win
     // Dieselbe Taste neu angeschlagen, ohne dass ein Loslassen kam: Der vorige Ton endet hier
     for (const n of this.notes) if (n.midi === e.midi && n.onMs !== null && n.offMs === null) this.release({ ...e, tMs: t })
     // Vor dem ersten Fenster (während des Einzählers) zählt nichts: man sucht noch die Hand
@@ -373,7 +374,8 @@ export class TempoSession {
     best.deltaMs = Math.round(bestD)
     best.onMs = t
     best.source = e.source
-    if (e.source === 'mic') this.holdGraded = false
+    // Ohne Loslassen (Mikrofon) wird die Haltedauer in diesem Durchgang nicht bewertet
+    if (!capsOf(e.source).noteOff) this.holdGraded = false
     this.sourceHits[e.source] = (this.sourceHits[e.source] ?? 0) + 1
     this.judge(e, best.state === 'onTime' ? 'hit' : bestD < 0 ? 'early' : 'late', this.notes.indexOf(best), best.deltaMs)
     this.feedback.push({
@@ -388,7 +390,7 @@ export class TempoSession {
     const n = this.notes.find((x) => x.midi === e.midi && x.onMs !== null && x.offMs === null)
     if (!n) return
     n.offMs = e.tMs
-    if (!this.running || n.source === 'mic') return
+    if (!this.running || !capsOf(n.source ?? '').noteOff) return
     // Auch nach einem vorläufigen „zu lang“ aus dem Bildtakt: Der Zeitstempel des Loslassens entscheidet
     n.hold = holdGrade(e.tMs - n.onMs!, n.dur * this.beat, this.beat)
     if (n.hold === 'short') this.feedback.push({ midi: n.midi, kind: 'short', hand: n.hand, tMs: e.tMs })
@@ -403,7 +405,7 @@ export class TempoSession {
     for (const n of this.notes) {
       const at = this.timeOf(n.start)
       if (n.state === 'pending' && nowMs > at + this.win.near + grace) n.state = 'missed'
-      if (n.onMs !== null && n.offMs === null && !n.hold && n.source !== 'mic') {
+      if (n.onMs !== null && n.offMs === null && !n.hold && capsOf(n.source ?? '').noteOff) {
         if (nowMs - n.onMs > n.dur * this.beat + this.win.holdOver) {
           n.hold = 'long'
           this.feedback.push({ midi: n.midi, kind: 'long', hand: n.hand, tMs: nowMs })
