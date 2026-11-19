@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createFileRoute, redirect, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
 import type { Stage } from '@piano/core/music/lessons'
 import { lessonAfter, lessonById } from '@piano/core/music/pieceStore'
-import { parseVersionId, versionId, versionsOf, type Level } from '@piano/core/music/versions'
+import { carryBeat, parseVersionId, versionId, versionsOf, type Level } from '@piano/core/music/versions'
 import { recommendedVersion } from '@piano/core/practice/progress'
 import { SITE } from '@piano/core/content/site'
 import { localized } from '@piano/core/i18n'
@@ -32,14 +32,22 @@ function Play() {
   // Fassungen (Leicht, Mittel, Original): der Wechsel ersetzt den Eintrag wie ein Stufenwechsel
   const { pieceId, level } = parseVersionId(lessonId)
   const available = versionsOf(lessonId).map((l) => parseVersionId(l.id).level)
+  // Gespulte Stelle beim Fassungswechsel: wandert mit, wenn beide Fassungen dieselbe Taktstruktur
+  // haben (Arne, 19.11.2026, STU-1271); sonst von vorn
+  const [carry, setCarry] = useState<{ id: string; beat: number } | null>(null)
   const versions =
     available.length > 1
       ? {
           current: level,
           available,
           recommended: parseVersionId(recommendedVersion(pieceId).id).level,
-          onChange: (lv: Level) =>
-            void navigate({ to: '/play/$lessonId', params: { lessonId: versionId(pieceId, lv) }, search: stage ? { stage } : {}, replace: true }),
+          onChange: (lv: Level, at?: number) => {
+            const id = versionId(pieceId, lv)
+            const to = lessonById(id)
+            const beat = at && to ? carryBeat(lesson, to, at, stage ?? 'LR') : null
+            setCarry(beat === null ? null : { id, beat })
+            void navigate({ to: '/play/$lessonId', params: { lessonId: id }, search: stage ? { stage } : {}, replace: true })
+          },
         }
       : undefined
 
@@ -65,6 +73,7 @@ function Play() {
       onNextLesson={next ? () => void navigate({ to: '/play/$lessonId', params: { lessonId: next.id }, replace: true }) : undefined}
       onCalibrate={() => void navigate({ to: '/calibrate' })}
       versions={versions}
+      initialBeat={carry?.id === lesson.id ? carry.beat : undefined}
     />
   )
 }

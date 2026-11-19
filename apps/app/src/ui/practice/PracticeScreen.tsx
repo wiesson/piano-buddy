@@ -40,7 +40,7 @@ import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { BackIcon } from '@piano/ui/shared/icons'
 import { debugRing } from '../../debug/ring'
 import type { StepInfo } from '../../debug/DebugLayer'
-import { getVariant, isBlind, useVariant, variantName, type Variant } from './variants'
+import { getVariant, isBlind, sheetFeel, useVariant, variantName, type Variant } from './variants'
 
 // Notenansicht mit VexFlow: eigener Chunk, lädt erst beim Umschalten
 const loadSheetView = () => import('./SheetView')
@@ -103,6 +103,7 @@ export function PracticeScreen({
   onNextLesson,
   onCalibrate,
   versions,
+  initialBeat,
 }: {
   lesson: Lesson
   /** Stufe aus der Adresse; ohne sie die erste, die noch nicht sitzt */
@@ -114,6 +115,8 @@ export function PracticeScreen({
   onCalibrate?: () => void
   /** Fassung des Stücks wählen (im Stufen-Sheet) */
   versions?: VersionChoice
+  /** Gespulte Stelle, aus der vorigen Fassung mitgenommen (Schlag): dort beginnt der Durchgang */
+  initialBeat?: number
 }) {
   const stages = useMemo(() => stagesFor(lesson), [lesson])
   useStoreVersion()
@@ -192,7 +195,9 @@ export function PracticeScreen({
     }
   }
   const reportRef = useRef<(() => void) | null>(null)
-  const variant = useVariant()
+  const chosenVariant = useVariant()
+  // Notenansicht B: Sind Noten zu sehen, gilt ihr Signal (STU-1282)
+  const variant = useMemo(() => (hasBand ? sheetFeel(chosenVariant) : chosenVariant), [hasBand, chosenVariant])
   const variantRef = useRef(variant)
   variantRef.current = variant
   /** Tasten, die im letzten Bild leuchteten (Debug: angenommen, bevor die Taste leuchtete?) */
@@ -351,19 +356,35 @@ export function PracticeScreen({
   const resumeRef = useRef(resumeTempo)
   resumeRef.current = resumeTempo
 
+  // Fassung gewechselt mit gespulter Stelle: Der erste Durchgang beginnt dort. Gilt nur für Stufe
+  // und Tempo, mit denen die Seite aufging; wer danach wechselt, beginnt wie sonst von vorn
+  const startAt = useRef<{ beat: number; stage: Stage; tempo: Tempo } | null>(
+    initialBeat ? { beat: initialBeat, stage, tempo } : null,
+  )
+
   // neue Sitzung je Stufe und Tempo; Vorspielen der alten Stufe endet mit ihr
   useEffect(() => {
     cancelClicks()
     stopDemoRef.current()
+    const at = startAt.current
+    if (at && (at.stage !== stage || at.tempo !== tempo)) startAt.current = null
+    const seekTo = startAt.current?.beat
     if (tempo === 'wait') {
       const s = wired(new WaitSession(lesson, stage, (r) => onPassRef.current(r), waitOptions(getVariant())))
       s.restart()
+      if (seekTo !== undefined) s.seek(seekTo)
       sessionRef.current = s
       tempoRef.current = null
       beatRef.current = s.beat
     } else {
       sessionRef.current = null
-      tempoRef.current = wired(new TempoSession(lesson, stage, tempo, (r) => onPassRef.current(r)))
+      const ts = wired(new TempoSession(lesson, stage, tempo, (r) => onPassRef.current(r)))
+      if (seekTo !== undefined) {
+        // Mitspielen steht auf ganzen Schlägen: auf den davor, damit kein Ton übersprungen wird
+        ts.seek(Math.floor(seekTo + 1e-6))
+        pauseReasonRef.current = 'seek'
+      }
+      tempoRef.current = ts
     }
     setResult(null)
     force((x) => x + 1)
@@ -385,7 +406,7 @@ export function PracticeScreen({
   useEffect(() => {
     const s = sessionRef.current
     if (s) Object.assign(s, waitOptions(variant))
-    debugRing.mark('setting', `${variantName(variant) || 'custom'}${isBlind() ? ' (blind)' : ''}`)
+    debugRing.mark('setting', `${variantName(chosenVariant) || 'custom'}${isBlind() ? ' (blind)' : ''}${hasBand ? ' + Noten B' : ''}`)
   }, [variant])
 
   // Seite verlassen (Zurück, nächstes Stück, andere Fassung): Vorspielen verstummt
@@ -889,6 +910,8 @@ export function PracticeScreen({
   const settleRef = useRef<{ from: number; t0: number } | null>(null)
   const labelsUntilRef = useRef(0)
   const shownBeatRef = useRef(0)
+  /** Schritt, der gerade dran ist (Warten, B): Dort steht der Notencursor */
+  const shownStepRef = useRef<number | undefined>(undefined)
   const barLabel = useCallback(
     (beat: number) => {
       const bar = barOf(lesson, beat)
@@ -902,7 +925,7 @@ export function PracticeScreen({
     const sc = scrubRef.current
     const labels = sc ? 1 : Math.min(1, Math.max(0, (labelsUntilRef.current - now) / 400))
     if (sc) {
-      v = { ...v, beat: sc.beat, expected: new Set(), struck: new Set(), flashes: [], tags: [], overholds: [], countIn: null, hint: false }
+      v = { ...v, beat: sc.beat, stepStart: undefined, expected: new Set(), struck: new Set(), flashes: [], tags: [], overholds: [], countIn: null, hint: false }
     } else if (settleRef.current) {
       const st = settleRef.current
       const k = Math.min(1, (now - st.t0) / SETTLE_MS)
@@ -911,6 +934,7 @@ export function PracticeScreen({
     }
     if (labels > 0) v = { ...v, barLabels: { alpha: labels, label: barLabel } }
     shownBeatRef.current = v.beat
+    shownStepRef.current = v.stepStart
     // Debug: welche Tasten jetzt leuchten (wie in der Pianorolle) und wann das Bild kam
     const at = v.stepStart ?? v.beat
     const sound = (n: { start: number; dur: number }) =>
@@ -925,6 +949,14 @@ export function PracticeScreen({
   /** Spulen geht vom ersten bis zum letzten Ton; darüber hinaus federt die Bahn (Gummiband) */
   const scrubLo = Math.min(0, ...stageNotes.map((n) => n.start))
   const scrubHi = Math.max(0, ...stageNotes.map((n) => n.start))
+
+  /** Gespulte Stelle des laufenden Durchgangs (Schlag), 0 = von vorn */
+  const scrubbedAt = () => {
+    const s = sessionRef.current
+    if (s?.partial) return s.fromBeat
+    const ts = tempoRef.current
+    return ts?.partial ? ts.from : 0
+  }
 
   /**
    * Zur Stelle `beat`, dort, wo man losgelassen hat (nichts rastet ein): Warten setzt am ersten
@@ -963,7 +995,9 @@ export function PracticeScreen({
       if (demoRef.current) stopDemo()
       if (tempoRef.current?.running) pauseTempo('seek')
       settleRef.current = null
-      scrubRef.current = { from: shownBeatRef.current, beat: shownBeatRef.current }
+      // Nur Noten: Spulen beginnt, wo der Cursor steht (beim Schritt, nicht am Schlag der unsichtbaren Bahn)
+      const from = sheet && shownStepRef.current !== undefined ? shownStepRef.current : shownBeatRef.current
+      scrubRef.current = { from, beat: from }
       force((x) => x + 1)
       return false
     }
@@ -1076,7 +1110,7 @@ export function PracticeScreen({
     view: mode,
     keyHelp,
     phase,
-    variant: { ...getVariant() },
+    variant: { ...variantRef.current },
     variantName: variantName(getVariant()),
     blind: isBlind(),
     inputs: { midi: midi.state === 'on' ? midi.devices : [], mic: micStatus },
@@ -1129,7 +1163,7 @@ export function PracticeScreen({
               goal={localized(lesson.goal)}
               demo={demo}
               onToggleDemo={toggleDemo}
-              versions={versions}
+              versions={versions && { ...versions, onChange: (lv) => versions.onChange(lv, scrubbedAt()) }}
             />
           </span>
         }

@@ -2,7 +2,7 @@ import { de } from '../i18n/de'
 import { en } from '../i18n/en'
 import type { Localized } from '../i18n/localized'
 import { noteName } from './notes'
-import { LESSONS, voice, type Hand, type Lesson, type ScoreNote } from './lessons'
+import { LESSONS, barOf, notesForStage, voice, type Hand, type Lesson, type ScoreNote, type Stage } from './lessons'
 import { easyNotes, type Version } from './piece'
 
 /**
@@ -279,6 +279,32 @@ export const ALL_LESSONS: Lesson[] = [...LESSONS, ...VARIANTS]
 export function versionsOf(lessonId: string): Lesson[] {
   const { pieceId } = parseVersionId(lessonId)
   return LEVELS.map((lv) => ALL_LESSONS.find((l) => l.id === versionId(pieceId, lv))).filter((l): l is Lesson => !!l)
+}
+
+/** Zahl der Takte eines Stücks (bis zum Ende des letzten Tons; ein Auftakt zählt nicht mit) */
+export function barCount(l: Pick<Lesson, 'beatsPerBar' | 'pickup' | 'notes'>): number {
+  const end = Math.max(0, ...l.notes.map((n) => n.start + n.dur))
+  // Ein Ende genau auf dem Taktstrich gehört zum Takt davor (barOf rundet selbst um 1e-6 auf)
+  return end > 0 ? barOf(l, end - 1e-3) : 0
+}
+
+/** Gleiche Taktstruktur: gleiche Taktart, gleicher Auftakt, gleich viele Takte */
+export const sameBars = (a: Lesson, b: Lesson) =>
+  a.beatsPerBar === b.beatsPerBar &&
+  (a.beatUnit ?? 4) === (b.beatUnit ?? 4) &&
+  (a.pickup ?? 0) === (b.pickup ?? 0) &&
+  barCount(a) === barCount(b)
+
+/**
+ * Fassungswechsel mit gespulter Stelle (Arne, 19.11.2026, STU-1271): Die Stelle wandert mit, wenn
+ * beide Fassungen dieselbe Taktstruktur haben; sonst geht es von vorn los (null). Beginnt in der
+ * neuen Fassung genau dort ein Ton der geübten Hand(e), bleibt der Schlag; sonst geht es ab dem
+ * Anfang dieses Takts weiter, damit „ab Takt N“ gleich bleibt.
+ */
+export function carryBeat(from: Lesson, to: Lesson, beat: number, stage: Stage = 'LR'): number | null {
+  if (beat <= 0 || !sameBars(from, to)) return null
+  if (notesForStage(to, stage).some((n) => Math.abs(n.start - beat) < 1e-6)) return beat
+  return Math.floor(beat / to.beatsPerBar + 1e-6) * to.beatsPerBar
 }
 
 /**

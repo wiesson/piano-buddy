@@ -354,6 +354,78 @@ describe('Interaktions-Karte', () => {
 })
 
 // Stücke in Stufen und Pop-Pfad (STU-1287, STU-1271)
+describe('Notenansicht B (STU-1282)', () => {
+  /** Klassen der Notengruppe(n) eines Schritts, Zahl getroffener Köpfe, Abstand Cursor → Kopf (px) */
+  const noteAt = (start) =>
+    ev(`
+      const gs = [...document.querySelectorAll('.sheet-view .pb-note[data-start="${start}"]')]
+      if (!gs.length) return null
+      const head = gs[0].querySelector('.pb-head') ?? gs[0]
+      const h = head.getBoundingClientRect(), c = document.querySelector('.sheet-cursor').getBoundingClientRect()
+      return {
+        cls: gs.map((g) => [...g.classList].filter((k) => k.startsWith('is-') || k === 'glow').sort().join(' ')).join(' | '),
+        hits: gs.reduce((n, g) => n + g.querySelectorAll('.pb-head.is-hit').length, 0),
+        cursorOff: Math.round(Math.abs(h.left + h.width / 2 - (c.left + c.width / 2))),
+        cursor: document.querySelector('.sheet-cursor').className,
+      }
+    `)
+
+  it('Was dran ist, leuchtet; der Cursor springt zum nächsten Ton, statt im Takt zu gleiten', async () => {
+    // Linke Hand, Viertel bei 80 bpm: Gleiten bräuchte 750 ms bis zum nächsten Ton, Springen 140 ms
+    await open('lh-fuenf', { view: 'sheet' }) // C3 D3 E3 F3 | G3 F3 E3 D3 | C3
+    assert.ok(await until(() => noteAt(0)?.cls.includes('is-now')), 'der erste Ton ist dran')
+    await sleep(300) // Cursor-Übergang beim Öffnen
+    let n = noteAt(0)
+    assert.match(n.cls, /glow/, 'der erste Ton leuchtet sofort')
+    assert.match(n.cursor, /is-jump/, 'Warten: der Cursor springt statt zu gleiten')
+    assert.ok(n.cursorOff <= 4, `Cursor auf dem ersten Ton, Abstand ${n.cursorOff}px`)
+    play(48)
+    await sleep(300)
+    n = noteAt(1)
+    assert.match(n.cls, /is-now/, 'der zweite Ton ist dran')
+    assert.ok(n.cursorOff <= 4, `Cursor ist beim zweiten Ton, Abstand ${n.cursorOff}px`)
+    // Der Treffer leuchtet kurz grün nach, dann ist er gespielt (grau)
+    assert.match(noteAt(0).cls, /is-hit/)
+    assert.ok(await until(() => /is-done/.test(noteAt(0).cls), 1500), 'danach gespielt')
+  })
+
+  it('Halber Akkord bleibt abgehakt; Fehler nur am Cursor; die Taste zeigt sich nach Fehler oder Zögern', async () => {
+    // Vier Akkorde leicht, rechts: C+E, C+F, E+G, D+G (Ganze), Noten, Hilfe nach Zögern
+    await open('vier-akkorde~leicht?stage=R', { view: 'sheet', keyHelp: 'delayed' })
+    assert.ok(await until(() => noteAt(0)?.cls.includes('is-now')), 'der erste Akkord ist dran')
+    // Halber Akkord: ein Kopf grün, der Akkord bleibt dran
+    play(60)
+    const n = await until(() => noteAt(0)?.hits === 1 && noteAt(0))
+    assert.equal(n?.hits, 1, 'getroffener Kopf ist grün')
+    assert.match(n.cls, /is-now/)
+    play(64)
+    // Ohne Loslassen hält die Ganze den Schritt kurz fest
+    assert.ok(await until(() => noteAt(4)?.cls.includes('is-now'), 4000), 'der zweite Akkord ist dran')
+    assert.match(noteAt(0).cls, /is-done/)
+
+    // Fehler: Cursor kurz rot, im Notenbild ändert sich nichts; danach zeigt sich die Taste
+    const before = noteAt(4).cls
+    play(62)
+    assert.ok(await until(() => /is-wrong/.test(noteAt(4).cursor), 2000), 'Cursor wird rot')
+    assert.equal(noteAt(4).cls, before, 'ins Notenbild wird nichts geschrieben')
+    await sleep(700)
+    play(60)
+    play(65)
+    // Zögern (über 2 s, unter den 3 s von A): die Taste zeigt sich
+    assert.ok(await until(() => noteAt(8)?.cls.includes('is-now'), 4000), 'der dritte Akkord ist dran')
+    await sleep(2600)
+    play(64)
+    play(67)
+    assert.ok(await until(() => noteAt(12)?.cls.includes('is-now'), 4000), 'der vierte Akkord ist dran')
+    play(62)
+    play(67)
+    assert.equal((await until(() => session()?.phase === 'result' && session(), 6000))?.phase, 'result')
+    const a = await until(() => ev(`const a = JSON.parse(localStorage.getItem('${LOG_KEY}') || '[]'); return a[a.length - 1] ?? null`))
+    // Fehler und Zögern: je ein Schritt mit Hilfe (der erste kann je nach Ladezeit dazukommen)
+    assert.ok(a.hinted >= 2 && a.hinted <= 3, `hinted ${a.hinted}`)
+  })
+})
+
 describe('Fassungen und Pop-Pfad', () => {
   const lessonInUrl = () => decodeURIComponent(new URL(browser('get', 'url')).pathname.split('/play/')[1] ?? '')
   const stageInUrl = () => new URL(browser('get', 'url')).searchParams.get('stage')
@@ -384,6 +456,26 @@ describe('Fassungen und Pop-Pfad', () => {
     assert.equal((await until(() => session()?.phase === 'result' && session(), 6000))?.phase, 'result')
     const a = await until(() => ev(`const a = JSON.parse(localStorage.getItem('${LOG_KEY}') || '[]'); return a[a.length - 1] ?? null`))
     assert.deepEqual([a.lessonId, a.stage, a.clean], ['vier-akkorde~leicht', 'R', true])
+  })
+
+  it('Fassung wechseln mit gespulter Stelle: gleiche Taktstruktur behält den Takt, sonst von vorn', async () => {
+    // Jingle Bells leicht → Original: beide 4/4, gleich viele Takte
+    await open('jingle~leicht')
+    wheel(-100_000) // ganz nach vorn: letzter Takt
+    const bar = (await until(() => +session()?.fromBar > 1 && session()))?.fromBar
+    assert.ok(+bar > 1, `gespult, ist ${JSON.stringify(session())}`)
+    switchVersion('full')
+    assert.equal(await until(() => lessonInUrl() === 'jingle' && lessonInUrl()), 'jingle')
+    assert.equal((await until(() => session()?.fromBar === bar && session()))?.fromBar, bar, 'die Stelle wandert mit')
+
+    // Für Elise leicht (3/4) → Original (3/8): andere Taktart, also von vorn
+    await open('elise~leicht')
+    wheel(-100_000)
+    assert.ok(await until(() => +session()?.fromBar > 1), 'gespult')
+    switchVersion('full')
+    assert.equal(await until(() => lessonInUrl() === 'elise' && lessonInUrl()), 'elise')
+    await sleep(300)
+    assert.equal(session()?.fromBar, '0', 'andere Taktstruktur: von vorn')
   })
 
   it('Pop: ▶ spielt das Muster durch, nicht nur den ersten Akkord', async () => {

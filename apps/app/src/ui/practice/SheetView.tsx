@@ -24,19 +24,28 @@ import type { RollView } from './PianoRoll'
  *
  * Breit: eine Zeile wandert nach links, der aktuelle Ton steht bei etwa einem Drittel.
  * Schmal (iPhone hochkant): Zeilen mit wenigen Takten, die aktuelle Zeile steht oben.
- * Gezeichnet wird einmal pro Stück, Stufe und Breite; bei jedem Schritt wechseln nur Klassen
- * (gespielt, aktuell) und der Cursor gleitet.
+ * Gezeichnet wird einmal pro Stück, Stufe und Breite; bei jedem Schritt wechseln nur Klassen.
+ *
+ * Warten (Variante B, STU-1282, Arne 19.11.2026): Was dran ist (`view.stepStart`), leuchtet sofort
+ * in Handfarbe, der Cursor springt hin, statt im Takt zu gleiten. Getroffene Köpfe werden grün,
+ * beim halben Akkord bleiben sie abgehakt. Ein falscher Ton färbt nur kurz den Cursor rot, ins
+ * Notenbild wird nichts geschrieben. Ohne `stepStart` (Mitspielen, Vorspielen, Spulen) gleitet der
+ * Cursor mit dem Schlag.
  */
 
 const KEY_NAMES = ['Cb', 'Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#']
 const SYSTEM_H = 210
 const STAFF_GAP = 96
 const EPS = 1e-6
+/** So lange bleibt ein eben getroffener Schritt grün, dann wird er grau (gespielt) */
+const HIT_GLOW_MS = 500
 
 interface Mark {
   start: number
   hand: 'L' | 'R'
   midis: number[]
+  /** Notenköpfe in der Reihenfolge von `midis` (für Treffer im halben Akkord) */
+  heads: (SVGElement | null)[]
   x: number
   line: number
   el: SVGElement | null
@@ -226,7 +235,12 @@ export default function SheetView({
             // Für Tests und Prototypen: welcher Schritt, welche Töne
             el?.setAttribute('data-start', String(it.start))
             el?.setAttribute('data-midi', it.keys.map((kk) => kk.midi).join(' '))
-            marks.push({ start: it.start, hand, midis: it.keys.map((kk) => kk.midi), x: headX + headW / 2, line: li, el })
+            const heads = it.keys.map((_, i) => {
+              const h = n.noteHeads[i]?.getSVGElement?.() ?? null
+              h?.classList.add('pb-head')
+              return h
+            })
+            marks.push({ start: it.start, hand, midis: it.keys.map((kk) => kk.midi), heads, x: headX + headW / 2, line: li, el })
             // Notennamen im Notenkopf, als Lesehilfe
             if (showNames && active(hand)) {
               const ys = n.getYs()
@@ -283,17 +297,29 @@ export default function SheetView({
       const v = view()
       const active = d.marks.filter((mk) => stage === 'LR' || mk.hand === stage)
       if (!active.length) return
-      // Position zwischen zwei Anschlägen interpolieren, damit der Cursor gleitet wie die Rolle
-      let i = active.findIndex((mk) => mk.start > v.beat + EPS)
-      if (i === -1) i = active.length
-      const prev = active[Math.max(0, i - 1)]
-      const next = active[Math.min(active.length - 1, i)]
-      let x = prev.x
-      if (next !== prev && next.line === prev.line && next.start > prev.start) {
-        const f = Math.min(1, Math.max(0, (v.beat - prev.start) / (next.start - prev.start)))
-        x = prev.x + (next.x - prev.x) * f
+      // Warten (B): Der Cursor steht auf dem Schritt, der dran ist, und springt (CSS-Übergang)
+      const jump = v.stepStart !== undefined
+      const at = jump ? active.filter((mk) => Math.abs(mk.start - v.stepStart!) < EPS) : []
+      let x: number
+      let line: number
+      if (at.length) {
+        x = at.reduce((sum, mk) => sum + mk.x, 0) / at.length
+        line = at[0].line
+      } else {
+        // Position zwischen zwei Anschlägen interpolieren, damit der Cursor gleitet wie die Rolle
+        let i = active.findIndex((mk) => mk.start > v.beat + EPS)
+        if (i === -1) i = active.length
+        const prev = active[Math.max(0, i - 1)]
+        const next = active[Math.min(active.length - 1, i)]
+        x = prev.x
+        if (next !== prev && next.line === prev.line && next.start > prev.start) {
+          const f = Math.min(1, Math.max(0, (v.beat - prev.start) / (next.start - prev.start)))
+          x = prev.x + (next.x - prev.x) * f
+        }
+        line = prev.line
       }
-      const line = prev.line
+      cur.classList.toggle('is-jump', at.length > 0)
+      tr.classList.toggle('is-jump', at.length > 0)
       const s = d.scale
       const lineTop = d.lineTops[line]
       if (d.layout === 'band') {
@@ -308,19 +334,36 @@ export default function SheetView({
       cur.style.height = `${(STAFF_GAP + 72) * s}px`
       const wrong = v.flashes.some((f) => f.kind === 'wrong' && f.age < 450)
       cur.classList.toggle('is-wrong', wrong)
-      cur.classList.toggle('hand-L', !!active.find((mk) => Math.abs(mk.start - v.beat) < EPS && mk.hand === 'L') && !active.find((mk) => Math.abs(mk.start - v.beat) < EPS && mk.hand === 'R'))
-
-      // Klassen nur bei neuem Schritt setzen
       // Variante B: Der spielbare Schritt ist „jetzt“, auch während die Bahn noch gleitet
       const now = v.stepStart ?? v.beat
-      const sig = `${v.beat}|${now}|${[...v.expected].join(',')}`
+      const nowMarks = active.filter((mk) => Math.abs(mk.start - now) < EPS)
+      cur.classList.toggle('hand-L', nowMarks.length > 0 && nowMarks.every((mk) => mk.hand === 'L'))
+
+      // B: Der eben gespielte Schritt leuchtet noch kurz grün nach (auch Einzeltöne)
+      let prevStart = -Infinity
+      if (jump) for (const mk of active) if (mk.start < now - EPS && mk.start > prevStart) prevStart = mk.start
+      const fresh = jump ? new Set(v.flashes.filter((f) => f.kind === 'hit' && f.age < HIT_GLOW_MS).map((f) => f.midi)) : null
+      const glowing = (mk: Mark) => !!fresh && Math.abs(mk.start - prevStart) < EPS && mk.midis.some((m) => fresh.has(m))
+      const afterglow = active.some(glowing)
+
+      // Klassen nur bei neuem Schritt, neuem Treffer oder Ende des Nachleuchtens setzen
+      const sig = `${v.beat}|${now}|${jump}|${afterglow}|${[...v.expected].join(',')}|${[...v.struck].join(',')}`
       if (sig === lastBeat.current) return
       lastBeat.current = sig
       for (const mk of d.marks) {
         if (!mk.el) continue
         const on = stage === 'LR' || mk.hand === stage
-        mk.el.classList.toggle('is-done', on && mk.start < v.beat - EPS)
-        mk.el.classList.toggle('is-now', on && Math.abs(mk.start - now) < EPS && mk.midis.some((m) => v.expected.has(m)))
+        const isCur = on && Math.abs(mk.start - now) < EPS && mk.midis.some((m) => v.expected.has(m))
+        // B: Treffer grün, im halben Akkord je Kopf; ganz getroffen wird die ganze Note grün
+        const hits = mk.midis.map((m) => jump && isCur && v.struck.has(m))
+        const hit = hits.every(Boolean)
+        const past = on && !isCur && mk.start < (jump ? now : v.beat) - EPS
+        const just = past && glowing(mk)
+        mk.el.classList.toggle('is-done', past && !just)
+        mk.el.classList.toggle('is-now', isCur && !hit)
+        mk.el.classList.toggle('glow', jump && isCur && !hit)
+        mk.el.classList.toggle('is-hit', (isCur && hit) || just)
+        mk.heads.forEach((h, k) => h?.classList.toggle('is-hit', hits[k]))
       }
     }
     raf = requestAnimationFrame(loop)

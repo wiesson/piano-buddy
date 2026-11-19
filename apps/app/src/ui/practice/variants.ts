@@ -66,6 +66,22 @@ export const VARIANT_B: Variant = {
   scrub: 'free',
 }
 
+/**
+ * Notenansicht B (STU-1282, Arne 19.11.2026): Sind Noten zu sehen (Noten oder Beides), gilt beim
+ * Warten immer das Signal von B, unabhängig vom Blindvergleich der Fall-Ansicht: Was dran ist,
+ * leuchtet sofort, Treffer grün, Akkordtöne abgehakt, Hilfe nach 2 s Zögern oder sofort nach einem
+ * Fehler, falsch nur leise. Fristen und Nachsicht des Warte-Modus bleiben bei der gewählten Variante.
+ */
+export const sheetFeel = (v: Variant): Variant => ({
+  ...v,
+  lit: VARIANT_B.lit,
+  hit: VARIANT_B.hit,
+  check: VARIANT_B.check,
+  help: VARIANT_B.help,
+  helpMs: VARIANT_B.helpMs,
+  wrong: VARIANT_B.wrong,
+})
+
 const KEY = 'pianobuddy.variant'
 const BLIND_KEY = 'pianobuddy.variant.blind'
 

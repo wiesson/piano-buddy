@@ -28,7 +28,8 @@ export interface VersionChoice {
   current: Level
   available: Level[]
   recommended: Level
-  onChange: (l: Level) => void
+  /** `at`: gespulte Stelle (Schlag) der laufenden Fassung, 0 = nicht gespult */
+  onChange: (l: Level, at?: number) => void
 }
 
 /**
