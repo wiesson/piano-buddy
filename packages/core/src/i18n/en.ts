@@ -409,6 +409,8 @@ export const en: Messages = {
     removeBody: 'The piece disappears from this device. What you practised in it stays in your log.',
     removeConfirm: 'Delete',
     cancel: 'Cancel',
+    rename: (title) => `Rename “${title}”`,
+    titleLabel: 'Title',
     back: 'Back',
   },
 }

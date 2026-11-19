@@ -411,6 +411,8 @@ export const de = {
     removeBody: 'Das Stück verschwindet von diesem Gerät. Was du darin geübt hast, bleibt im Protokoll.',
     removeConfirm: 'Löschen',
     cancel: 'Abbrechen',
+    rename: (title: string) => `„${title}“ umbenennen`,
+    titleLabel: 'Titel',
     back: 'Zurück',
   },
 }

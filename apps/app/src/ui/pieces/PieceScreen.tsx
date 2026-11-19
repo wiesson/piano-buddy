@@ -76,7 +76,7 @@ function PieceView({
 
       <main className="piece-main">
         <div className="piece-head">
-          <h1 className="piece-title">{piece.title}</h1>
+          <PieceTitle title={piece.title} onRename={(title) => update({ title })} />
           <p className="pb-mono">{t.pieces.meta(barsOf(piece), full.length, piece.bpm)}</p>
         </div>
 
@@ -236,5 +236,38 @@ function PieceView({
         </footer>
       </main>
     </div>
+  )
+}
+
+/** Titel zum Antippen: wird zum Eingabefeld, Enter oder Wegtippen speichert, Escape verwirft */
+function PieceTitle({ title, onRename }: { title: string; onRename: (title: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  if (!editing)
+    return (
+      <h1 className="piece-title">
+        <button type="button" className="piece-title-button" onClick={() => setEditing(true)} aria-label={t.pieces.rename(title)}>
+          {title}
+        </button>
+      </h1>
+    )
+  const done = (el: HTMLInputElement, save: boolean) => {
+    const next = el.value.replace(/\s+/g, ' ').trim()
+    if (save && next && next !== title) onRename(next)
+    setEditing(false)
+  }
+  return (
+    <input
+      className="piece-title piece-title-input"
+      aria-label={t.pieces.titleLabel}
+      defaultValue={title}
+      autoFocus
+      enterKeyHint="done"
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={(e) => done(e.currentTarget, true)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') done(e.currentTarget, false)
+      }}
+    />
   )
 }

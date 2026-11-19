@@ -112,6 +112,28 @@
   display: grid;
   gap: 48px;
 }
+.piece-title-button {
+  display: inline;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: text;
+}
+/* Gleiche Größe wie der Titel: Antippen springt nicht */
+.piece-title-input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-bottom: 1.5px solid var(--bg-3);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  outline: none;
+}
+.piece-title-input:focus {
+  border-bottom-color: var(--accent);
+}
 .piece-head {
   display: grid;
   gap: 6px;
@@ -186,7 +208,12 @@
   border-radius: 2px;
   background: var(--accent);
 }
+/* Knopf mittig auf dem Wert: selbst zentriert statt über inset-inline + margin:auto des SDK,
+   das WebKit um eine halbe Knopfbreite versetzt auslegt (Knopf lief der Füllung voraus) */
 .piece-seek-thumb {
+  inset: 50% auto auto var(--slider-thumb-position) !important;
+  margin: 0 !important;
+  translate: -50% -50% !important;
   width: 16px;
   height: 16px;
   border-radius: 50%;

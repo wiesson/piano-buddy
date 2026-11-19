@@ -302,10 +302,18 @@ export function barsOf(piece: Piece): number {
   return Math.max(1, Math.ceil(lastEnd / piece.beatsPerBar - EPS))
 }
 
-/** Titel aus dem Dateinamen: ohne Endung, Unterstriche und Bindestriche als Leerzeichen */
-export const titleFromFile = (name: string) =>
-  name
+/**
+ * Titel aus dem Dateinamen, wie Downloadseiten sie liefern („hans-zimmer-cornfield-chase-21091-
+ * nonstop2k.com.mid“): ohne Endung, Domains und Download-Nummern (ab fünf Ziffern, „BWV 846“ bleibt), Trennzeichen als Leerzeichen,
+ * Wörter groß, wenn alles klein geschrieben war.
+ */
+export function titleFromFile(name: string): string {
+  const words = name
     .replace(/\.(mid|midi|smf|kar)$/i, '')
-    .replace(/[_]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || 'MIDI'
+    .replace(/(^|[\s_-])(www\.)?[a-z0-9]+\.(com|net|org|de|ru|io|info|co|uk|fr|it|es|pl|me)(?=$|[\s_-])/gi, ' ')
+    .split(/[\s_-]+/)
+    .filter((w) => w && !/^\d{5,}$/.test(w))
+  const lower = words.every((w) => w === w.toLowerCase())
+  const title = words.map((w) => (lower ? w.charAt(0).toUpperCase() + w.slice(1) : w)).join(' ')
+  return title || 'MIDI'
+}
