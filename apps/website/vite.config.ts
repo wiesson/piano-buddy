@@ -14,6 +14,8 @@ const lan = process.env.LAN === '1'
 const pkg = (p: string) => fileURLToPath(new URL(`../../packages/${p}/src`, import.meta.url))
 
 export default defineConfig({
+  // .env.local (VITE_CONVEX_URL) liegt im Wurzelverzeichnis des Repos
+  envDir: '../..',
   resolve: { alias: { '@piano/core': pkg('core'), '@piano/ui': pkg('ui') } },
   plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), seo(), lan && basicSsl()],
   server: {

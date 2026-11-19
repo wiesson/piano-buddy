@@ -1,0 +1,150 @@
+/* „Bald als App“: links Text und Store-Platzhalter, rechts die Launch-Liste als Karte */
+.launch {
+  display: grid;
+  grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+}
+.launch-intro .pb-h2 {
+  margin-top: 10px;
+}
+.launch-stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+/* Form wie die Store-Abzeichen, aber gedämpft: noch nicht zu haben */
+.launch-store {
+  display: grid;
+  min-width: 152px;
+  padding: 9px 18px 10px;
+  border-radius: 12px;
+  background: var(--fg);
+  color: var(--bg);
+  opacity: 0.88;
+}
+.launch-store-pre {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+.launch-store-name {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.launch-card {
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.04);
+}
+.launch-form,
+.launch-done {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+.launch-form .pb-h3,
+.launch-done .pb-h3 {
+  margin: 0 0 2px;
+  background: none;
+}
+.launch-field {
+  width: 100%;
+}
+/* Innen: Radius = Karte − Abstand */
+.launch-field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--bg-3);
+  border-radius: calc(var(--card-radius) - 8px);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px; /* iOS zoomt unter 16 px beim Fokus */
+}
+.launch-field input:focus {
+  outline: 2px solid var(--hand-l);
+  outline-offset: 1px;
+}
+.launch-field input[aria-invalid='true'] {
+  border-color: var(--accent);
+}
+.launch-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  font-size: 15px;
+  cursor: pointer;
+}
+.launch-box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1.5px var(--bg-3);
+  background: var(--bg);
+  color: var(--card);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.launch-box[data-checked] {
+  background: var(--hand-l);
+  box-shadow: none;
+}
+.launch-box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.launch-honey {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.launch-form .pb-btn {
+  margin-top: 4px;
+}
+.launch-error {
+  margin: 0;
+  color: var(--accent);
+  font-size: 14px;
+}
+.launch-note {
+  margin: 0;
+}
+.launch-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 800px) {
+  .launch {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Bestätigen und Abmelden: eine ruhige Seite mit Karte */
+.newsletter-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, var(--sat)) 20px max(24px, var(--sab));
+}
+.newsletter-page .launch-card {
+  width: min(440px, 100%);
+}
+.newsletter-page .launch-done .pb-btn {
+  margin-top: 8px;
+}

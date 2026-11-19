@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChangelogRouteImport } from './routes/changelog'
+import { Route as NewsletterConfirmRouteImport } from './routes/newsletter/confirm'
+import { Route as NewsletterUnsubscribeRouteImport } from './routes/newsletter/unsubscribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +24,55 @@ const ChangelogRoute = ChangelogRouteImport.update({
   path: '/changelog',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsletterConfirmRoute = NewsletterConfirmRouteImport.update({
+  id: '/newsletter/confirm',
+  path: '/newsletter/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsletterUnsubscribeRoute = NewsletterUnsubscribeRouteImport.update({
+  id: '/newsletter/unsubscribe',
+  path: '/newsletter/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/changelog': typeof ChangelogRoute
+  '/newsletter/confirm': typeof NewsletterConfirmRoute
+  '/newsletter/unsubscribe': typeof NewsletterUnsubscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/changelog': typeof ChangelogRoute
+  '/newsletter/confirm': typeof NewsletterConfirmRoute
+  '/newsletter/unsubscribe': typeof NewsletterUnsubscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/changelog': typeof ChangelogRoute
+  '/newsletter/confirm': typeof NewsletterConfirmRoute
+  '/newsletter/unsubscribe': typeof NewsletterUnsubscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/changelog'
+  fullPaths:
+    '/' | '/changelog' | '/newsletter/confirm' | '/newsletter/unsubscribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/changelog'
-  id: '__root__' | '/' | '/changelog'
+  to: '/' | '/changelog' | '/newsletter/confirm' | '/newsletter/unsubscribe'
+  id:
+    | '__root__'
+    | '/'
+    | '/changelog'
+    | '/newsletter/confirm'
+    | '/newsletter/unsubscribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChangelogRoute: typeof ChangelogRoute
+  NewsletterConfirmRoute: typeof NewsletterConfirmRoute
+  NewsletterUnsubscribeRoute: typeof NewsletterUnsubscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +91,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangelogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsletter/confirm': {
+      id: '/newsletter/confirm'
+      path: '/newsletter/confirm'
+      fullPath: '/newsletter/confirm'
+      preLoaderRoute: typeof NewsletterConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsletter/unsubscribe': {
+      id: '/newsletter/unsubscribe'
+      path: '/newsletter/unsubscribe'
+      fullPath: '/newsletter/unsubscribe'
+      preLoaderRoute: typeof NewsletterUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChangelogRoute: ChangelogRoute,
+  NewsletterConfirmRoute: NewsletterConfirmRoute,
+  NewsletterUnsubscribeRoute: NewsletterUnsubscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

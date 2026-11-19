@@ -16,6 +16,7 @@
     "@piano/core": "workspace:*",
     "@piano/ui": "workspace:*",
     "@tanstack/react-router": "catalog:",
+    "convex": "^1.51.0",
     "@ui-sdk/core": "catalog:",
     "@ui-sdk/react": "catalog:",
     "react": "catalog:",

@@ -12,6 +12,7 @@ import { AmbientPlayer } from './AmbientPlayer'
 import { Faq } from './Faq'
 import { RollPreview } from './RollPreview'
 import { SiteFooter } from './SiteFooter'
+import { LaunchSection } from './LaunchSection'
 
 // Klaviatur zum Ausprobieren: eigener Chunk, geladen erst kurz bevor die Section sichtbar wird
 const TryPiano = lazy(() => import('./TryPiano'))
@@ -167,6 +168,8 @@ export function HomeScreen({ onOpen }: { onOpen: (l: Lesson) => void }) {
             ))}
           </div>
         </section>
+
+        <LaunchSection />
 
         <Faq />
       </main>

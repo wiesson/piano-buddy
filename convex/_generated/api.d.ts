@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as http from "../http.js";
+import type * as newsletter from "../newsletter.js";
+import type * as newsletterMail from "../newsletterMail.js";
 import type * as reports from "../reports.js";
 import type * as sync from "../sync.js";
 
@@ -18,6 +21,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  http: typeof http;
+  newsletter: typeof newsletter;
+  newsletterMail: typeof newsletterMail;
   reports: typeof reports;
   sync: typeof sync;
 }>;

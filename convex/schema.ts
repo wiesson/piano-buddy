@@ -51,4 +51,29 @@ export default defineSchema({
   attempts: defineTable({ profileId: v.id('profiles'), ...attemptFields })
     .index('by_profile', ['profileId', 'at'])
     .index('by_profile_attempt', ['profileId', 'attemptId']),
+  /**
+   * Launch-Liste und Neuigkeiten: Anmeldung von der Website mit Double-Opt-in. Erst nach dem
+   * Klick auf den Link in der Bestätigungsmail ist jemand angemeldet (confirmed); pending ohne
+   * Bestätigung bekommt nichts. Abmelden geht über den Link in jeder Mail.
+   */
+  newsletter: defineTable({
+    email: v.string(),
+    /** Bestätigte Themen */
+    topics: v.array(v.union(v.literal('launch'), v.literal('updates'))),
+    /** Angefragt, aber noch nicht per Link bestätigt */
+    requested: v.array(v.union(v.literal('launch'), v.literal('updates'))),
+    status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('unsubscribed')),
+    locale: v.union(v.literal('de'), v.literal('en')),
+    confirmToken: v.string(),
+    unsubToken: v.string(),
+    source: v.string(),
+    createdAt: v.number(),
+    /** Letzte Bestätigungsmail (Sperre gegen Mail-Bomben auf fremde Adressen) */
+    mailedAt: v.optional(v.number()),
+    confirmedAt: v.optional(v.number()),
+    unsubscribedAt: v.optional(v.number()),
+  })
+    .index('by_email', ['email'])
+    .index('by_confirmToken', ['confirmToken'])
+    .index('by_unsubToken', ['unsubToken']),
 })
