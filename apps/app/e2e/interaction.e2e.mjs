@@ -328,3 +328,113 @@ describe('Interaktions-Karte', () => {
     assert.equal(report.lessonId, 'lh-fuenf')
   })
 })
+
+// Stücke in Stufen und Pop-Pfad (STU-1287, STU-1271)
+describe('Fassungen und Pop-Pfad', () => {
+  const lessonInUrl = () => decodeURIComponent(new URL(browser('get', 'url')).pathname.split('/play/')[1] ?? '')
+  const stageInUrl = () => new URL(browser('get', 'url')).searchParams.get('stage')
+  const switchVersion = (level) => {
+    act([{ ref: 'Stage', action: 'setOpen', args: [true] }])
+    act([{ ref: 'Version', action: 'setValue', args: [level] }])
+  }
+
+  it('Fassung wechseln: Übe-Screen und Hand bleiben, der Durchgang zählt für die gewählte Fassung', async () => {
+    // Jingle Bells leicht, rechte Hand: zum Original, die Hand bleibt rechts
+    await open('jingle~leicht?stage=R')
+    assert.equal(session().stage, 'R')
+    switchVersion('full')
+    assert.equal(await until(() => lessonInUrl() === 'jingle' && lessonInUrl()), 'jingle')
+    assert.equal(stageInUrl(), 'R')
+    assert.equal((await until(() => session()?.stage === 'R' && session()))?.stage, 'R')
+
+    // Vier Akkorde mittel (Dreiklänge) → leicht (Zweiklänge), dann einmal sauber durch
+    await open('vier-akkorde~mittel')
+    switchVersion('easy')
+    assert.equal(await until(() => lessonInUrl() === 'vier-akkorde~leicht' && lessonInUrl()), 'vier-akkorde~leicht')
+    assert.ok(await until(() => session()), 'practice-session fehlt nach dem Wechsel')
+    // C+E, C+F, E+G, D+G
+    for (const chord of [[60, 64], [60, 65], [64, 67], [62, 67]]) {
+      for (const m of chord) play(m)
+      await sleep(120)
+    }
+    assert.equal((await until(() => session()?.phase === 'result' && session(), 6000))?.phase, 'result')
+    const a = await until(() => ev(`const a = JSON.parse(localStorage.getItem('${LOG_KEY}') || '[]'); return a[a.length - 1] ?? null`))
+    assert.deepEqual([a.lessonId, a.stage, a.clean], ['vier-akkorde~leicht', 'R', true])
+  })
+
+  it('Pop: ▶ spielt das Muster durch, nicht nur den ersten Akkord', async () => {
+    browser('open', `${BASE}/`)
+    ev(`localStorage.clear(); return true`)
+    browser('open', `${BASE}/pop`)
+    assert.ok(await until(() => ev(`return document.querySelectorAll('.pop-pattern .piece-play').length >= 3`), 10_000), 'Musterwahl fehlt')
+    // Sonde auf den Audio-Quellen: wie viele Töne geplant werden, wie viele sofort wieder abbrechen
+    ev(`
+      window.__probe = { starts: 0, immediateStops: 0 }
+      for (const P of [AudioScheduledSourceNode.prototype, AudioBufferSourceNode.prototype]) {
+        if (!Object.prototype.hasOwnProperty.call(P, 'start')) continue
+        const s0 = P.start, t0 = P.stop
+        P.start = function (...a) { window.__probe.starts++; return s0.apply(this, a) }
+        P.stop = function (when) {
+          if (when === undefined || when <= this.context.currentTime + 0.01) window.__probe.immediateStops++
+          return t0.call(this, when)
+        }
+      }
+      return true`)
+    // Ein echter Klick (Nutzergeste, sonst bleibt der Ton stumm): Viertel, das zweite Muster
+    browser('click', '.pop-pattern:nth-child(2) .piece-play')
+    await sleep(4000)
+    const p = ev(`return { ...window.__probe, playing: !!document.querySelector('.pop-pattern:nth-child(2) .piece-play.on') }`)
+    assert.ok(p.playing, 'Wiedergabe ist nicht an')
+    // Viertel bei 80 bpm: in 4 s gut fünf Akkorde zu je drei Tönen plus Bass
+    assert.ok(p.starts >= 12, `nur ${p.starts} Töne in 4 s`)
+    assert.equal(p.immediateStops, 0, 'Töne wurden gleich nach dem Planen wieder abgebrochen')
+    browser('click', '.pop-pattern:nth-child(2) .piece-play')
+  })
+
+  it('Party-Pianist: nach dem Einstieg schlägt die Startseite die Nachbarn vor, „Heute“ nennt einen Pop-Schritt', async () => {
+    const START = 'pop-1564-c-ganze-grund-sing'
+    const startTitle = 'I–V–vi–IV in C · Whole notes · root position · Accompany'
+    browser('open', `${BASE}/`)
+    ev(`localStorage.clear(); return true`)
+    browser('open', `${BASE}/`)
+    // Titel der Zeilen, ohne Nummer für Vorleser und ohne „Up next“
+    const rows = () =>
+      ev(`return [...document.querySelectorAll('[aria-labelledby=app-pop] .pb-lesson-name')].map((e) => {
+        const c = e.cloneNode(true)
+        c.querySelectorAll('.sr-only, .next-tag').forEach((x) => x.remove())
+        return c.textContent.trim()
+      })`)
+    const before = await until(() => rows()?.length && rows())
+    assert.equal(before[0], startTitle)
+    // Einstieg gestern gemeistert: alle drei Stufen je dreimal sauber
+    const at = Date.now() - 86_400_000
+    ev(`
+      const a = []
+      let i = 0
+      for (const stage of ['L', 'R', 'LR'])
+        for (let k = 0; k < 3; k++)
+          a.push({ attemptId: 'flow' + i, at: ${at} + i++ * 1000, lessonId: '${START}', stage, clean: true, wrong: 0, unverified: 0, source: 'midi', durationMs: 30000, synced: false })
+      localStorage.setItem('${LOG_KEY}', JSON.stringify(a))
+      return true`)
+    browser('open', `${BASE}/`)
+    const after = await until(() => {
+      const r = rows()
+      return r?.length && !r.includes(startTitle) && r
+    })
+    assert.ok(after, `Vorschläge haben sich nicht bewegt: ${JSON.stringify(rows())}`)
+    assert.ok(after.length >= 2 && after.length <= 4, `${after.length} Vorschläge`)
+    // Jeder Vorschlag ändert genau eine Achse gegenüber dem Einstieg
+    const axes = (title) => title.replace(' in ', ' · ').split(' · ')
+    const base = axes(startTitle)
+    for (const t of after) {
+      const diff = axes(t).filter((x, i) => x !== base[i]).length
+      assert.equal(diff, 1, `${t} unterscheidet sich in ${diff} Achsen`)
+    }
+    // „Heute“: ein Pop-Schritt, der auf eine Pop-Übung führt
+    const pop = ev(`return [...document.querySelectorAll('.today-item')].find((b) => b.querySelector('.today-kind')?.textContent === 'Pop')?.textContent ?? null`)
+    assert.ok(pop, 'kein Pop-Schritt in Heute')
+    ev(`document.querySelector('[aria-labelledby=app-pop] .pb-lesson').click(); return true`)
+    assert.ok(await until(() => lessonInUrl().startsWith('pop-') && lessonInUrl() !== START), 'Vorschlag öffnet keine Pop-Übung')
+    assert.ok(await until(() => session()), 'practice-session fehlt in der Pop-Übung')
+  })
+})
