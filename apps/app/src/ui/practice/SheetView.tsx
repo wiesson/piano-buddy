@@ -223,6 +223,9 @@ export default function SheetView({
             const headX = n.getNoteHeadBeginX()
             const headW = n.getGlyphWidth()
             const el = (g as SVGElement | undefined) ?? null
+            // Für Tests und Prototypen: welcher Schritt, welche Töne
+            el?.setAttribute('data-start', String(it.start))
+            el?.setAttribute('data-midi', it.keys.map((kk) => kk.midi).join(' '))
             marks.push({ start: it.start, hand, midis: it.keys.map((kk) => kk.midi), x: headX + headW / 2, line: li, el })
             // Notennamen im Notenkopf, als Lesehilfe
             if (showNames && active(hand)) {

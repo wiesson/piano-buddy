@@ -920,7 +920,9 @@
   color: #6d5a4c;
 }
 
-/* Sheets (Telefon): Einstellungen und Stufen */
+/* Sheets (Telefon): Einstellungen und Stufen. Wie halbhohe Sheets unter iOS 26: Sie schweben mit
+   Abstand zu den Rändern über der Seite, rundum gerundet, leicht durchscheinend; die Seite
+   dahinter bleibt stehen und wird nicht abgedunkelt (STU-1275). */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -931,28 +933,34 @@
   --row-dim: var(--fg-dim);
   --row-bg: var(--bg-2);
   --row-line: color-mix(in srgb, var(--fg) 10%, transparent);
+  --sheet-gap: 8px;
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: calc(100% - 2 * var(--sheet-gap));
+  margin: 0 auto calc(var(--sheet-gap) + env(safe-area-inset-bottom) * 0.35);
   /* So hoch wie der Inhalt (ein Rastpunkt), höchstens fast der ganze Bildschirm */
-  max-height: 94dvh;
-  padding-bottom: env(safe-area-inset-bottom);
-  border-radius: 28px 28px 0 0;
-  background: var(--bg);
+  max-height: calc(94dvh - var(--sheet-gap));
+  /* Rundum gerundet wie das Gerät: außen etwa 46 px Eckradius, also innen 46 − Abstand */
+  border-radius: calc(46px - var(--sheet-gap));
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  backdrop-filter: blur(24px) saturate(1.3);
   color: var(--fg);
   font-family: var(--sans);
   font-size: 15px;
   line-height: 1.4;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--fg) 14%, transparent),
+    0 12px 40px rgba(0, 0, 0, 0.28);
 }
-.sheet::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: var(--bg);
+/* Eigene Ebene im Ansichtswechsel: Sonst malt der Übergang Notenband und Bahn über das offene
+   Sheet, und es verschwindet kurz (STU-1283). Nur das offene trägt den Namen, Namen sind einmalig */
+.sheet[data-open] {
+  view-transition-name: pb-sheet;
+}
+::view-transition-group(pb-sheet) {
+  z-index: 10;
+  animation-duration: 160ms;
 }
 .sheet-handle {
   flex: none;
@@ -996,19 +1004,6 @@
   align-content: start;
   gap: 18px;
   padding: 4px 16px 32px;
-}
-/* Aufgezogen: Die Übe-Seite tritt zurück wie bei iOS */
-.practice {
-  transition:
-    transform 0.45s cubic-bezier(0.32, 0.72, 0, 1),
-    border-radius 0.45s,
-    filter 0.45s;
-  transform-origin: 50% 0;
-}
-body:has(.sheet[data-expanded]) .practice {
-  transform: translateY(10px) scale(0.94);
-  border-radius: 18px;
-  filter: brightness(0.85);
 }
 
 /* Gruppen in Sheet und Popover */
