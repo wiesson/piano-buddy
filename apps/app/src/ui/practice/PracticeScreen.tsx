@@ -188,6 +188,8 @@ export function PracticeScreen({
   const heardRef = useRef<number[]>([])
   const levelRef = useRef(0)
   const beatRef = useRef(0)
+  /** Zeit des letzten Bildes (Warte-Modus: Bahn läuft im Tempo) */
+  const lastFrameRef = useRef(0)
   const demoRef = useRef<{ t0: number; bpm: number } | null>(null)
   const micRef = useRef<MicListener | null>(null)
   const benchRef = useRef(new MicBench())
@@ -681,16 +683,27 @@ export function PracticeScreen({
     // Zustand, den die Seite anzeigt (Hinweis, Phase), hat sich im Takt geändert: neu zeichnen
     if (s && (s.graceMisses !== graceBefore || !!s.holding !== holdingBefore)) queueMicrotask(() => force((x) => x + 1))
     const hold = s?.holdProgress(now)
-    const holdBeats = s?.holding ? s.holding.beats * 0.8 : 0
+    // Beim Halten läuft die Bahn genau bis zum Ende des Tons: Ist das Halten geschafft, steht der
+    // nächste Ton an der Linie, ohne Rest und ohne Stopp
+    const holdBeats = s?.holding ? s.holding.beats : 0
     const target = s?.finished ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2 : (s?.beat ?? 0) + (hold ?? 0) * holdBeats
-    beatRef.current += (target - beatRef.current) * 0.25
+    // Nach vorn im Takt des Stücks, nicht in einem Ruck: Die Noten laufen gleichmäßig herunter wie
+    // beim Mitspielen, nur wartet die Bahn am nächsten Ton. Wer schneller spielt, als die Bahn
+    // läuft, den holt sie ein (ab einem Schlag Rückstand entsprechend schneller). Zurück (Neustart)
+    // gleitet sie zügig.
+    const dt = Math.min(100, now - (lastFrameRef.current || now))
+    lastFrameRef.current = now
+    const dist = target - beatRef.current
+    if (dist < 0) beatRef.current += dist * 0.25
+    else beatRef.current = Math.min(target, beatRef.current + (lesson.bpm / 60_000) * Math.max(1, dist) * dt)
     if (Math.abs(target - beatRef.current) < 0.002) beatRef.current = target
     const arrived = Math.abs(beatRef.current - (s?.beat ?? 0)) < 0.4 || !!s?.holding
     const expected = s?.expected ?? new Set<number>()
     return {
       ...base,
       notes: stageNotes,
-      beat: s?.holding ? beatRef.current : arrived ? (s?.beat ?? beatRef.current) : beatRef.current,
+      // Nie einrasten: Ein Sprung auf den Zielschlag wäre der Ruck kurz vor jedem Ton
+      beat: beatRef.current,
       expected: arrived ? expected : new Set(),
       struck: s?.struck ?? new Set(),
       flashes: (s?.feedback ?? [])
@@ -704,7 +717,7 @@ export function PracticeScreen({
       // In den Noten leuchtet die Taste erst nach 3 s Zögern, oder wenn jemand die Starttaste sucht
       hint: !sheet || now - lastInputRef.current > 3000 || (!!s && !s.started && s.graceMisses > 0),
     }
-  }, [lesson.notes, lesson.beatsPerBar, stageNotes, lastBeat, showNames, showFingers, sheet])
+  }, [lesson.notes, lesson.beatsPerBar, lesson.bpm, stageNotes, lastBeat, showNames, showFingers, sheet])
 
   const again = () => {
     if (tempoRef.current) return startTempo()

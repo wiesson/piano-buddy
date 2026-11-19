@@ -207,7 +207,9 @@ export function useMiniPractice(lesson: Lesson, stage: Stage) {
     s?.tick(now)
     if (s && !!s.holding !== holdingBefore) queueMicrotask(() => force((x) => x + 1))
     const hold = s?.holdProgress(now)
-    const holdBeats = s?.holding ? s.holding.beats * 0.8 : 0
+    // Beim Halten läuft die Bahn genau bis zum Ende des Tons: Ist das Halten geschafft, steht der
+    // nächste Ton an der Linie, ohne Rest und ohne Stopp
+    const holdBeats = s?.holding ? s.holding.beats : 0
     const target = s?.finished ? (s.steps[s.steps.length - 1]?.start ?? 0) + 2 : (s?.beat ?? 0) + (hold ?? 0) * holdBeats
     // Im Takt des Stücks nach unten, wie auf der Übe-Seite
     const dt = Math.min(100, now - (lastFrameRef.current || now))
@@ -215,11 +217,13 @@ export function useMiniPractice(lesson: Lesson, stage: Stage) {
     const dist = target - beatRef.current
     if (dist < 0) beatRef.current += dist * 0.25
     else beatRef.current = Math.min(target, beatRef.current + (lesson.bpm / 60_000) * Math.max(1, dist) * dt)
+    if (Math.abs(target - beatRef.current) < 0.002) beatRef.current = target
     const arrived = Math.abs(beatRef.current - (s?.beat ?? 0)) < 0.4 || !!s?.holding
     return {
       ...base,
       notes,
-      beat: s?.holding ? beatRef.current : arrived ? (s?.beat ?? beatRef.current) : beatRef.current,
+      // Nie einrasten: Ein Sprung auf den Zielschlag wäre der Ruck kurz vor jedem Ton
+      beat: beatRef.current,
       expected: arrived ? (s?.expected ?? new Set()) : new Set(),
       struck: s?.struck ?? new Set(),
       flashes: (s?.feedback ?? [])
