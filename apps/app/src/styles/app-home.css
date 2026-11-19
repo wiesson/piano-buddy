@@ -31,6 +31,10 @@
 .app-home-section .pb-gallery {
   margin-top: 0;
 }
+/* Weg zu einer Unterseite (z. B. „Alle Übungen und Muster“): Knopf in Inhaltsbreite */
+.app-home-section > .pb-btn {
+  justify-self: start;
+}
 .app-home-foot {
   display: flex;
   flex-wrap: wrap;

@@ -40,9 +40,9 @@ export function PopSection({ onOpen }: { onOpen: (l: Lesson) => void }) {
           return <LessonRow key={l.id} lesson={l} index={i} done={lessonDone(l)} isNext={unlocked && i === 0} onOpen={onOpen} />
         })}
       </ol>
-      <p className="pb-note">
-        <Link to="/pop">{t.pop.all}</Link>
-      </p>
+      <Link to="/pop" className="pb-btn pb-btn-ghost">
+        {t.pop.all}
+      </Link>
     </section>
   )
 }

@@ -33,7 +33,7 @@ function valueLabel(a: Axis, v: string): string {
  * nehmen oder nicht), darunter alle Übungen zum Zusammenstellen. Wir empfehlen, der Nutzer wählt.
  */
 export function PopPage({ onBack, onOpen }: { onBack: () => void; onOpen: (l: Lesson) => void }) {
-  useThemeColor('#fbf7ef')
+  useThemeColor('#f6eedf')
   useStoreVersion()
   const patterns = usePatterns()
   const [active, setActive] = useState<PatternId | null>(null)
@@ -123,12 +123,12 @@ function PatternRow({
             {player.playing ? <path d="M5 3.5h2.6v11H5zM10.4 3.5H13v11h-2.6z" fill="currentColor" /> : <path d="M5.5 3.2v11.6L14.5 9z" fill="currentColor" />}
           </svg>
         </button>
-        <button type="button" className="pop-btn" onClick={() => (audioContext(), player.pause(), onOpen(lesson))}>
+        <button type="button" className="pb-btn pb-btn-ghost pb-btn-sm" onClick={() => (audioContext(), player.pause(), onOpen(lesson))}>
           {t.pop.play}
         </button>
         <button
           type="button"
-          className="pop-btn pop-toggle"
+          className="pb-btn pb-btn-ghost pb-btn-sm pop-toggle"
           aria-pressed={inPath}
           disabled={inPath && !canDrop}
           onClick={() => popPrefs.toggle(pattern)}
@@ -181,7 +181,7 @@ function Grid({ patterns, onOpen }: { patterns: PatternId[]; onOpen: (l: Lesson)
       </div>
       <p className="pb-note">{t.pop.demands(all.map(elementName).join(', '))}</p>
       <p className="pb-note">{freshText({ fresh })}</p>
-      <button type="button" className="pop-btn pop-go" onClick={() => (audioContext(), onOpen(lesson))}>
+      <button type="button" className="pb-btn pb-btn-primary pop-go" onClick={() => (audioContext(), onOpen(lesson))}>
         {t.pop.play}
       </button>
     </section>

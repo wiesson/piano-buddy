@@ -30,21 +30,17 @@
   align-items: center;
   gap: 8px;
 }
-.pop-btn {
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 20px;
-  background: var(--bg-2);
-  color: var(--fg);
-  font-size: 14px;
-  font-weight: 600;
+/* Knöpfe sind die der Startseite (pb-btn); hier nur, was das Muster braucht */
+.pop-pattern-actions .pb-btn-sm {
+  margin-left: 0;
 }
-/* „Im Pfad“: immer gleich breit, an oder aus */
+/* „Im Pfad“: immer gleich breit, an oder aus; an wie der Hauptknopf */
 .pop-toggle {
   min-width: 92px;
   color: var(--fg-dim);
 }
-.pop-toggle[aria-pressed='true'] {
+.pop-toggle[aria-pressed='true'],
+.pop-toggle[aria-pressed='true']:hover {
   background: var(--fg);
   color: var(--bg);
 }
@@ -72,9 +68,6 @@
 }
 .pop-go {
   justify-self: start;
-  background: var(--fg);
-  color: var(--bg);
-  padding: 0 22px;
 }
 @media (max-width: 560px) {
   .pop-pattern {
