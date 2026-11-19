@@ -8,6 +8,7 @@ import { LessonRow } from '@piano/ui/home/LessonRow'
 import { SongGallery } from '@piano/ui/home/SongGallery'
 import { illustration } from '@piano/ui/illustrations'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
+import { AmbientPlayer } from './AmbientPlayer'
 import { Faq } from './Faq'
 import { RollPreview } from './RollPreview'
 import { SiteFooter } from './SiteFooter'
@@ -167,6 +168,7 @@ export function HomeScreen({ onOpen }: { onOpen: (l: Lesson) => void }) {
         <Faq />
       </main>
       <SiteFooter />
+      <AmbientPlayer />
     </div>
   )
 }

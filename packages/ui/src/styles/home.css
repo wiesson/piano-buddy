@@ -1193,3 +1193,231 @@ body:has(.home) {
 .changelog-entry li + li {
   margin-top: 6px;
 }
+
+/* ---------- Hintergrundmusik: Knopf unten rechts, fährt zur Karte auf ----------
+ * Glas wie die Leiste. Zu: 44 px rund. Auf: Karte, der Knopf bleibt unten rechts an seinem Platz.
+ * Außen 22 px Radius, 4 px Abstand, innen 18 px: konzentrisch wie die Pille.
+ */
+.amb {
+  --amb-w: min(280px, calc(100vw - 2 * max(16px, var(--sar))));
+  --amb-h: 146px;
+  position: fixed;
+  right: max(16px, var(--sar));
+  /* gleiche Grundlinie wie die Leiste am Fuß des ersten Bildschirms */
+  bottom: calc(3.25rem + var(--sab));
+  z-index: 55;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(255, 252, 246, 0.8);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow:
+    0 0 0 1px rgba(43, 36, 32, 0.08),
+    0 8px 24px rgba(43, 36, 32, 0.08);
+  transition:
+    width 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.34s;
+}
+.amb[data-open] {
+  width: var(--amb-w);
+  height: var(--amb-h);
+  box-shadow:
+    0 0 0 1px rgba(43, 36, 32, 0.08),
+    0 14px 40px rgba(43, 36, 32, 0.14);
+}
+
+/* Inhalt hat immer die volle Kartenbreite und hängt unten rechts: beim Auffahren wird er nur
+   freigelegt, nichts springt oder bricht um */
+.amb-list,
+.amb-status {
+  position: absolute;
+  right: 4px;
+  width: calc(var(--amb-w) - 8px);
+  margin: 0;
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.amb[data-open] .amb-list,
+.amb[data-open] .amb-status {
+  opacity: 1;
+  transition: opacity 0.24s 0.1s;
+}
+.amb-list {
+  bottom: 44px;
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  list-style: none;
+}
+.amb-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  width: 100%;
+  height: 48px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  isolation: isolate;
+  overflow: hidden;
+  transition: background 0.15s;
+}
+/* Fortschritt: das laufende Stück füllt seine Zeile langsam von links */
+.amb-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  transform-origin: left;
+  transform: scaleX(var(--amb-progress, 0));
+}
+.amb-row[aria-current] {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+@media (hover: hover) {
+  .amb-row:hover {
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+  }
+}
+.amb-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.amb-meta,
+.amb-len,
+.amb-status {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  color: var(--fg-dim);
+}
+.amb-meta {
+  grid-column: 1 / -1;
+  line-height: 1.3;
+}
+.amb-len {
+  grid-row: 1;
+  grid-column: 2;
+  font-variant-numeric: tabular-nums;
+}
+.amb-status {
+  bottom: 4px;
+  height: 36px;
+  padding: 0 52px 0 14px;
+  line-height: 36px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.amb-main {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--fg);
+  transition: background 0.2s, color 0.2s;
+}
+.amb[data-open] .amb-main {
+  background: var(--fg);
+  color: var(--bg);
+}
+@media (hover: hover) {
+  .amb:not([data-open]) .amb-main:hover {
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+  }
+  .amb[data-open] .amb-main:hover {
+    background: #45392f;
+  }
+}
+/* Vier Zeichen übereinander, je nach Zustand eines sichtbar: Note (zu, still), Balken (zu,
+   spielt), Play/Pause (auf) */
+.amb-i {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.amb-i-music {
+  color: var(--fg-dim);
+}
+.amb:not([data-open]):is([data-state='idle'], [data-state='paused']) .amb-i-music,
+.amb:not([data-open]):is([data-state='playing'], [data-state='loading']) .amb-bars,
+.amb[data-open]:is([data-state='idle'], [data-state='paused']) .amb-i-play,
+.amb[data-open]:is([data-state='playing'], [data-state='loading']) .amb-i-pause {
+  opacity: 1;
+  transform: none;
+}
+.amb-i-play {
+  margin-left: 2px;
+}
+.amb-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 14px;
+}
+.amb-bars i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1.5px;
+  background: var(--fg);
+  transform-origin: bottom;
+  animation: amb-sway 1.6s ease-in-out infinite;
+}
+.amb-bars i:nth-child(2) {
+  animation-delay: -0.55s;
+  animation-duration: 1.3s;
+}
+.amb-bars i:nth-child(3) {
+  animation-delay: -1.1s;
+  animation-duration: 1.9s;
+}
+.amb[data-state='loading'] .amb-bars i {
+  animation-duration: 0.9s;
+  opacity: 0.5;
+}
+@keyframes amb-sway {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@media (max-width: 767px) {
+  .amb {
+    bottom: calc(16px + var(--sab));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .amb,
+  .amb-i {
+    transition: none;
+  }
+  .amb-bars i {
+    animation: none;
+    transform: scaleY(0.6);
+  }
+}
