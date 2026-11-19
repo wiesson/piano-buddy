@@ -2,10 +2,11 @@ import { v } from 'convex/values'
 import { internalAction } from './_generated/server'
 
 /**
- * Mails der Launch-Liste. Versand über Cloudflare Email Sending (CLOUDFLARE_ACCOUNT_ID +
- * CLOUDFLARE_EMAIL_TOKEN) oder Resend (RESEND_API_KEY); ohne beides wird nichts verschickt und
- * die Anmeldung bleibt offen, bis der Versand eingerichtet ist. Absender: FROM_EMAIL, Antworten:
- * REPLY_TO_EMAIL (optional). Nur fetch, läuft in der Convex-Laufzeit.
+ * Mails der Launch-Liste. Versand bevorzugt über den eigenen Worker (apps/mailer, send_email-
+ * Binding, kein API-Token): MAIL_SECRET, optional MAIL_WORKER_URL. Sonst Cloudflare Email
+ * Sending per REST (CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_EMAIL_TOKEN) oder Resend (RESEND_API_KEY).
+ * Ohne alles wird nichts verschickt und die Anmeldung bleibt offen, bis der Versand eingerichtet
+ * ist. Nur fetch, läuft in der Convex-Laufzeit.
  */
 
 /** Convex stellt Umgebungsvariablen über process.env bereit (ohne Node-Typen im Projekt) */
@@ -17,7 +18,8 @@ const siteUrl = () => (process.env.SITE_URL || 'https://pianobuddy.fyi').replace
 const from = () => process.env.FROM_EMAIL || 'Piano Buddy <hallo@pianobuddy.fyi>'
 const bare = (f: string) => f.match(/<([^>]+)>/)?.[1]?.trim() ?? f.trim()
 
-function provider(): 'cloudflare' | 'resend' | null {
+function provider(): 'worker' | 'cloudflare' | 'resend' | null {
+  if (process.env.MAIL_SECRET) return 'worker'
   if (process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_EMAIL_TOKEN) return 'cloudflare'
   if (process.env.RESEND_API_KEY) return 'resend'
   return null
@@ -25,6 +27,15 @@ function provider(): 'cloudflare' | 'resend' | null {
 
 async function send(mail: Mail) {
   const replyTo = process.env.REPLY_TO_EMAIL || undefined
+  if (provider() === 'worker') {
+    const res = await fetch(process.env.MAIL_WORKER_URL || 'https://pianobuddy.fyi/_mail/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.MAIL_SECRET}` },
+      body: JSON.stringify(mail),
+    })
+    if (!res.ok) throw new Error(`Mail-Worker ${res.status} ${await res.text()}`)
+    return
+  }
   if (provider() === 'cloudflare') {
     const name = from().match(/^([^<]+)</)?.[1]?.trim()
     const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/email/sending/send`, {

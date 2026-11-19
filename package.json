@@ -14,7 +14,7 @@
     "test:audio": "pnpm --filter @piano/core test:audio",
     "typecheck": "pnpm -r typecheck",
     "storybook": "pnpm --filter @piano/ui storybook",
-    "deploy": "convex deploy -y --cmd 'pnpm build' --cmd-url-env-var-name VITE_CONVEX_URL && pnpm --filter @piano/app deploy:worker && pnpm --filter @piano/website deploy:worker"
+    "deploy": "convex deploy -y --cmd 'pnpm build' --cmd-url-env-var-name VITE_CONVEX_URL && pnpm --filter @piano/app deploy:worker && pnpm --filter @piano/website deploy:worker && pnpm --filter @piano/mailer deploy:worker"
   },
   "dependencies": {
     "convex": "^1.51.0"

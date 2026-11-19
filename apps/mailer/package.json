@@ -1,0 +1,9 @@
+{
+  "name": "@piano/mailer",
+  "private": true,
+  "type": "module",
+  "description": "Mailversand von pianobuddy.fyi für Convex (send_email-Binding, kein API-Token)",
+  "scripts": {
+    "deploy:worker": "wrangler deploy"
+  }
+}

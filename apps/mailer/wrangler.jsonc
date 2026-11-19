@@ -1,0 +1,11 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Mailversand für Convex (Launch-Liste): Worker mit send_email-Binding statt API-Token.
+  // Convex ruft POST pianobuddy.fyi/_mail/send mit dem Geheimnis MAIL_SECRET auf.
+  "name": "piano-buddy-mail",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "routes": [{ "pattern": "pianobuddy.fyi/_mail/*", "zone_name": "pianobuddy.fyi" }],
+  "workers_dev": false,
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["hallo@pianobuddy.fyi"] }]
+}
