@@ -418,6 +418,7 @@ function Variants({ variant, blind }: { variant: Variant; blind: boolean }) {
           <Seg label={t.debug.carryLabel} value={variant.carryMs} options={[[300, '300'], [450, '450'], [500, '500'], [700, '700']]} onChange={set('carryMs')} />
           <Seg label={t.debug.strayLabel} value={variant.strayDelay} options={[[false, t.debug.strayNow], [true, t.debug.strayLater]]} onChange={set('strayDelay')} />
           <Seg label={t.debug.repeatLabel} value={variant.repeatOk} options={[[false, t.debug.repeatWrong], [true, t.debug.repeatOk]]} onChange={set('repeatOk')} />
+          <Seg label={t.debug.scrubLabel} value={variant.scrub} options={[['free', t.debug.scrubFree], ['bar', t.debug.scrubBar]]} onChange={set('scrub')} />
         </>
       )}
     </div>

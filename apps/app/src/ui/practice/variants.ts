@@ -31,6 +31,11 @@ export interface Variant {
   wrongDelayMs: number
   strayDelay: boolean
   repeatOk: boolean
+  /**
+   * Spulen (STU-1288): frei (bleibt, wo man loslässt, Schwung, federnde Ränder) oder wie bis zum
+   * 19.11.2026 (rastet auf den nächsten Taktanfang, kein Schwung). „bar“ nur zum Vergleich.
+   */
+  scrub: 'free' | 'bar'
 }
 
 export const VARIANT_A: Variant = {
@@ -44,6 +49,7 @@ export const VARIANT_A: Variant = {
   wrongDelayMs: WRONG_DELAY_MS,
   strayDelay: false,
   repeatOk: false,
+  scrub: 'free',
 }
 
 export const VARIANT_B: Variant = {
@@ -57,6 +63,7 @@ export const VARIANT_B: Variant = {
   wrongDelayMs: 500,
   strayDelay: false,
   repeatOk: true,
+  scrub: 'free',
 }
 
 const KEY = 'pianobuddy.variant'

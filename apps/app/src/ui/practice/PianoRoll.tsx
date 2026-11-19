@@ -6,6 +6,7 @@ import type { ScoreNote } from '@piano/core/music/lessons'
 import { isBlack } from '@piano/core/music/notes'
 import { displayNoteName, displayNoteLabel, spelledNoteName } from '@piano/core/i18n/noteNames'
 import { spell } from '@piano/core/music/notation'
+import { getVariant } from './variants'
 
 export interface RollView {
   notes: ScoreNote[]
@@ -50,8 +51,19 @@ export interface RollView {
 
 /** Ab so vielen Pixeln wird aus einem Tipp in die Bahn ein Spulen */
 const SCRUB_SLOP = 8
-/** So lange nach dem letzten Mausrad-Ereignis gilt das Spulen als beendet (Trackpad schwingt nach) */
-const WHEEL_END_MS = 180
+/**
+ * So lange nach dem letzten Mausrad-Ereignis gilt das Spulen als beendet. Das Nachschwingen des
+ * Trackpads hat kurze Pausen und gehört noch zur Geste
+ */
+const WHEEL_END_MS = 300
+/** Schwung nach dem Loslassen wie bei iOS: Geschwindigkeit aus den letzten 80 ms, Reibung je 16 ms */
+const FLING_WINDOW_MS = 80
+const FLING_FRICTION = 0.95
+/** Über den Rand hinaus bremst der Schwung stark (das Gummiband zieht zurück) */
+const FLING_EDGE_FRICTION = 0.75
+/** Ab dieser Geschwindigkeit (px/ms) läuft die Bahn nach, darunter steht sie */
+const FLING_MIN = 0.25
+const FLING_STOP = 0.02
 
 export interface NoteLook {
   missed?: boolean
@@ -302,7 +314,8 @@ export function PianoRoll({
    * Spulen: Ziehen in der Bahn, Mausrad oder Trackpad. `beats` ist der Weg seit dem Beginn in
    * Schlägen; positiv heißt vorwärts im Stück (die Noten wandern nach unten, wie beim Spielen).
    */
-  onScrub?: (phase: 'start' | 'move' | 'end', beats: number) => void
+  /** Gibt bei 'move' true zurück, wenn die Stelle über Anfang oder Ende hinaus liegt (Gummiband) */
+  onScrub?: (phase: 'start' | 'move' | 'end', beats: number) => boolean | void
   /** Töne des aktuellen Schritts, für Screenreader („als Nächstes“) und den ersten Fokus */
   expected: number[]
   /** helles Papier statt Lack */
@@ -690,6 +703,7 @@ export function PianoRoll({
       // Pinch-Zoom (ctrl) und seitliches Wischen gehören dem Browser
       if (!scrub || !lr || e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
       e.preventDefault()
+      stopFling()
       const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * el.clientHeight : e.deltaY
       if (!active) {
         active = true
@@ -703,7 +717,7 @@ export function PianoRoll({
       timer = setTimeout(() => {
         active = false
         onScrubRef.current?.('end', acc / lr.pxPerBeat)
-      }, WHEEL_END_MS)
+      }, getVariant().scrub === 'bar' ? 180 : WHEEL_END_MS)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => {
@@ -715,24 +729,79 @@ export function PianoRoll({
   // Gehaltene Tasten je Finger: Loslassen beendet den Ton
   const held = useRef(new Map<number, () => void>())
   /** Finger oder Maus in der Bahn: erst ein Tipp, ab ein paar Pixeln Weg ein Spulen */
-  const drag = useRef<{ id: number; y0: number; active: boolean; beats: number } | null>(null)
+  const drag = useRef<{
+    id: number
+    y0: number
+    active: boolean
+    beats: number
+    /** Letzte Positionen (Zeit, y) für den Schwung beim Loslassen */
+    trail: { t: number; y: number }[]
+    /** Dieser Finger hat eine auslaufende Bahn angehalten: kein Tipp */
+    caught: boolean
+  } | null>(null)
+  /** Auslaufende Bahn nach einem Wisch */
+  const fling = useRef<{ raf: number; px: number } | null>(null)
+  /** Schwung anhalten; die Stelle gilt dort, wo die Bahn gerade steht */
+  const stopFling = () => {
+    const f = fling.current
+    const lr = layoutRef.current
+    if (!f) return false
+    cancelAnimationFrame(f.raf)
+    fling.current = null
+    onScrubRef.current?.('end', lr ? f.px / lr.pxPerBeat : 0)
+    return true
+  }
+  useEffect(() => () => void (fling.current && cancelAnimationFrame(fling.current.raf)), [])
+  /** Nach dem Loslassen weiterlaufen lassen, bis die Reibung die Bahn anhält */
+  const startFling = (px: number, v: number) => {
+    let last = performance.now()
+    const step = (now: number) => {
+      const lr = layoutRef.current
+      const f = fling.current
+      if (!lr || !f) return
+      const dt = Math.min(48, now - last)
+      last = now
+      f.px += v * dt
+      const edge = onScrubRef.current?.('move', f.px / lr.pxPerBeat) === true
+      v *= (edge ? FLING_EDGE_FRICTION : FLING_FRICTION) ** (dt / 16)
+      if (Math.abs(v) < FLING_STOP) {
+        fling.current = null
+        onScrubRef.current?.('end', f.px / lr.pxPerBeat)
+        return
+      }
+      f.raf = requestAnimationFrame(step)
+    }
+    fling.current = { raf: requestAnimationFrame(step), px }
+  }
   const release = (e: React.PointerEvent<HTMLCanvasElement>) => {
     held.current.get(e.pointerId)?.()
     held.current.delete(e.pointerId)
   }
   const endDrag = (e: React.PointerEvent<HTMLCanvasElement>, tap: boolean) => {
     const d = drag.current
+    const lr = layoutRef.current
     if (!d || d.id !== e.pointerId) return
     drag.current = null
-    if (d.active) onScrubRef.current?.('end', d.beats)
-    else if (tap) onLaneTap?.()
+    if (d.active && lr) {
+      // Schwung aus den letzten Millisekunden der Bewegung; wer anhält und dann loslässt, hat keinen
+      const now = performance.now()
+      const recent = d.trail.filter((p) => now - p.t <= FLING_WINDOW_MS)
+      const first = recent[0]
+      const lastP = recent[recent.length - 1]
+      const v = first && lastP && lastP.t > first.t ? (lastP.y - first.y) / (lastP.t - first.t) : 0
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      if (tap && !reduced && getVariant().scrub === 'free' && Math.abs(v) >= FLING_MIN) startFling(d.beats * lr.pxPerBeat, v)
+      else onScrubRef.current?.('end', d.beats)
+    } else if (tap && !d.caught) onLaneTap?.()
   }
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const lr = layoutRef.current
     if (lr && !drag.current) {
       const y = e.clientY - e.currentTarget.getBoundingClientRect().top
       if (y < lr.keyTop) {
-        drag.current = { id: e.pointerId, y0: e.clientY, active: false, beats: 0 }
+        // Läuft die Bahn noch aus, hält der Finger sie an (wie bei iOS), ohne zu tippen
+        const caught = stopFling()
+        drag.current = { id: e.pointerId, y0: e.clientY, active: false, beats: 0, trail: [{ t: performance.now(), y: e.clientY }], caught }
         e.currentTarget.setPointerCapture?.(e.pointerId)
         return
       }
@@ -745,6 +814,8 @@ export function PianoRoll({
     const lr = layoutRef.current
     if (!d || d.id !== e.pointerId || !lr || !onScrubRef.current) return
     const dy = e.clientY - d.y0
+    d.trail.push({ t: performance.now(), y: e.clientY })
+    if (d.trail.length > 12) d.trail.shift()
     if (!d.active) {
       if (Math.abs(dy) < SCRUB_SLOP) return
       d.active = true

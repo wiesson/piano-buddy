@@ -288,6 +288,16 @@ describe('Spulen beim Mitspielen', () => {
     expect(results[0]).toMatchObject({ clean: true, percent: 100, onTime: 4, missed: 0, from: { beat: 4, bar: 2 } })
   })
 
+  it('steht nach dem Spulen am nächsten ganzen Schlag, nie davor', () => {
+    const s = new TempoSession(twoBars, 'R', 1, () => {})
+    s.seek(3.2)
+    expect(s.beatAt(0)).toBe(4)
+    s.seek(5)
+    expect(s.beatAt(0)).toBe(5)
+    s.seek(-0.5)
+    expect(s.beatAt(0)).toBe(0)
+  })
+
   it('wertet Töne im Einzähler nach dem Spulen nicht als falsch', () => {
     const s = new TempoSession(twoBars, 'R', 1, () => {})
     s.seek(4)

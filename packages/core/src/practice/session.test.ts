@@ -258,6 +258,18 @@ describe('Spulen im Warte-Modus', () => {
     expect(results[0].percent).toBe(75)
   })
 
+  it('beginnt am ersten Schritt an oder nach der Loslass-Stelle, ohne auf den Takt zu runden', () => {
+    const { s, results, play } = seekRun()
+    s.seek(3.4) // zwischen F (3) und G (4): weiter mit G, nie zurück zu F
+    expect(s.index).toBe(4)
+    expect(s.beat).toBe(4)
+    s.seek(0.6) // kurz hinter dem Anfang: weiter mit D, nicht zurück an den Anfang
+    expect(s.index).toBe(1)
+    s.seek(3.4)
+    for (const m of pitches.slice(4)) play(m)
+    expect(results[0].from).toEqual({ beat: 4, bar: 2 }) // „Ab Takt 2“: der Takt des Tons, an dem es weitergeht
+  })
+
   it('zählt Spulen an den Anfang als ganzen Durchgang', () => {
     const { s, results, play } = seekRun()
     s.seek(4)

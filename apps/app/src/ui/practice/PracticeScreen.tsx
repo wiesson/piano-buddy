@@ -67,8 +67,10 @@ const sessionParts = createParts(practiceSession, { root: 'main' })
 type PauseReason = 'tap' | 'background' | 'midi' | 'demo' | 'seek'
 /** Nach dem Anhalten so lange nicht per Tipp fortsetzen (Doppeltipp, Wischen) */
 const RESUME_LOCK_MS = 400
-/** Nach dem Spulen gleitet die Bahn so lange auf den Taktanfang (statt zu springen) */
+/** Nach dem Spulen federt die Bahn so lange vom Rand zurück bzw. zum nächsten Schlag (Mitspielen) */
 const SETTLE_MS = 260
+/** So weit (in Schlägen) gibt die Bahn über Anfang und Ende höchstens nach */
+const RUBBER_BEATS = 1.5
 /** So lange bleiben die Taktnummern nach dem Spulen stehen, dann blenden sie aus */
 const BAR_LABELS_MS = 900
 const tempoKey = (lessonId: string, stage: Stage) => `tempo.${lessonId}.${stage}`
@@ -498,9 +500,11 @@ export function PracticeScreen({
   // für die Tests der Interaktions-Karte (apps/app/e2e)
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    const w = window as Window & { pianoInput?: (midi: number, source: NoteOn['source']) => void }
+    const w = window as Window & { pianoInput?: (midi: number, source: NoteOn['source']) => void; pianoShownBeat?: () => number }
     w.pianoInput = (midi, source) => inputRef.current({ midi, tMs: performance.now(), source })
-    return () => void delete w.pianoInput
+    // Die Stelle, die die Bahn gerade zeigt (Spulen prüfen)
+    w.pianoShownBeat = () => shownBeatRef.current
+    return () => void (delete w.pianoInput, delete w.pianoShownBeat)
   }, [])
 
   /** Losgelassen: Haltedauer (Mitspielen) bzw. lange Töne halten (Warten) */
@@ -879,8 +883,8 @@ export function PracticeScreen({
     }
   }, [lesson.notes, lesson.beatsPerBar, lesson.bpm, stageNotes, lastBeat, showNames, showFingers, sheet])
 
-  // Spulen: Während des Ziehens zeigt die Bahn die Stelle unter dem Finger; beim Loslassen rastet
-  // sie auf den nächsten Taktanfang ein und gleitet dorthin (SETTLE_MS), statt zu springen
+  // Spulen: Während des Ziehens (und des Auslaufens nach einem Wisch) zeigt die Bahn die Stelle
+  // unter dem Finger. Beim Loslassen bleibt sie dort; nur vom Rand federt sie zurück (SETTLE_MS)
   const scrubRef = useRef<{ from: number; beat: number } | null>(null)
   const settleRef = useRef<{ from: number; t0: number } | null>(null)
   const labelsUntilRef = useRef(0)
@@ -918,9 +922,14 @@ export function PracticeScreen({
   }, [rawView, barLabel])
 
   /** Erster und letzter Taktanfang, auf den man spulen kann */
-  const lastBarStart = Math.floor((stageNotes[stageNotes.length - 1]?.start ?? 0) / lesson.beatsPerBar) * lesson.beatsPerBar
+  /** Spulen geht vom ersten bis zum letzten Ton; darüber hinaus federt die Bahn (Gummiband) */
+  const scrubLo = Math.min(0, ...stageNotes.map((n) => n.start))
+  const scrubHi = Math.max(0, ...stageNotes.map((n) => n.start))
 
-  /** Zur Stelle `beat` (Taktanfang): Warten setzt dort an, Mitspielen steht dort angehalten */
+  /**
+   * Zur Stelle `beat`, dort, wo man losgelassen hat (nichts rastet ein): Warten setzt am ersten
+   * Ton an oder nach ihr an, Mitspielen steht am nächsten ganzen Schlag angehalten.
+   */
   const seekTo = (beat: number) => {
     setResult(null)
     const ts = tempoRef.current
@@ -937,30 +946,54 @@ export function PracticeScreen({
       const s = sessionRef.current
       if (!s) return
       s.seek(beat)
-      beatRef.current = s.beat
+      // Die Bahn bleibt, wo man losgelassen hat, und gleitet von dort im Takt des Stücks vorwärts
+      // zum Ton, an dem es weitergeht (wie beim normalen Spielen), nie zurück
+      beatRef.current = Math.min(beat, s.beat)
     }
   }
 
-  const onScrub = (phase: 'start' | 'move' | 'end', beats: number) => {
+  /** Über den Rand gezogen: nur ein Teil der Bewegung, mit wachsendem Widerstand (wie iOS) */
+  const rubber = (raw: number) => {
+    const band = (x: number) => RUBBER_BEATS * (1 - 1 / ((x * 0.55) / RUBBER_BEATS + 1))
+    return raw < scrubLo ? scrubLo - band(scrubLo - raw) : raw > scrubHi ? scrubHi + band(raw - scrubHi) : raw
+  }
+
+  const onScrub = (phase: 'start' | 'move' | 'end', beats: number): boolean => {
     if (phase === 'start') {
       if (demoRef.current) stopDemo()
       if (tempoRef.current?.running) pauseTempo('seek')
       settleRef.current = null
       scrubRef.current = { from: shownBeatRef.current, beat: shownBeatRef.current }
       force((x) => x + 1)
-      return
+      return false
     }
     const sc = scrubRef.current
-    if (!sc) return
-    sc.beat = Math.min(lastBarStart, Math.max(-lesson.beatsPerBar, sc.from + beats))
-    if (phase === 'move') return
+    if (!sc) return false
+    // Zum Vergleich in der Debug-Ebene: das Spulen bis zum 19.11.2026 (rastet auf den Takt)
+    if (variantRef.current.scrub === 'bar') {
+      const lastBar = Math.floor(scrubHi / lesson.beatsPerBar) * lesson.beatsPerBar
+      sc.beat = Math.min(lastBar, Math.max(-lesson.beatsPerBar, sc.from + beats))
+      if (phase === 'move') return false
+      scrubRef.current = null
+      seekTo(Math.min(lastBar, Math.max(0, Math.round(sc.beat / lesson.beatsPerBar) * lesson.beatsPerBar)))
+      if (sessionRef.current) beatRef.current = sessionRef.current.beat
+      settleRef.current = { from: sc.beat, t0: performance.now() }
+      labelsUntilRef.current = performance.now() + BAR_LABELS_MS
+      force((x) => x + 1)
+      return false
+    }
+    const raw = sc.from + beats
+    sc.beat = rubber(raw)
+    if (phase === 'move') return raw < scrubLo || raw > scrubHi
     scrubRef.current = null
-    const bpb = lesson.beatsPerBar
-    const target = Math.min(lastBarStart, Math.max(0, Math.round(sc.beat / bpb) * bpb))
+    const target = Math.min(scrubHi, Math.max(scrubLo, sc.beat))
     seekTo(target)
-    settleRef.current = { from: sc.beat, t0: performance.now() }
+    // Weich zurück nur, wo die Bahn über den Rand gezogen war (Mitspielen: zum nächsten Schlag)
+    const shown = tempoRef.current ? tempoRef.current.beatAt(performance.now()) : beatRef.current
+    if (Math.abs(shown - sc.beat) > 1e-3) settleRef.current = { from: sc.beat, t0: performance.now() }
     labelsUntilRef.current = performance.now() + BAR_LABELS_MS
     force((x) => x + 1)
+    return false
   }
 
   /** Nochmal wie zuletzt: die geübte Stelle bzw. das ganze Stück */
@@ -1051,7 +1084,7 @@ export function PracticeScreen({
   const noInput = micStatus === 'off' && midi.state === 'off'
   const join = (...parts: (string | false)[]) => parts.filter(Boolean).join(' ') || null
   /** Takt, ab dem gerade eine Stelle geübt wird (0: von vorn) */
-  const fromBar = ts?.partial ? barOf(lesson, ts.from) : s?.partial ? barOf(lesson, s.fromBeat) : 0
+  const fromBar = ts?.partial ? barOf(lesson, ts.fromNote) : s?.partial ? barOf(lesson, s.fromBeat) : 0
   const laneHint = result
     ? null
     : ts?.paused

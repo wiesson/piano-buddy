@@ -369,9 +369,9 @@ export class WaitSession {
   }
 
   /**
-   * Spulen: Der Durchgang beginnt neu am ersten Schritt ab `beat` (meist ein Taktanfang). Liegt
-   * davor kein Schritt, ist es ein Neustart von vorn. Bis zum ersten richtigen Ton gilt wieder die
-   * Schonfrist.
+   * Spulen: Der Durchgang beginnt neu am ersten Schritt an oder nach `beat` (der Stelle, an der
+   * man losgelassen hat; nichts rastet ein). Liegt davor kein Schritt, ist es ein Neustart von vorn.
+   * Bis zum ersten richtigen Ton gilt wieder die Schonfrist. „Ab Takt N“ ist der Takt dieses Schritts.
    */
   seek(beat: number) {
     const i = this.steps.findIndex((st) => st.start >= beat - 1e-6)
@@ -379,7 +379,7 @@ export class WaitSession {
     if (i <= 0) return
     this.index = i
     this.fromIndex = i
-    this.fromBeat = beat
+    this.fromBeat = this.steps[i].start
   }
 
   /** Nochmal wie zuletzt: ab der gespulten Stelle, sonst von vorn */

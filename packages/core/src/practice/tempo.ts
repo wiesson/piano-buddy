@@ -299,18 +299,24 @@ export class TempoSession {
     return this.notes.some((n) => n.start < this.from - 1e-6)
   }
 
+  /** Beginn des ersten Tons ab der gespulten Stelle: Sein Takt ist „Ab Takt N“ */
+  get fromNote(): number {
+    return this.counted[0]?.start ?? this.from
+  }
+
   /** Töne, die in diesem Durchgang zählen (ab der gespulten Stelle) */
   private get counted() {
     return this.notes.filter((n) => n.start >= this.from - 1e-6)
   }
 
   /**
-   * Spulen: angehalten an `beat` (meist ein Taktanfang). Alle Wertungen beginnen neu, Töne davor
-   * zählen nicht mehr. „Weiter“ zählt einen Takt ein und läuft ab hier.
+   * Spulen: angehalten am nächsten ganzen Schlag an oder nach `beat` (der Stelle, an der man
+   * losgelassen hat; nichts springt zurück). Alle Wertungen beginnen neu, Töne davor zählen nicht
+   * mehr. „Weiter“ zählt einen Takt ein und läuft ab hier.
    */
   seek(beat: number) {
     for (const n of this.notes) Object.assign(n, { state: 'pending', deltaMs: 0, onMs: null, offMs: null, hold: null, source: null })
-    this.from = Math.max(0, beat)
+    this.from = Math.max(0, Math.ceil(beat - 1e-6))
     this.wrong = 0
     this.wrongBars = []
     this.hintedNotes = new Set()
@@ -436,7 +442,7 @@ export class TempoSession {
       holdGraded: this.holdGraded,
       drift: s.drift,
       hinted: this.hintedNotes.size,
-      ...(this.partial ? { from: { beat: this.from, bar: barOf(this.lesson, this.from) } } : {}),
+      ...(this.partial ? { from: { beat: this.from, bar: barOf(this.lesson, this.fromNote) } } : {}),
       timing: this.notes.map((n) => (n.state === 'onTime' || n.state === 'near' ? n.deltaMs : null)),
       held: this.notes.map((n) =>
         n.hold && n.onMs !== null && n.offMs !== null ? Math.round((100 * (n.offMs - n.onMs)) / (n.dur * this.beat)) : null,
