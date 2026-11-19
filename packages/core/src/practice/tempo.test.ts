@@ -262,3 +262,61 @@ describe('Pause', () => {
     expect(s.notes[2].state).toBe('onTime')
   })
 })
+
+describe('Spulen beim Mitspielen', () => {
+  // Zwei Takte Viertel, 60 bpm: ein Schlag = 1000 ms
+  const twoBars: Lesson = {
+    ...quarters,
+    notes: (['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'] as const).map((p, i): ScoreNote => ({ midi: n(p), start: i, dur: 1, hand: 'R' })),
+  }
+  const pitches = twoBars.notes.map((x) => x.midi)
+
+  it('hält an der Stelle, zählt einen Takt ein und wertet nur die Töne ab dort', () => {
+    const results: TempoResult[] = []
+    const s = new TempoSession(twoBars, 'R', 1, (r) => results.push(r))
+    s.seek(4)
+    expect(s.paused).toBe(true)
+    expect(s.beatAt(0)).toBe(4)
+    s.resume(0, 0) // Einzähler 0–4000 ms, Schlag 4 bei 4000 ms
+    expect(s.beatAt(4000)).toBeCloseTo(4)
+    for (let i = 4; i < 8; i++) {
+      on(s, pitches[i], 4000 + (i - 4) * 1000)
+      off(s, pitches[i], 4000 + (i - 4) * 1000 + 900)
+    }
+    s.tick(9500)
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ clean: true, percent: 100, onTime: 4, missed: 0, from: { beat: 4, bar: 2 } })
+  })
+
+  it('wertet Töne im Einzähler nach dem Spulen nicht als falsch', () => {
+    const s = new TempoSession(twoBars, 'R', 1, () => {})
+    s.seek(4)
+    s.resume(0, 0)
+    on(s, pitches[0], 1000) // C im Einzähler, ein Ton vor der Stelle
+    expect(s.wrong).toBe(0)
+  })
+
+  it('verwirft beim Spulen die Wertung vorher', () => {
+    const results: TempoResult[] = []
+    const s = new TempoSession(twoBars, 'R', 1, (r) => results.push(r))
+    s.start(0, 0)
+    on(s, n('C2'), 4000) // falsch
+    s.pause(4100)
+    s.seek(4)
+    expect(s.wrong).toBe(0)
+    s.resume(5000, 0) // Schlag 4 bei 9000 ms
+    for (let i = 4; i < 8; i++) on(s, pitches[i], 9000 + (i - 4) * 1000)
+    s.tick(14_500)
+    expect(results[0]).toMatchObject({ wrong: 0, missed: 0 })
+  })
+
+  it('kennzeichnet einen Durchgang von vorn nicht als geübte Stelle', () => {
+    const results: TempoResult[] = []
+    const s = new TempoSession(twoBars, 'R', 1, (r) => results.push(r))
+    s.seek(0)
+    s.resume(0, 0)
+    for (let i = 0; i < 8; i++) on(s, pitches[i], 4000 + i * 1000)
+    s.tick(13_500)
+    expect(results[0].from).toBeUndefined()
+  })
+})

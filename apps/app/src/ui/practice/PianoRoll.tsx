@@ -37,7 +37,14 @@ export interface RollView {
   tags?: { midi: number; text: string; age: number }[]
   /** Einzähler: welcher Schlag (1 bis 4) und wie weit er ist (0..1) */
   countIn?: { n: number; frac: number } | null
+  /** Beim Spulen: Taktnummer an jedem Taktstrich, mit Deckkraft (blendet nach dem Loslassen aus) */
+  barLabels?: { alpha: number; label: (beat: number) => string }
 }
+
+/** Ab so vielen Pixeln wird aus einem Tipp in die Bahn ein Spulen */
+const SCRUB_SLOP = 8
+/** So lange nach dem letzten Mausrad-Ereignis gilt das Spulen als beendet (Trackpad schwingt nach) */
+const WHEEL_END_MS = 180
 
 export interface NoteLook {
   missed?: boolean
@@ -244,19 +251,27 @@ export function PianoRoll({
   expected,
   paper = false,
   onLaneTap,
+  onScrub,
 }: {
   view: () => RollView
   beatsPerBar: number
   onKey: (midi: number) => (() => void) | void
   /** Tipp in die Bahn (über der Klaviatur): Mitspielen anhalten oder fortsetzen */
   onLaneTap?: () => void
+  /**
+   * Spulen: Ziehen in der Bahn, Mausrad oder Trackpad. `beats` ist der Weg seit dem Beginn in
+   * Schlägen; positiv heißt vorwärts im Stück (die Noten wandern nach unten, wie beim Spielen).
+   */
+  onScrub?: (phase: 'start' | 'move' | 'end', beats: number) => void
   /** Töne des aktuellen Schritts, für Screenreader („als Nächstes“) und den ersten Fokus */
   expected: number[]
   /** helles Papier statt Lack */
   paper?: boolean
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
-  const layoutRef = useRef<{ l: Layout; keyTop: number; keyH: number } | null>(null)
+  const layoutRef = useRef<{ l: Layout; keyTop: number; keyH: number; pxPerBeat: number } | null>(null)
+  const onScrubRef = useRef(onScrub)
+  onScrubRef.current = onScrub
   // Gleiche Lage wie die Zeichnung, als React-Zustand für die zugänglichen Tasten-Knöpfe
   const [keysLayout, setKeysLayout] = useState<{ l: Layout; keyTop: number; keyH: number } | null>(null)
   const layoutSig = useRef('')
@@ -306,7 +321,8 @@ export function PianoRoll({
       const keyH = Math.min(keyboardHeight(), H - feltH)
       const keyTop = H - keyH
       const laneBottom = keyTop - feltH
-      layoutRef.current = { l, keyTop, keyH }
+      const pxPerBeat = Math.max(46, laneBottom / 4.8)
+      layoutRef.current = { l, keyTop, keyH, pxPerBeat }
       // Für die zugänglichen Knöpfe zählt das Ziel; sie sind unsichtbar und stehen gleich dort
       const sig = `${W}x${H}:${target.lo}-${target.hi}:${target.coreLo}-${target.coreHi}:${keyH}`
       if (sig !== layoutSig.current) {
@@ -339,7 +355,6 @@ export function PianoRoll({
         }
       }
 
-      const pxPerBeat = Math.max(46, laneBottom / 4.8)
       const yOf = (beat: number) => laneBottom - (beat - v.beat) * pxPerBeat
 
       // Taktstriche
@@ -349,6 +364,16 @@ export function PianoRoll({
         if (y > laneBottom) continue
         g.fillStyle = C.barLine
         g.fillRect(0, Math.round(y), W, 1)
+        // Spulen: Taktnummer links über dem Strich, damit man weiß, wo man landet
+        if (v.barLabels && v.barLabels.alpha > 0 && b >= 0) {
+          g.globalAlpha = v.barLabels.alpha
+          g.fillStyle = paper ? '#5c4d42' : '#c9bba6'
+          g.font = `600 12px "Geist Mono", ui-monospace, monospace`
+          g.textAlign = 'left'
+          g.textBaseline = 'bottom'
+          g.fillText(v.barLabels.label(b), 10, Math.round(y) - 4)
+          g.globalAlpha = 1
+        }
       }
 
       // Notenblöcke; „jetzt“ ist eine Note, deren Zeitspanne die aktuelle Position enthält
@@ -568,15 +593,84 @@ export function PianoRoll({
     return () => cancelAnimationFrame(raf)
   }, [view, beatsPerBar, paper])
 
+  // Mausrad und Trackpad spulen. Eigener Listener, weil Reacts onWheel passiv ist und die Seite
+  // sonst mitscrollen bzw. zurückwischen könnte
+  useEffect(() => {
+    const el = canvas.current!
+    let acc = 0
+    let active = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onWheel = (e: WheelEvent) => {
+      const scrub = onScrubRef.current
+      const lr = layoutRef.current
+      // Pinch-Zoom (ctrl) und seitliches Wischen gehören dem Browser
+      if (!scrub || !lr || e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+      e.preventDefault()
+      const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * el.clientHeight : e.deltaY
+      if (!active) {
+        active = true
+        acc = 0
+        scrub('start', 0)
+      }
+      // Rad nach unten schiebt den Inhalt nach oben: zurück im Stück
+      acc -= px
+      scrub('move', acc / lr.pxPerBeat)
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        active = false
+        onScrubRef.current?.('end', acc / lr.pxPerBeat)
+      }, WHEEL_END_MS)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      clearTimeout(timer)
+    }
+  }, [])
+
   // Gehaltene Tasten je Finger: Loslassen beendet den Ton
   const held = useRef(new Map<number, () => void>())
+  /** Finger oder Maus in der Bahn: erst ein Tipp, ab ein paar Pixeln Weg ein Spulen */
+  const drag = useRef<{ id: number; y0: number; active: boolean; beats: number } | null>(null)
   const release = (e: React.PointerEvent<HTMLCanvasElement>) => {
     held.current.get(e.pointerId)?.()
     held.current.delete(e.pointerId)
   }
+  const endDrag = (e: React.PointerEvent<HTMLCanvasElement>, tap: boolean) => {
+    const d = drag.current
+    if (!d || d.id !== e.pointerId) return
+    drag.current = null
+    if (d.active) onScrubRef.current?.('end', d.beats)
+    else if (tap) onLaneTap?.()
+  }
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const lr = layoutRef.current
+    if (lr && !drag.current) {
+      const y = e.clientY - e.currentTarget.getBoundingClientRect().top
+      if (y < lr.keyTop) {
+        drag.current = { id: e.pointerId, y0: e.clientY, active: false, beats: 0 }
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+        return
+      }
+    }
     const r = pressAt(e)
     if (r) held.current.set(e.pointerId, r)
+  }
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const d = drag.current
+    const lr = layoutRef.current
+    if (!d || d.id !== e.pointerId || !lr || !onScrubRef.current) return
+    const dy = e.clientY - d.y0
+    if (!d.active) {
+      if (Math.abs(dy) < SCRUB_SLOP) return
+      d.active = true
+      d.y0 = e.clientY
+      onScrubRef.current('start', 0)
+      return
+    }
+    // Finger nach unten zieht die Noten nach unten: vorwärts im Stück
+    d.beats = dy / lr.pxPerBeat
+    onScrubRef.current('move', d.beats)
   }
   const pressAt = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const lr = layoutRef.current
@@ -584,7 +678,7 @@ export function PianoRoll({
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    if (y < lr.keyTop) return void onLaneTap?.()
+    if (y < lr.keyTop) return
     const { l, keyTop, keyH } = lr
     // schwarze Tasten zuerst prüfen (liegen oben drauf)
     if (y < keyTop + keyH * 0.62) {
@@ -604,8 +698,9 @@ export function PianoRoll({
         ref={canvas}
         className="roll-canvas"
         onPointerDown={onPointerDown}
-        onPointerUp={release}
-        onPointerCancel={release}
+        onPointerMove={onPointerMove}
+        onPointerUp={(e) => (endDrag(e, true), release(e))}
+        onPointerCancel={(e) => (endDrag(e, false), release(e))}
         onPointerLeave={release}
       />
       {keysLayout && <AccessibleKeys layout={keysLayout} expected={expected} onKey={onKey} />}

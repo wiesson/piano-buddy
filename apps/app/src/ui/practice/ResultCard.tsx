@@ -24,6 +24,7 @@ export function ResultCard({
   nextStage,
   clean,
   onAgain,
+  onFromStart,
   onNext,
   onNextLesson,
   onTempo,
@@ -38,6 +39,8 @@ export function ResultCard({
   nextStage?: Stage
   clean: number
   onAgain: () => void
+  /** Von vorn (nach einer geübten Stelle; „nochmal“ wiederholt dann die Stelle) */
+  onFromStart: () => void
   onNext: (s: Stage) => void
   onNextLesson?: () => void
   onTempo: (t: Tempo) => void
@@ -49,6 +52,8 @@ export function ResultCard({
   praise?: Praise | null
 }) {
   const done = clean >= CLEAN_GOAL
+  // Gespult: eine geübte Stelle, ohne Sterne, Bestwert und Plan
+  const section = result.from
   const stars = starsFor(result.percent, result.clean)
   const tempoRun = isTempo(result) ? result : null
   // Sauber: die nächste Tempo-Stufe anbieten, solange sie noch nicht geschafft ist (auch aus dem
@@ -57,15 +62,18 @@ export function ResultCard({
   const faster = up && !cleanTempos.has(up) ? up : null
   const slower = tempoRun && !tempoRun.clean && stars === 0 ? slowerTempo(tempo) : null
 
-  const primary = faster
-    ? { label: t.tempo.next(tempoLabel(faster)), run: () => onTempo(faster) }
-    : done && nextStage
-      ? { label: t.practice.continueWith(t.stage[nextStage]), run: () => onNext(nextStage) }
-      : done && onNextLesson
-        ? { label: t.practice.nextLesson, run: onNextLesson }
-        : { label: t.practice.again, run: onAgain }
-  const secondary =
-    primary.run !== onAgain
+  const primary = section
+    ? { label: t.practice.againFrom(section.bar), run: onAgain }
+    : faster
+      ? { label: t.tempo.next(tempoLabel(faster)), run: () => onTempo(faster) }
+      : done && nextStage
+        ? { label: t.practice.continueWith(t.stage[nextStage]), run: () => onNext(nextStage) }
+        : done && onNextLesson
+          ? { label: t.practice.nextLesson, run: onNextLesson }
+          : { label: t.practice.again, run: onAgain }
+  const secondary = section
+    ? { label: t.practice.restart, run: onFromStart }
+    : primary.run !== onAgain
       ? { label: t.practice.again, run: onAgain }
       : slower
         ? { label: t.tempo.slower, run: () => onTempo(slower) }
@@ -81,13 +89,15 @@ export function ResultCard({
       ]
         .filter(Boolean)
         .join(' · ')
-    : done
-      ? nextStage
-        ? t.practice.stageDone(t.stage[stage], t.stage[nextStage])
-        : stage === 'LR'
-          ? t.practice.allDone
-          : t.practice.stageDoneLast(t.stage[stage])
-      : t.practice.progress(clean, CLEAN_GOAL)
+    : section
+      ? t.practice.resultPercent(result.percent)
+      : done
+        ? nextStage
+          ? t.practice.stageDone(t.stage[stage], t.stage[nextStage])
+          : stage === 'LR'
+            ? t.practice.allDone
+            : t.practice.stageDoneLast(t.stage[stage])
+        : t.practice.progress(clean, CLEAN_GOAL)
   // Zeile 2: Haltedauer und Tempo-Gefühl (Mitspielen) bzw. Hinweise (Warten)
   const line2 = tempoRun
     ? [
@@ -106,8 +116,9 @@ export function ResultCard({
         ? t.practice.unverified(result.unverified)
         : ''
   // Zeile 3: Fortschritt im Plan oder Lob für etwas Neues
-  const line3 =
-    note ??
+  const line3 = section
+    ? t.practice.sectionNote
+    : note ??
     (praise
       ? praise.kind === 'stars'
         ? t.practice.praiseStars('')
@@ -121,16 +132,18 @@ export function ResultCard({
   return (
     <div className="result" role="status">
       <div className="result-top">
-        <p className="result-head">{result.clean ? t.practice.resultClean : t.tempo.percent(result.percent)}</p>
-        <Stars n={stars} className="result-stars" />
-        {best && best.percent > result.percent && <span className="result-best">{t.practice.best(best.percent)}</span>}
+        <p className="result-head">
+          {section ? t.practice.sectionHead(section.bar) : result.clean ? t.practice.resultClean : t.tempo.percent(result.percent)}
+        </p>
+        {!section && <Stars n={stars} className="result-stars" />}
+        {!section && best && best.percent > result.percent && <span className="result-best">{t.practice.best(best.percent)}</span>}
       </div>
       <p className="result-line">{line1}</p>
       {line2 && <p className="result-line">{line2}</p>}
       {line3 && (
         <p className="result-line result-praise">
           {line3}
-          {!note && praise?.kind === 'stars' && <Stars n={praise.stars} earnedOnly />}
+          {!section && !note && praise?.kind === 'stars' && <Stars n={praise.stars} earnedOnly />}
         </p>
       )}
       <div className="result-actions">
@@ -144,7 +157,7 @@ export function ResultCard({
         )}
         {/* Warte-Modus mit gelernter Stufe: Der nächste Ton wechselt zur nächsten Stufe, das sagen wir an */}
         <span className="result-hint">
-          {!tempoRun && done && nextStage ? t.practice.keepPlayingNext(t.stage[nextStage]) : t.tempo.keepPlaying}
+          {!section && !tempoRun && done && nextStage ? t.practice.keepPlayingNext(t.stage[nextStage]) : t.tempo.keepPlaying}
         </span>
       </div>
     </div>

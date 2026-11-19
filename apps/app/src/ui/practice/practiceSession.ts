@@ -16,8 +16,10 @@ export type PracticeSessionOptions = {
   phase?: SessionPhase
   stage?: string
   tempo?: string
-  /** Warum angehalten: tap, background, midi, demo; leer, wenn nicht angehalten */
+  /** Warum angehalten: tap, background, midi, demo, seek; leer, wenn nicht angehalten */
   pausedBy?: string
+  /** Gespult: Takt, ab dem gerade eine Stelle geübt wird; '0' heißt von vorn */
+  fromBar?: string
   onPause?: () => void
   onResume?: () => void
   onRestart?: () => void
@@ -31,6 +33,7 @@ export const practiceSession = definePrimitive({
     stage: 'string',
     tempo: 'string',
     pausedBy: 'string',
+    fromBar: 'string',
     onPause: 'callback',
     onResume: 'callback',
     onRestart: 'callback',
@@ -41,15 +44,17 @@ export const practiceSession = definePrimitive({
     stage: o.stage ?? '',
     tempo: o.tempo ?? 'wait',
     pausedBy: o.pausedBy ?? '',
+    fromBar: o.fromBar ?? '0',
   }),
   sync: (o) => ({
     ...(o.phase === undefined ? {} : { phase: o.phase }),
     ...(o.stage === undefined ? {} : { stage: o.stage }),
     ...(o.tempo === undefined ? {} : { tempo: o.tempo }),
     ...(o.pausedBy === undefined ? {} : { pausedBy: o.pausedBy }),
+    ...(o.fromBar === undefined ? {} : { fromBar: o.fromBar }),
   }),
   // Im Snapshot sichtbar
-  controlled: ['phase', 'stage', 'tempo', 'pausedBy'],
+  controlled: ['phase', 'stage', 'tempo', 'pausedBy', 'fromBar'],
   api: (context) => ({
     pause: () => context.options().onPause?.(),
     resume: () => context.options().onResume?.(),

@@ -276,6 +276,7 @@ export function SinkPage() {
               nextStage={nextStage}
               clean={SAMPLE_CLEAN[stage]}
               onAgain={mini.again}
+              onFromStart={mini.again}
               onNext={setStage}
               onTempo={(v) => mini.setTempo(v)}
               tempo={mini.tempo}

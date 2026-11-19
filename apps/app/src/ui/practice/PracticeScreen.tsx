@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { notesForStage, stagesFor, type Lesson, type Stage } from '@piano/core/music/lessons'
+import { barOf, notesForStage, stagesFor, type Lesson, type Stage } from '@piano/core/music/lessons'
 import { WaitSession, type PassResult } from '@piano/core/practice/session'
 import { TempoSession, TEMPO_LADDER, type JudgedNote, type Tempo, type TempoResult } from '@piano/core/practice/tempo'
 import { MicBench, type BenchStats } from '@piano/core/practice/bench'
@@ -46,9 +46,13 @@ const TEMPO_VALUES = TEMPO_LADDER.map(String)
 const sessionParts = createParts(practiceSession, { root: 'main' })
 
 /** Warum ein Durchgang angehalten wurde */
-type PauseReason = 'tap' | 'background' | 'midi' | 'demo'
+type PauseReason = 'tap' | 'background' | 'midi' | 'demo' | 'seek'
 /** Nach dem Anhalten so lange nicht per Tipp fortsetzen (Doppeltipp, Wischen) */
 const RESUME_LOCK_MS = 400
+/** Nach dem Spulen gleitet die Bahn so lange auf den Taktanfang (statt zu springen) */
+const SETTLE_MS = 260
+/** So lange bleiben die Taktnummern nach dem Spulen stehen, dann blenden sie aus */
+const BAR_LABELS_MS = 900
 const tempoKey = (lessonId: string, stage: Stage) => `tempo.${lessonId}.${stage}`
 const readTempo = (lessonId: string, stage: Stage): Tempo => {
   const v = getPrefValue(tempoKey(lessonId, stage), TEMPO_VALUES, 'wait')
@@ -202,6 +206,15 @@ export function PracticeScreen({
   const [praise, setPraise] = useState<Praise | null>(null)
   const onPass = useCallback(
     (r: PassResult | TempoResult) => {
+      // Gespult: eine geübte Stelle. Sie zählt nicht für Sterne, Bestwert und Plan
+      if (r.from) {
+        setPraise(null)
+        setProgressNote(undefined)
+        finishedAtRef.current = performance.now()
+        setResult(r)
+        void flushRef.current('pass', r)
+        return
+      }
       const before = stateFor(currentStates(), lesson.id, stage)
       setPraise(praiseFor(store.attemptsOf(lesson.id, stage), r))
       store.record({
@@ -236,15 +249,21 @@ export function PracticeScreen({
   const onPassRef = useRef(onPass)
   onPassRef.current = onPass
 
-  /** Mitspielen: neuer Durchgang, ein Takt Einzähler (immer hörbar, auch ohne Metronom) */
-  const startTempo = useCallback(() => {
+  /**
+   * Mitspielen: neuer Durchgang, ein Takt Einzähler (immer hörbar, auch ohne Metronom). Wurde
+   * zuletzt eine Stelle geübt (gespult), beginnt er wieder dort, außer `full` (von vorn).
+   */
+  const startTempo = useCallback((full = false) => {
     const prev = tempoRef.current
     if (!prev) return
     stopDemoRef.current()
     cancelClicks()
     audioContext()
     const s = new TempoSession(lesson, prev.stage, prev.tempo, (r) => onPassRef.current(r))
-    s.start(performance.now())
+    if (!full && prev.partial) {
+      s.seek(prev.from)
+      s.resume(performance.now())
+    } else s.start(performance.now())
     for (const k of s.countInClicks()) scheduleClick(s.timeOf(k), k)
     nextClickRef.current = s.firstBeat
     tempoRef.current = s
@@ -362,14 +381,19 @@ export function PracticeScreen({
         if (performance.now() - finishedAtRef.current < 1200) return
         const st = stageRef.current
         const next = stages[stages.indexOf(st) + 1]
-        if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
+        // Eine geübte Stelle wiederholt sich, bis man zurück an den Anfang spult
+        if (s.partial) {
+          s.again()
+          setResult(null)
+        } else if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
           // Angesagt auf der Ergebniskarte; der Ton zählt in der neuen Stufe
           carryRef.current = e
           setStage(next)
           return
+        } else {
+          s.restart()
+          setResult(null)
         }
-        s.restart()
-        setResult(null)
       }
       const before = s.index
       s.input(e)
@@ -604,7 +628,7 @@ export function PracticeScreen({
   }
 
   // Anzeige-Zustand, gelesen im Zeichen-Loop der Pianorolle
-  const view = useCallback((): RollView => {
+  const rawView = useCallback((): RollView => {
     const now = performance.now()
     const d = demoRef.current
     const base = {
@@ -719,8 +743,93 @@ export function PracticeScreen({
     }
   }, [lesson.notes, lesson.beatsPerBar, lesson.bpm, stageNotes, lastBeat, showNames, showFingers, sheet])
 
+  // Spulen: Während des Ziehens zeigt die Bahn die Stelle unter dem Finger; beim Loslassen rastet
+  // sie auf den nächsten Taktanfang ein und gleitet dorthin (SETTLE_MS), statt zu springen
+  const scrubRef = useRef<{ from: number; beat: number } | null>(null)
+  const settleRef = useRef<{ from: number; t0: number } | null>(null)
+  const labelsUntilRef = useRef(0)
+  const shownBeatRef = useRef(0)
+  const barLabel = useCallback(
+    (beat: number) => {
+      const bar = barOf(lesson, beat)
+      return bar > 0 ? String(bar) : ''
+    },
+    [lesson],
+  )
+  const view = useCallback((): RollView => {
+    const now = performance.now()
+    let v = rawView()
+    const sc = scrubRef.current
+    const labels = sc ? 1 : Math.min(1, Math.max(0, (labelsUntilRef.current - now) / 400))
+    if (sc) {
+      v = { ...v, beat: sc.beat, expected: new Set(), struck: new Set(), flashes: [], tags: [], overholds: [], countIn: null, hint: false }
+    } else if (settleRef.current) {
+      const st = settleRef.current
+      const k = Math.min(1, (now - st.t0) / SETTLE_MS)
+      if (k >= 1) settleRef.current = null
+      else v = { ...v, beat: st.from + (v.beat - st.from) * (1 - (1 - k) ** 3) }
+    }
+    if (labels > 0) v = { ...v, barLabels: { alpha: labels, label: barLabel } }
+    shownBeatRef.current = v.beat
+    return v
+  }, [rawView, barLabel])
+
+  /** Erster und letzter Taktanfang, auf den man spulen kann */
+  const lastBarStart = Math.floor((stageNotes[stageNotes.length - 1]?.start ?? 0) / lesson.beatsPerBar) * lesson.beatsPerBar
+
+  /** Zur Stelle `beat` (Taktanfang): Warten setzt dort an, Mitspielen steht dort angehalten */
+  const seekTo = (beat: number) => {
+    setResult(null)
+    const ts = tempoRef.current
+    if (ts) {
+      cancelClicks()
+      const first = Math.min(...ts.notes.map((n) => n.start))
+      // Zurück an den Anfang: ein frischer Durchgang, der wieder zählt
+      if (beat <= first + 1e-6) tempoRef.current = new TempoSession(lesson, ts.stage, ts.tempo, (r) => onPassRef.current(r))
+      else {
+        ts.seek(beat)
+        pauseReasonRef.current = 'seek'
+      }
+    } else {
+      const s = sessionRef.current
+      if (!s) return
+      s.seek(beat)
+      beatRef.current = s.beat
+    }
+  }
+
+  const onScrub = (phase: 'start' | 'move' | 'end', beats: number) => {
+    if (phase === 'start') {
+      if (demoRef.current) stopDemo()
+      if (tempoRef.current?.running) pauseTempo('seek')
+      settleRef.current = null
+      scrubRef.current = { from: shownBeatRef.current, beat: shownBeatRef.current }
+      force((x) => x + 1)
+      return
+    }
+    const sc = scrubRef.current
+    if (!sc) return
+    sc.beat = Math.min(lastBarStart, Math.max(-lesson.beatsPerBar, sc.from + beats))
+    if (phase === 'move') return
+    scrubRef.current = null
+    const bpb = lesson.beatsPerBar
+    const target = Math.min(lastBarStart, Math.max(0, Math.round(sc.beat / bpb) * bpb))
+    seekTo(target)
+    settleRef.current = { from: sc.beat, t0: performance.now() }
+    labelsUntilRef.current = performance.now() + BAR_LABELS_MS
+    force((x) => x + 1)
+  }
+
+  /** Nochmal wie zuletzt: die geübte Stelle bzw. das ganze Stück */
   const again = () => {
     if (tempoRef.current) return startTempo()
+    sessionRef.current?.again()
+    setResult(null)
+    force((x) => x + 1)
+  }
+  /** Von vorn, auch nach einer geübten Stelle */
+  const fromStart = () => {
+    if (tempoRef.current) return startTempo(true)
     sessionRef.current?.restart()
     setResult(null)
     force((x) => x + 1)
@@ -741,7 +850,7 @@ export function PracticeScreen({
   const onPlay = () => {
     if (barState === 'running') pauseTempo()
     else if (barState === 'paused') resumeTempo()
-    else again()
+    else fromStart()
   }
   /** Tipp in Bahn oder Notenband: Vorspielen endet, Mitspielen hält an bzw. setzt fort */
   const onLaneTap = () => {
@@ -779,19 +888,25 @@ export function PracticeScreen({
             : 'waiting'
   const noInput = micStatus === 'off' && midi.state === 'off'
   const join = (...parts: (string | false)[]) => parts.filter(Boolean).join(' ') || null
+  /** Takt, ab dem gerade eine Stelle geübt wird (0: von vorn) */
+  const fromBar = ts?.partial ? barOf(lesson, ts.from) : s?.partial ? barOf(lesson, s.fromBeat) : 0
   const laneHint = result
     ? null
     : ts?.paused
       ? pauseReasonRef.current === 'midi'
         ? t.tempo.pausedMidi
-        : t.tempo.paused
-      : running || demo
-        ? null
-        : ts
-          ? join(!hinted.play && t.tempo.hintPlay, noInput && t.tempo.hintNoInput)
-          : !played
-            ? join(!hinted.wait && t.tempo.hintWait, noInput && t.tempo.hintNoInput)
-            : null
+        : fromBar && pauseReasonRef.current === 'seek'
+          ? t.tempo.pausedAt(fromBar)
+          : t.tempo.paused
+      : !ts && fromBar && !s?.started
+        ? t.practice.fromBar(fromBar)
+        : running || demo
+          ? null
+          : ts
+            ? join(!hinted.play && t.tempo.hintPlay, noInput && t.tempo.hintNoInput)
+            : !played
+              ? join(!hinted.wait && t.tempo.hintWait, noInput && t.tempo.hintNoInput)
+              : null
 
   return (
     <div className={`practice ${paper ? 'paper' : ''}${running ? ' hush' : ''}`} onPointerDown={onSurface}>
@@ -851,7 +966,8 @@ export function PracticeScreen({
         pausedBy={ts?.paused ? pauseReasonRef.current : ''}
         onPause={() => pauseTempo('tap')}
         onResume={resumeTempo}
-        onRestart={again}
+        onRestart={fromStart}
+        fromBar={String(fromBar)}
         onStopDemo={stopDemo}
       >
         {/* Feste Plätze wie ein kleiner Modulkatalog: Notenband oben, Klaviatur unten, beide
@@ -881,6 +997,7 @@ export function PracticeScreen({
               beatsPerBar={lesson.beatsPerBar}
               onKey={onKey}
               onLaneTap={onLaneTap}
+              onScrub={onScrub}
               expected={[...(tempoRef.current ? [] : (sessionRef.current?.expected ?? []))]}
               paper={paper}
             />
@@ -911,6 +1028,7 @@ export function PracticeScreen({
             nextStage={stages[stages.indexOf(stage) + 1]}
             clean={cleanCount(stage)}
             onAgain={again}
+            onFromStart={fromStart}
             onNext={setStage}
             onNextLesson={onNextLesson}
             onTempo={(v) => setTempo(v, true)}

@@ -49,6 +49,12 @@ export interface PassResult {
   percent: number
   /** Takte mit mindestens einem falschen Ton (Taktnummern wie in den Noten, aufsteigend) */
   missedBars: number[]
+  /**
+   * Nur gesetzt, wenn der Durchgang mittendrin begann (gespult): eine geübte Stelle ab diesem
+   * Takt. Solche Durchgänge zählen nicht für Sterne, Bestwert und Plan, denn das Stück wurde
+   * nicht von vorn gespielt.
+   */
+  from?: { beat: number; bar: number }
 }
 
 /** Liegt m auf einem Oberton eines anderen Tons desselben Schritts (Oktave, Duodezime, Doppeloktave)? */
@@ -76,6 +82,9 @@ export class WaitSession {
   graceMisses = 0
   /** Schritte, in denen ein falscher Ton kam */
   private missedSteps = new Set<number>()
+  /** Gespult: Der Durchgang beginnt an diesem Schritt bzw. Schlag (0: von vorn) */
+  fromIndex = 0
+  fromBeat = 0
 
   constructor(
     readonly lesson: Lesson,
@@ -232,10 +241,36 @@ export class WaitSession {
       unverified: this.unverified,
       short: this.shortCount,
       source: Object.entries(this.sourceHits).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'touch',
-      percent: percentOf(this.steps.length, this.missedSteps.size),
+      percent: percentOf(this.steps.length - this.fromIndex, this.missedSteps.size),
       missedBars: [...new Set([...this.missedSteps].map((i) => barOf(this.lesson, this.steps[i].start)))].sort((a, b) => a - b),
+      ...(this.partial ? { from: { beat: this.fromBeat, bar: barOf(this.lesson, this.fromBeat) } } : {}),
     })
     return true
+  }
+
+  /** Beginnt der Durchgang mittendrin (gespult)? */
+  get partial() {
+    return this.fromIndex > 0
+  }
+
+  /**
+   * Spulen: Der Durchgang beginnt neu am ersten Schritt ab `beat` (meist ein Taktanfang). Liegt
+   * davor kein Schritt, ist es ein Neustart von vorn. Bis zum ersten richtigen Ton gilt wieder die
+   * Schonfrist.
+   */
+  seek(beat: number) {
+    const i = this.steps.findIndex((st) => st.start >= beat - 1e-6)
+    this.restart()
+    if (i <= 0) return
+    this.index = i
+    this.fromIndex = i
+    this.fromBeat = beat
+  }
+
+  /** Nochmal wie zuletzt: ab der gespulten Stelle, sonst von vorn */
+  again() {
+    if (this.partial) this.seek(this.fromBeat)
+    else this.restart()
   }
 
   restart() {
@@ -243,6 +278,8 @@ export class WaitSession {
     this.shortCount = 0
     this.struckBy = new Map()
     this.index = 0
+    this.fromIndex = 0
+    this.fromBeat = 0
     this.struck = new Set()
     this.wrongCount = 0
     this.missedSteps = new Set()

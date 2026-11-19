@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { LESSONS } from '../music/lessons'
+import { LESSONS, type Lesson, type ScoreNote } from '../music/lessons'
 import { parseNote as n } from '../music/notes'
 import { WaitSession, type PassResult } from './session'
 import type { InputSource } from '../input/events'
@@ -211,5 +211,79 @@ describe('Prozent und Schonfrist', () => {
     wait(10_000)
     // 7 von 9 Schritten richtig = 77,7 % → 77 (abgerundet)
     expect(results[0]).toMatchObject({ clean: false, wrong: 3, percent: 77, missedBars: [1, 2] })
+  })
+})
+
+describe('Spulen im Warte-Modus', () => {
+  // Zwei Takte Viertel: C D E F | G A H C
+  const twoBars: Lesson = {
+    id: 'spulen',
+    title: { de: 'Spulen', en: 'Seek' },
+    goal: { de: '', en: '' },
+    bpm: 60,
+    beatsPerBar: 4,
+    notes: (['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'] as const).map((p, i): ScoreNote => ({ midi: n(p), start: i, dur: 1, hand: 'R' })),
+  }
+  const pitches = twoBars.notes.map((x) => x.midi)
+  function seekRun() {
+    const results: PassResult[] = []
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    const s = new WaitSession(twoBars, 'R', (r) => results.push(r))
+    s.restart()
+    let t = 0
+    const play = (midi: number) => {
+      s.input({ midi, tMs: (t += 500), source: 'midi' })
+      s.tick(t)
+    }
+    return { s, results, play }
+  }
+
+  it('beginnt am ersten Ton des Takts und kennzeichnet den Durchgang als geübte Stelle', () => {
+    const { s, results, play } = seekRun()
+    s.seek(4)
+    expect(s.index).toBe(4)
+    for (const m of pitches.slice(4)) play(m)
+    expect(results).toHaveLength(1)
+    expect(results[0].from).toEqual({ beat: 4, bar: 2 })
+    // Prozent nur über die gespielte Stelle
+    expect(results[0].percent).toBe(100)
+  })
+
+  it('wertet Prozent nur über die Schritte ab der Stelle', () => {
+    const { s, results, play } = seekRun()
+    s.seek(4)
+    play(pitches[4])
+    play(n('C3')) // falsch, erwartet A4
+    for (const m of pitches.slice(5)) play(m)
+    expect(results[0].percent).toBe(75)
+  })
+
+  it('zählt Spulen an den Anfang als ganzen Durchgang', () => {
+    const { s, results, play } = seekRun()
+    s.seek(4)
+    s.seek(0)
+    for (const m of pitches) play(m)
+    expect(results[0].from).toBeUndefined()
+    expect(results[0].clean).toBe(true)
+  })
+
+  it('setzt nach dem Spulen die Schonfrist neu: Suchen der Starttaste ist kein Fehler', () => {
+    const { s, results, play } = seekRun()
+    s.seek(4)
+    play(n('C3'))
+    for (const m of pitches.slice(4)) play(m)
+    expect(results[0]).toMatchObject({ clean: true, wrong: 0 })
+  })
+
+  it('wiederholt mit „nochmal“ die Stelle, „von vorn“ den ganzen Durchgang', () => {
+    const { s, results, play } = seekRun()
+    s.seek(4)
+    for (const m of pitches.slice(4)) play(m)
+    s.again()
+    expect(s.index).toBe(4)
+    s.restart()
+    expect(s.index).toBe(0)
+    for (const m of pitches) play(m)
+    expect(results[1].from).toBeUndefined()
   })
 })

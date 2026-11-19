@@ -192,6 +192,8 @@ export class TempoSession {
   private passStart = 0
   /** Meldet die Eingabe das Loslassen? Sobald ein Ton per Mikrofon kam, wird nicht gewertet */
   private holdGraded = true
+  /** Gespult: Der Durchgang beginnt an diesem Schlag (0: von vorn). Töne davor zählen nicht */
+  from = 0
 
   constructor(
     readonly lesson: Lesson,
@@ -278,6 +280,38 @@ export class TempoSession {
     this.t0 = nowMs + leadMs + this.countInBeats * this.beat - this.pausedBeat * this.beat
     this.countTo = this.pausedBeat
     this.paused = false
+    if (this.passStart < 0) this.passStart = this.timeOf(this.from)
+  }
+
+  /** Beginnt der Durchgang mittendrin (gespult)? Dann liegt mindestens ein Ton vor dem Start */
+  get partial() {
+    return this.notes.some((n) => n.start < this.from - 1e-6)
+  }
+
+  /** Töne, die in diesem Durchgang zählen (ab der gespulten Stelle) */
+  private get counted() {
+    return this.notes.filter((n) => n.start >= this.from - 1e-6)
+  }
+
+  /**
+   * Spulen: angehalten an `beat` (meist ein Taktanfang). Alle Wertungen beginnen neu, Töne davor
+   * zählen nicht mehr. „Weiter“ zählt einen Takt ein und läuft ab hier.
+   */
+  seek(beat: number) {
+    for (const n of this.notes) Object.assign(n, { state: 'pending', deltaMs: 0, onMs: null, offMs: null, hold: null, source: null })
+    this.from = Math.max(0, beat)
+    this.wrong = 0
+    this.wrongBars = []
+    this.feedback = []
+    this.sourceHits = {}
+    this.holdGraded = true
+    this.finished = false
+    this.pausedBeat = this.from
+    this.countTo = this.from
+    // Zählt als begonnen (angehalten), damit „Weiter“ von hier einzählt
+    if (this.t0 === null) this.t0 = 0
+    this.paused = true
+    this.passStart = -1
   }
 
   /** Ankunftszeit auf den Anschlag zurückrechnen (Mikrofon: Erkennungsdauer) */
@@ -292,11 +326,11 @@ export class TempoSession {
     // Dieselbe Taste neu angeschlagen, ohne dass ein Loslassen kam: Der vorige Ton endet hier
     for (const n of this.notes) if (n.midi === e.midi && n.onMs !== null && n.offMs === null) this.release({ ...e, tMs: t })
     // Vor dem ersten Fenster (während des Einzählers) zählt nichts: man sucht noch die Hand
-    const first = this.notes.find((n) => n.state === 'pending')
+    const first = this.counted.find((n) => n.state === 'pending')
     if (first && t < this.timeOf(first.start) - win.near && this.beatAt(t) < this.countTo) return
     let best: JudgedNote | null = null
     let bestD = Infinity
-    for (const n of this.notes) {
+    for (const n of this.counted) {
       if (n.state !== 'pending' || n.midi !== e.midi) continue
       const d = t - this.timeOf(n.start)
       if (Math.abs(d) <= win.near && Math.abs(d) < Math.abs(bestD)) {
@@ -350,13 +384,13 @@ export class TempoSession {
         }
       }
     }
-    if (this.beatAt(nowMs) > this.lastBeat + 1 && this.notes.every((n) => n.state !== 'pending')) this.finish(nowMs)
+    if (this.beatAt(nowMs) > this.lastBeat + 1 && this.counted.every((n) => n.state !== 'pending')) this.finish(nowMs)
   }
 
   private finish(nowMs: number) {
     this.finished = true
     for (const n of this.notes) if (n.onMs !== null && n.offMs === null) n.offMs = nowMs
-    const s = scoreTempoPass(this.notes, this.wrong, this.holdGraded, this.lesson, this.wrongBars)
+    const s = scoreTempoPass(this.counted, this.wrong, this.holdGraded, this.lesson, this.wrongBars)
     this.onPass({
       clean: s.clean,
       wrong: this.wrong,
@@ -373,6 +407,7 @@ export class TempoSession {
       long: s.long,
       holdGraded: this.holdGraded,
       drift: s.drift,
+      ...(this.partial ? { from: { beat: this.from, bar: barOf(this.lesson, this.from) } } : {}),
       timing: this.notes.map((n) => (n.state === 'onTime' || n.state === 'near' ? n.deltaMs : null)),
       held: this.notes.map((n) =>
         n.hold && n.onMs !== null && n.offMs !== null ? Math.round((100 * (n.offMs - n.onMs)) / (n.dur * this.beat)) : null,
