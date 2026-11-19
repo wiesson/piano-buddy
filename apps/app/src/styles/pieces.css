@@ -109,16 +109,42 @@
   min-height: 100%;
 }
 .piece-bar {
+  --collapse: 0;
+  --edge: 0;
   position: sticky;
   top: 0;
   z-index: 5;
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
-  height: calc(56px + var(--sat));
-  padding: var(--sat) max(10px, var(--sar)) 0 max(10px, var(--sal));
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  gap: 8px;
+  height: calc(44px + var(--sat));
+  padding: var(--sat) max(8px, var(--sar)) 0 max(8px, var(--sal));
+  /* Ruhiger Papiergrund statt Milchglas: darunter verschmiert nichts */
+  background: var(--bg);
+}
+/* Scroll-Kante wie iOS 26: ein weicher Auslauf nach unten, erst sobald Inhalt darunter liegt */
+.piece-bar::after {
+  content: '';
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 18px;
+  background: linear-gradient(var(--bg), color-mix(in srgb, var(--bg) 0%, transparent));
+  opacity: var(--edge);
+  pointer-events: none;
+}
+/* Der kleine Titel: immer an seinem Platz, er blendet nur ein, während der große darunter verschwindet */
+.piece-bar-title {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--fg);
+  opacity: clamp(0, calc((var(--collapse) - 0.45) * 2.2), 1);
+  transform: translateY(calc((1 - clamp(0, calc((var(--collapse) - 0.45) * 2.2), 1)) * 4px));
 }
 .piece-main {
   max-width: 820px;

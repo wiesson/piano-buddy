@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import type { Lesson } from '@piano/core/music/lessons'
 import { elementsOf, newElements } from '@piano/core/music/elements'
@@ -9,11 +9,11 @@ import { popToday } from '@piano/core/practice/progress'
 import { store } from '@piano/core/sync/store'
 import { audioContext } from '@piano/core/audio/audio'
 import { elementName, t } from '@piano/core/i18n'
-import { BackIcon } from '@piano/ui/shared/icons'
 import { useStoreVersion } from '@piano/ui/hooks/useStoreVersion'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { usePiecePlayer } from '../pieces/usePiecePlayer'
 import { freshText, shown } from './PopSection'
+import { PageBar } from '../pieces/PageBar'
 import '../../styles/pieces.css'
 import '../../styles/pop.css'
 
@@ -38,17 +38,16 @@ export function PopPage({ onBack, onOpen }: { onBack: () => void; onOpen: (l: Le
   const patterns = usePatterns()
   const [active, setActive] = useState<PatternId | null>(null)
   const chosen = PATTERNS.filter((p) => patterns.includes(p))
+  const titleRef = useRef<HTMLHeadingElement>(null)
 
   return (
     <div className="paper piece-page pop-page">
-      <header className="piece-bar">
-        <button type="button" className="icon-button" onClick={onBack} aria-label={t.pieces.back}>
-          <BackIcon />
-        </button>
-      </header>
+      <PageBar title={t.pop.pageTitle} onBack={onBack} backLabel={t.pieces.back} titleRef={titleRef} />
       <main className="piece-main">
         <div className="piece-head">
-          <h1 className="piece-title">{t.pop.pageTitle}</h1>
+          <h1 ref={titleRef} className="piece-title">
+            {t.pop.pageTitle}
+          </h1>
           <p className="pb-note">{t.pop.sectionNote}</p>
         </div>
 

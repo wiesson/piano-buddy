@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '@ui-sdk/react/slider'
 import {
@@ -17,7 +17,7 @@ import { lessonDone } from '@piano/core/practice/progress'
 import { displayNoteLabel } from '@piano/core/i18n/noteNames'
 import { t } from '@piano/core/i18n'
 import { audioContext } from '@piano/core/audio/audio'
-import { BackIcon } from '@piano/ui/shared/icons'
+import { PageBar } from './PageBar'
 import { LessonRow } from '@piano/ui/home/LessonRow'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { PieceOverview } from './PieceOverview'
@@ -55,6 +55,7 @@ function PieceView({
   onOpen: (l: Lesson) => void
 }) {
   const full = useMemo(() => pieceNotes(piece), [piece])
+  const titleRef = useRef<HTMLDivElement>(null)
   const notes = useMemo(() => (version === 'easy' ? easyNotes(full, piece.beatsPerBar) : full), [full, version, piece.beatsPerBar])
   const sections = useMemo(() => sectionsOf(full, piece.beatsPerBar), [full, piece.beatsPerBar])
   const path = pathOf(piece)
@@ -68,15 +69,13 @@ function PieceView({
 
   return (
     <div className="paper piece-page">
-      <header className="piece-bar">
-        <button type="button" className="icon-button" onClick={onBack} aria-label={t.pieces.back}>
-          <BackIcon />
-        </button>
-      </header>
+      <PageBar title={piece.title} onBack={onBack} backLabel={t.pieces.back} titleRef={titleRef} />
 
       <main className="piece-main">
         <div className="piece-head">
-          <PieceTitle title={piece.title} onRename={(title) => update({ title })} />
+          <div ref={titleRef}>
+            <PieceTitle title={piece.title} onRename={(title) => update({ title })} />
+          </div>
           <p className="pb-mono">{t.pieces.meta(barsOf(piece), full.length, piece.bpm)}</p>
         </div>
 
