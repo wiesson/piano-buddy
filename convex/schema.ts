@@ -21,6 +21,10 @@ export const attemptFields = {
   tempo: v.optional(v.number()), // Mitspiel-Modus: Anteil des Stück-Tempos; fehlt im Warte-Modus
   timing: v.optional(v.array(v.union(v.number(), v.null()))), // je Ton: Abweichung in ms (null = verpasst)
   held: v.optional(v.array(v.union(v.number(), v.null()))), // je Ton: gehaltener Anteil in % (null = nicht gemessen)
+  // Neu ab STU-1281: womit geübt wurde, damit sich später lernen lässt, was am besten hilft
+  view: v.optional(v.union(v.literal('roll'), v.literal('both'), v.literal('sheet'))), // Ansicht
+  keyHelp: v.optional(v.union(v.literal('now'), v.literal('delayed'), v.literal('off'))), // Klaviatur-Hilfe
+  hinted: v.optional(v.number()), // Schritte (Warten) bzw. Töne (Mitspielen), bei denen die Taste half
 }
 
 /** Rechte eines KI-Zugangs: Fortschritt lesen, Stücke anlegen */

@@ -16,6 +16,7 @@ export interface ReportContext {
   stage: string
   tempo: string
   view: string
+  keyHelp: string
   phase: string
   variant: Record<string, unknown>
   variantName: string

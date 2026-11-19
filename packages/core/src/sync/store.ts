@@ -27,6 +27,12 @@ export interface Attempt {
   timing?: (number | null)[]
   /** Mitspiel-Modus, je Ton: gehaltener Anteil in Prozent (null = nicht gemessen) */
   held?: (number | null)[]
+  /** Ansicht beim Üben: fallende Noten, beides, Noten (fehlt bei älteren Versuchen) */
+  view?: 'roll' | 'both' | 'sheet'
+  /** Klaviatur-Hilfe: Taste leuchtet sofort, nach Zögern oder nie */
+  keyHelp?: 'now' | 'delayed' | 'off'
+  /** Schritte (Warten) bzw. Töne (Mitspielen), bei denen die leuchtende Taste zu sehen war */
+  hinted?: number
 }
 
 interface Stored extends Attempt {

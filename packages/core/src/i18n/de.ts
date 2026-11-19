@@ -189,6 +189,7 @@ export const de = {
     stageDoneLast: (stage: string) => `${stage} sitzt.`,
     allDone: 'Das Stück sitzt mit beiden Händen.',
     keepPlaying: 'Spiel einfach weiter: Der nächste Ton startet den nächsten Durchgang.',
+    rotateForKeys: 'Telefon quer halten, dann werden die Tasten größer.',
     midiLost: 'Klavier getrennt. Verbinden, dann geht es hier weiter.',
     fromBar: (bar: number) => `Ab Takt ${bar}. Sterne gibt es nur, wenn du von vorn spielst.`,
     sectionHead: (bar: number) => `Ab Takt ${bar} geübt`,
@@ -325,6 +326,13 @@ export const de = {
   settings: {
     title: 'Einstellungen',
     view: 'Ansicht',
+    keyHelp: 'Klaviatur-Hilfe',
+    keyHelpModes: { now: 'Sofort', delayed: 'Nach Zögern', off: 'Aus' } as Record<'now' | 'delayed' | 'off', string>,
+    keyHelpHint: {
+      now: 'Die nächste Taste leuchtet, sobald sie dran ist.',
+      delayed: 'Erst selbst suchen: Die Taste leuchtet, wenn du zögerst oder danebengreifst.',
+      off: 'Keine Hilfe auf der Klaviatur, du liest selbst.',
+    } as Record<'now' | 'delayed' | 'off', string>,
     input: 'Eingang',
     beat: 'Takt',
     metronome: 'Metronom',

@@ -1026,6 +1026,16 @@
   text-transform: uppercase;
   color: var(--row-dim);
 }
+.set-hint {
+  padding: 0 4px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--row-dim);
+  text-wrap: pretty;
+}
+.popover .set-hint {
+  padding: 0 12px;
+}
 .popover .set-label {
   padding: 6px 12px 0;
   text-transform: none;

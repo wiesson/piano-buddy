@@ -145,6 +145,12 @@ const CAMERA_TAU = 110
 
 /** Breiter werden weiße Tasten nicht: auf breiten Bildschirmen kommen statt dessen Tasten dazu */
 const MAX_KEY_W = 64
+/**
+ * Schmaler auch nicht (iPhone hochkant, beide Hände, großer Umfang): Dann zeigt die Klaviatur nur
+ * den Ausschnitt der nächsten zwei Takte, so breit wie Tasten dieser Breite passen, und gleitet
+ * mit, wenn die Musik ihn verlässt. Passt das ganze Stück, bleibt sie stehen wie bisher.
+ */
+const MIN_KEY_W = 26
 
 function layoutKeys(notes: ScoreNote[], width: number): Layout {
   const minWhites = width < 640 ? 7 : 10
@@ -194,6 +200,29 @@ function layoutKeys(notes: ScoreNote[], width: number): Layout {
   const whites: number[] = []
   for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m)
   return { lo, hi, coreLo, coreHi, whites, keyW: width / whites.length, start: whiteIndex(lo) }
+}
+
+/**
+ * Ausschnitt für schmale Bildschirme: `fit` weiße Tasten um die Töne `near`, mittig. Hell bleibt
+ * wie sonst nur der Umfang des ganzen Stücks (`all`).
+ */
+function layoutWindow(near: ScoreNote[], all: ScoreNote[], width: number, fit: number): Layout {
+  const full = layoutKeys(all, width)
+  const minM = Math.min(...near.map((n) => n.midi))
+  const maxM = Math.max(...near.map((n) => n.midi))
+  // schwarze Tasten am Rand: die weiße daneben mitnehmen, damit sie ganz zu sehen sind
+  const lo = whiteIndex(isBlack(minM) ? minM - 1 : minM)
+  const hi = whiteIndex(isBlack(maxM) ? maxM + 1 : maxM)
+  const count = Math.max(fit, hi - lo + 1)
+  const first = Math.max(whiteIndex(21), Math.min(whiteIndex(108) - count + 1, Math.round((lo + hi) / 2 - (count - 1) / 2)))
+  const whites: number[] = []
+  for (let i = first; i < first + count; i++) whites.push(whiteAt(i))
+  return { lo: whites[0], hi: whites[whites.length - 1], coreLo: full.coreLo, coreHi: full.coreHi, whites, keyW: width / count, start: first }
+}
+
+/** Wären die Tasten auf dieser Breite zu schmal (schmaler Bildschirm, großer Umfang)? */
+export function crampedKeys(notes: ScoreNote[], width: number) {
+  return width < 640 && notes.length > 0 && layoutKeys(notes, width).keyW < MIN_KEY_W
 }
 
 /** Ausschnitt einer Kamera-Stellung (linker Rand, Zahl der weißen Tasten) über dem Ziel-Layout */
@@ -288,6 +317,8 @@ export function PianoRoll({
   const layoutSig = useRef('')
   // Kamera: weicher Übergang, wenn der Ausschnitt wechselt (andere Hand, anderes Stück)
   const camera = useRef<{ start: number; count: number; w: number; t: number } | null>(null)
+  /** Schmal und zu viele Tasten: der Ausschnitt, dem die Klaviatur gerade folgt */
+  const follow = useRef<Layout | null>(null)
 
   useEffect(() => {
     const el = canvas.current!
@@ -310,7 +341,18 @@ export function PianoRoll({
       const v = view()
       // Schmal (hochkant am Telefon): nur der Tonumfang der geübten Hand, damit Tasten und
       // Schrift auf Armlänge lesbar bleiben; breit: das ganze Stück, damit nichts springt
-      const target = layoutKeys(W < 640 ? v.notes : v.rangeNotes, W)
+      let target = layoutKeys(W < 640 ? v.notes : v.rangeNotes, W)
+      if (W < 640 && target.keyW < MIN_KEY_W && v.notes.length) {
+        // Zu eng: Ausschnitt der nächsten zwei Takte; neu erst, wenn ein Ton ihn verlässt
+        const fit = Math.max(7, Math.floor(W / MIN_KEY_W))
+        // So weit voraus, wie die Bahn zeigt (höchstens 4,8 Schläge): Kein fallender Ton liegt außerhalb
+        const ahead = Math.max(beatsPerBar * 2, 5)
+        const near = v.notes.filter((n) => n.start + n.dur > v.beat - 0.25 && n.start < v.beat + ahead)
+        const f = follow.current
+        const inside = f && f.keyW >= MIN_KEY_W - 0.5 && near.every((n) => n.midi >= f.lo && n.midi <= f.hi)
+        if (near.length && !inside) follow.current = layoutWindow(near, v.notes, W, fit)
+        if (follow.current) target = follow.current
+      } else follow.current = null
       const now = performance.now()
       const cam = camera.current
       const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches

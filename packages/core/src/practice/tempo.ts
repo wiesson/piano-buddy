@@ -196,6 +196,14 @@ export class TempoSession {
   from = 0
   /** Wird für jeden Anschlag genau einmal mit seinem Urteil aufgerufen */
   onJudge?: (j: Judgement) => void
+  /** Töne (Index in notes), deren Taste als Hilfe leuchtete, solange sie noch offen waren */
+  private hintedNotes = new Set<number>()
+
+  /** Die Anzeige meldet: Diese Töne leuchten gerade auf der Klaviatur (Hilfe sichtbar) */
+  markHinted(notes: readonly JudgedNote[]) {
+    if (!this.running) return
+    for (const n of notes) if (n.state === 'pending' && n.start >= this.from - 1e-6) this.hintedNotes.add(this.notes.indexOf(n))
+  }
 
   constructor(
     readonly lesson: Lesson,
@@ -304,6 +312,7 @@ export class TempoSession {
     this.from = Math.max(0, beat)
     this.wrong = 0
     this.wrongBars = []
+    this.hintedNotes = new Set()
     this.feedback = []
     this.sourceHits = {}
     this.holdGraded = true
@@ -424,6 +433,7 @@ export class TempoSession {
       long: s.long,
       holdGraded: this.holdGraded,
       drift: s.drift,
+      hinted: this.hintedNotes.size,
       ...(this.partial ? { from: { beat: this.from, bar: barOf(this.lesson, this.from) } } : {}),
       timing: this.notes.map((n) => (n.state === 'onTime' || n.state === 'near' ? n.deltaMs : null)),
       held: this.notes.map((n) =>

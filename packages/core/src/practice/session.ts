@@ -96,6 +96,8 @@ export interface PassResult {
    * nicht von vorn gespielt.
    */
   from?: { beat: number; bar: number }
+  /** Schritte (Warten) bzw. Töne (Mitspielen), bei denen die leuchtende Taste zu sehen war */
+  hinted?: number
 }
 
 /** Liegt m auf einem Oberton eines anderen Tons desselben Schritts (Oktave, Duodezime, Doppeloktave)? */
@@ -161,6 +163,14 @@ export class WaitSession {
       this.judge(r, 'dropped', nowMs)
     }
     this.recent = []
+  }
+
+  /** Schritte, bei denen die Taste als Hilfe leuchtete, bevor der Schritt geschafft war */
+  private hintedSteps = new Set<number>()
+
+  /** Die Anzeige meldet: Die Taste des aktuellen Schritts leuchtet gerade (Hilfe sichtbar) */
+  markHinted() {
+    if (!this.finished) this.hintedSteps.add(this.index)
   }
 
   /** Kam im aktuellen Schritt schon ein falscher Ton? */
@@ -345,6 +355,7 @@ export class WaitSession {
       short: this.shortCount,
       source: Object.entries(this.sourceHits).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'touch',
       percent: percentOf(this.steps.length - this.fromIndex, this.missedSteps.size),
+      hinted: this.hintedSteps.size,
       missedBars: [...new Set([...this.missedSteps].map((i) => barOf(this.lesson, this.steps[i].start)))].sort((a, b) => a - b),
       ...(this.partial ? { from: { beat: this.fromBeat, bar: barOf(this.lesson, this.fromBeat) } } : {}),
     })
@@ -389,6 +400,7 @@ export class WaitSession {
     this.lastStruck = new Set()
     this.wrongCount = 0
     this.missedSteps = new Set()
+    this.hintedSteps = new Set()
     this.started = false
     this.graceMisses = 0
     this.unverified = 0

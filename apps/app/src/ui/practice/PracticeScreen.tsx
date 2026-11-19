@@ -18,7 +18,7 @@ import { fingerToMidi, keyToFinger } from '@piano/core/input/fingerKeys'
 import { t, localized } from '@piano/core/i18n'
 import { displayNoteLabel } from '@piano/core/i18n/noteNames'
 import { announce } from '@ui-sdk/core'
-import { PianoRoll, TAG_MS, keyboardHeight, type RollView } from './PianoRoll'
+import { PianoRoll, TAG_MS, crampedKeys, keyboardHeight, type RollView } from './PianoRoll'
 import { ResultCard } from './ResultCard'
 import { BenchPanel } from './BenchPanel'
 import { TempoBar } from './TempoBar'
@@ -32,6 +32,7 @@ import { practiceSession, type SessionPhase } from './practiceSession'
 import { AppBar } from '@piano/ui/shared/AppBar'
 import { getPref, getPrefValue, setPref, setPrefValue } from './prefs'
 import { VIEW_MODES, type ViewMode } from './ViewSwitch'
+import { KEY_HELPS, type KeyHelp } from './KeyHelpSwitch'
 import { PracticeRecorder } from '../../diagnostics/recorder'
 import { useReportUpload } from '../../diagnostics/upload'
 import { usePrefersLight } from '@piano/ui/shared/usePrefersLight'
@@ -160,6 +161,14 @@ export function PracticeScreen({
     setPrefValue('view', v)
     swapModules(() => setModeState(v))
   }
+  const modeRef = useRef(mode)
+  modeRef.current = mode
+  // Klaviatur-Hilfe, unabhängig von der Ansicht (STU-1281). Startwert: sofort; wer bisher in
+  // „Noten“ geübt hat, behält das bisherige Verhalten (Taste erst nach Zögern)
+  const [keyHelp, setKeyHelpState] = useState<KeyHelp>(() => getPrefValue('keyHelp', KEY_HELPS, mode === 'sheet' ? 'delayed' : 'now'))
+  const setKeyHelp = (v: KeyHelp) => (setPrefValue('keyHelp', v), setKeyHelpState(v))
+  const keyHelpRef = useRef(keyHelp)
+  keyHelpRef.current = keyHelp
   // Diagnose: jede Übung mit Mikrofon samt Aufnahme senden (nur auf ausdrücklichen Schalter)
   const upload = useReportUpload()
   const [diagnostics, setDiagnosticsState] = useState(() => getPref('diagnostics', false))
@@ -267,6 +276,10 @@ export function PracticeScreen({
         durationMs: Math.round(r.durationMs),
         percent: r.percent,
         missedBars: r.missedBars,
+        // Womit geübt wurde: Ansicht, Klaviatur-Hilfe und wie oft die Taste half
+        view: modeRef.current,
+        keyHelp: keyHelpRef.current,
+        hinted: r.hinted ?? 0,
         // Mitspielen: Tempo und je Ton Anschlag und Haltedauer (Grundlage für den Geist)
         ...('tempo' in r ? { tempo: r.tempo, timing: r.timing, held: r.held } : {}),
       })
@@ -606,6 +619,8 @@ export function PracticeScreen({
   }, [comparing])
 
   const stageNotes = useMemo(() => notesForStage(lesson, stage), [lesson, stage])
+  // iPhone hochkant, großer Umfang (meist beide Hände): Tasten würden zu schmal, also quer halten
+  const cramped = useCramped(stageNotes)
   const lastBeat = useMemo(() => Math.max(...stageNotes.map((n) => n.start + n.dur)), [stageNotes])
   const [fingerKeys, setFingerKeysState] = useState(() => getPref('fingerkeys', true))
   const setFingerKeys = (v: boolean) => (setPref('fingerkeys', v), setFingerKeysState(v))
@@ -773,6 +788,9 @@ export function PracticeScreen({
         }
       }
       const sounding = ts.started ? ts.soundingAt(beat) : ts.notes.filter((n) => n.start === ts.notes[0]?.start)
+      const kh = keyHelpRef.current
+      const tempoHint = kh === 'now' || (kh === 'delayed' && now - lastInputRef.current > variantRef.current.helpMs)
+      if (tempoHint) ts.markHinted(sounding)
       const look = (n: JudgedNote) => ({
         missed: n.state === 'missed',
         heldBeats: n.hold === 'short' && n.onMs !== null && n.offMs !== null ? (n.offMs - n.onMs) / ts.beat : undefined,
@@ -796,7 +814,7 @@ export function PracticeScreen({
           .map((n) => ({ midi: n.midi, hand: n.hand, beats: beat - (n.start + n.dur), long: n.hold === 'long' })),
         countIn: ts.countInShown(now),
         press: pressOf,
-        hint: !sheet || now - lastInputRef.current > variantRef.current.helpMs,
+        hint: tempoHint,
       }
     }
 
@@ -828,11 +846,15 @@ export function PracticeScreen({
     const vr = variantRef.current
     // Variante B: Der Schritt ist „jetzt“, sobald er spielbar ist, nicht erst an der Linie
     const playable = vr.lit === 'playable' && !!s?.step && !s.finished
+    const kh = keyHelpRef.current
     const help =
       vr.help === 'stuck'
         ? // Hilfe nach Zögern seit Beginn des Schritts oder sofort nach einem Fehler; Suchtöne schieben sie nicht hinaus
           !!s && (now - s.stepStartedAt > vr.helpMs || s.stepMissed)
         : now - lastInputRef.current > vr.helpMs
+    // Klaviatur-Hilfe: sofort, nach Zögern (oder wenn jemand die Starttaste sucht), aus
+    const hint = kh === 'now' || (kh === 'delayed' && (help || (!!s && !s.started && s.graceMisses > 0)))
+    if (hint && (arrived || playable) && expected.size) s?.markHinted()
     return {
       ...base,
       notes: stageNotes,
@@ -849,8 +871,7 @@ export function PracticeScreen({
         .filter((f) => f.kind === 'short')
         .map((f) => ({ midi: f.midi, text: t.tempo.short, age: now - f.tMs })),
       press: pressOf,
-      // In den Noten leuchtet die Taste erst nach Zögern (Variante), oder wenn jemand die Starttaste sucht
-      hint: !sheet || help || (!!s && !s.started && s.graceMisses > 0),
+      hint,
     }
   }, [lesson.notes, lesson.beatsPerBar, lesson.bpm, stageNotes, lastBeat, showNames, showFingers, sheet])
 
@@ -1016,6 +1037,7 @@ export function PracticeScreen({
     stage,
     tempo: String(tempo),
     view: mode,
+    keyHelp,
     phase,
     variant: { ...getVariant() },
     variantName: variantName(getVariant()),
@@ -1041,9 +1063,9 @@ export function PracticeScreen({
         : running || demo
           ? null
           : ts
-            ? join(!hinted.play && t.tempo.hintPlay, noInput && t.tempo.hintNoInput)
+            ? join(!hinted.play && t.tempo.hintPlay, noInput && t.tempo.hintNoInput, cramped && t.practice.rotateForKeys)
             : !played
-              ? join(!hinted.wait && t.tempo.hintWait, noInput && t.tempo.hintNoInput)
+              ? join(!hinted.wait && t.tempo.hintWait, noInput && t.tempo.hintNoInput, cramped && t.practice.rotateForKeys)
               : null
 
   return (
@@ -1078,6 +1100,8 @@ export function PracticeScreen({
           <SettingsMenu
             mode={mode}
             onMode={setMode}
+            keyHelp={keyHelp}
+            onKeyHelp={setKeyHelp}
             midi={midi}
             onToggleMidi={toggleMidi}
             micStatus={micStatus}
@@ -1198,6 +1222,17 @@ export function PracticeScreen({
       <TempoBar tempo={tempo} onTempo={(v) => setTempo(v)} cleanTempos={cleanTempos(stage)} state={barState} onPlay={onPlay} />
     </div>
   )
+}
+
+/** Wären die Tasten bei dieser Fensterbreite zu schmal? Folgt dem Drehen des Geräts */
+function useCramped(notes: Parameters<typeof crampedKeys>[0]) {
+  const [w, setW] = useState(() => (typeof window === 'undefined' ? 1024 : window.innerWidth))
+  useEffect(() => {
+    const on = () => setW(window.innerWidth)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
+  return useMemo(() => crampedKeys(notes, w), [notes, w])
 }
 
 /** Höhe der Klaviatur samt Filzstreifen; folgt der Fensterhöhe wie keyboardHeight() */

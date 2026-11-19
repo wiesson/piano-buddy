@@ -7,6 +7,7 @@ import { MicMeter } from './MicMeter'
 import { PracticeSheet } from './PracticeSheet'
 import type { MidiState } from './useMidiInput'
 import { ViewSwitch, type ViewMode } from './ViewSwitch'
+import { KeyHelpSwitch, type KeyHelp } from './KeyHelpSwitch'
 
 /**
  * „…“ oben rechts: alles, was man nicht ständig braucht, in Gruppen. Ansicht, Eingang (MIDI und
@@ -19,6 +20,8 @@ import { ViewSwitch, type ViewMode } from './ViewSwitch'
 export function SettingsMenu(p: {
   mode: ViewMode
   onMode: (v: ViewMode) => void
+  keyHelp: KeyHelp
+  onKeyHelp: (v: KeyHelp) => void
   midi: MidiState
   onToggleMidi: () => void
   micStatus: MicStatus
@@ -78,6 +81,12 @@ export function SettingsMenu(p: {
       <div className="set-group">
         <p className="set-label">{t.settings.view}</p>
         <ViewSwitch value={p.mode} onChange={p.onMode} />
+      </div>
+
+      <div className="set-group">
+        <p className="set-label">{t.settings.keyHelp}</p>
+        <KeyHelpSwitch value={p.keyHelp} onChange={p.onKeyHelp} />
+        <small className="set-hint">{t.settings.keyHelpHint[p.keyHelp]}</small>
       </div>
 
       <div className="set-group">

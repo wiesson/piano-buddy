@@ -187,6 +187,7 @@ export const en: Messages = {
     stageDoneLast: (stage: string) => `${stage} is learned.`,
     allDone: 'You can play the piece with both hands.',
     keepPlaying: 'Just keep playing: the next note starts the next pass.',
+    rotateForKeys: 'Turn your phone sideways for bigger keys.',
     midiLost: 'Piano disconnected. Reconnect it to carry on here.',
     fromBar: (bar: number) => `From bar ${bar}. Stars only count when you play from the top.`,
     sectionHead: (bar: number) => `Practised from bar ${bar}`,
@@ -323,6 +324,13 @@ export const en: Messages = {
   settings: {
     title: 'Settings',
     view: 'View',
+    keyHelp: 'Keyboard help',
+    keyHelpModes: { now: 'Right away', delayed: 'When stuck', off: 'Off' },
+    keyHelpHint: {
+      now: 'The next key lights up as soon as it is due.',
+      delayed: 'Find it yourself first: the key lights up when you hesitate or miss.',
+      off: 'No help on the keyboard, you read on your own.',
+    },
     input: 'Input',
     beat: 'Beat',
     metronome: 'Metronome',

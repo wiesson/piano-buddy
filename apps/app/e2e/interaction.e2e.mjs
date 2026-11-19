@@ -244,6 +244,33 @@ describe('Interaktions-Karte', () => {
     assert.ok(s, `erwartet Stufe R ohne Vorspielen, ist ${JSON.stringify(session())}`)
   })
 
+  it('Klaviatur-Hilfe: Ein Durchgang speichert Ansicht, Hilfe und wie oft die Taste half', async () => {
+    const piece = [48, 50, 52, 53, 55, 53, 52, 50, 48]
+    const lastAttempt = () => ev(`const a = JSON.parse(localStorage.getItem('${LOG_KEY}') || '[]'); return a[a.length - 1] ?? null`)
+    // Aus, in den Noten: keine Hilfe, also null
+    await open('lh-fuenf', { view: 'sheet', keyHelp: 'off' })
+    for (const m of piece) {
+      play(m)
+      await sleep(60)
+    }
+    assert.equal((await until(() => session()?.phase === 'result' && session(), 4000))?.phase, 'result')
+    assert.deepEqual(
+      (({ view, keyHelp, hinted }) => ({ view, keyHelp, hinted }))(await until(() => lastAttempt())),
+      { view: 'sheet', keyHelp: 'off', hinted: 0 },
+    )
+    // Sofort, fallend: Die Taste leuchtet, sobald der Ton an der Linie ist; das zählt
+    await open('lh-fuenf', { view: 'roll', keyHelp: 'now' })
+    for (const m of piece) {
+      await sleep(900)
+      play(m)
+    }
+    assert.equal((await until(() => session()?.phase === 'result' && session(), 4000))?.phase, 'result')
+    const a = await until(() => lastAttempt())
+    assert.equal(a.view, 'roll')
+    assert.equal(a.keyHelp, 'now')
+    assert.ok(a.hinted >= 5, `hinted ${a.hinted}`)
+  })
+
   it('Debug-Ebene: fünfmal auf den Titel öffnet sie, jeder Ton bekommt genau ein Urteil, Melden hält sie fest', async () => {
     await open('lh-fuenf')
     assert.ok(!ev(`return !!document.querySelector('.dbg')`), 'Debug-Ebene ist ohne Geste schon da')

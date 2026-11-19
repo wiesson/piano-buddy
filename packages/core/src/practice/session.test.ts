@@ -434,3 +434,22 @@ describe('Warte-Modus: offene Anschläge', () => {
     expect(s.wrongCount).toBe(0)
   })
 })
+
+describe('Warte-Modus: Hilfe gezählt', () => {
+  it('zählt jeden Schritt einmal, bei dem die Taste leuchtete, und beginnt beim Neustart von vorn', () => {
+    const { s, results, play, wait } = run('lh-fuenf', 'L')
+    s.markHinted() // Schritt 1 (C3) mit Hilfe
+    s.markHinted() // derselbe Schritt, zählt nicht doppelt
+    play(n('C3'))
+    play(n('D3'))
+    s.markHinted() // Schritt 3 (E3) mit Hilfe
+    for (const m of ['E3', 'F3', 'G3', 'F3', 'E3', 'D3', 'C3']) play(n(m))
+    wait(10_000)
+    expect(results[0].hinted).toBe(2)
+    s.markHinted()
+    s.restart()
+    for (const m of ['C3', 'D3', 'E3', 'F3', 'G3', 'F3', 'E3', 'D3', 'C3']) play(n(m))
+    wait(10_000)
+    expect(results[1].hinted).toBe(0)
+  })
+})

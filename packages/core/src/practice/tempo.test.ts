@@ -341,3 +341,16 @@ describe('Tempo: Urteil je Anschlag', () => {
     ])
   })
 })
+
+describe('Tempo: Hilfe gezählt', () => {
+  it('zählt Töne, deren Taste leuchtete, solange sie offen waren; nicht vor dem Start', () => {
+    const { s, results } = session()
+    s.markHinted([s.notes[0]]) // läuft schon (Einzähler), aber C ist offen: zählt
+    on(s, C, 4000)
+    s.markHinted([s.notes[0], s.notes[1]]) // C ist schon getroffen: nur D zählt
+    s.markHinted([s.notes[1]]) // D nicht doppelt
+    for (const [m, at] of [[D, 5000], [E, 6000], [F, 7000]] as const) on(s, m, at)
+    s.tick(20_000)
+    expect(results[0].hinted).toBe(2)
+  })
+})

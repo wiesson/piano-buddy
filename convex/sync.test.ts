@@ -33,6 +33,18 @@ describe('Sync über Geräte', () => {
     expect(await t.query(api.sync.attempts, { token: tokenC })).toBeNull()
   })
 
+  it('bewahrt Ansicht, Klaviatur-Hilfe und Hilfe-Zähler eines Durchgangs, ältere Durchgänge ohne sie bleiben gültig', async () => {
+    const t = convexTest(schema, modules)
+    await t.mutation(api.sync.register, { token: tokenA, label: 'iPhone' })
+    await t.mutation(api.sync.pushAttempts, {
+      token: tokenA,
+      attempts: [attempt('neu', { view: 'sheet', keyHelp: 'delayed', hinted: 3 }), attempt('alt')],
+    })
+    const rows = await t.query(api.sync.attempts, { token: tokenA })
+    expect(rows?.find((r) => r.attemptId === 'neu')).toMatchObject({ view: 'sheet', keyHelp: 'delayed', hinted: 3 })
+    expect(rows?.find((r) => r.attemptId === 'alt')).not.toHaveProperty('view')
+  })
+
   it('lehnt Uploads mit unbekanntem oder zu kurzem Schlüssel ab', async () => {
     const t = convexTest(schema, modules)
     await expect(t.mutation(api.sync.pushAttempts, { token: tokenC, attempts: [attempt('x')] })).rejects.toThrow()
