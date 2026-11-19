@@ -75,6 +75,10 @@ async function startPlayAlong() {
   assert.equal((await until(() => session()?.phase === 'running' && session()))?.phase, 'running')
 }
 
+/** Mausrad in der Bahn: negativ heißt vorwärts im Stück; endet 180 ms nach dem letzten Ereignis */
+const wheel = (deltaY) =>
+  ev(`document.querySelector('.stage-roll canvas').dispatchEvent(new WheelEvent('wheel', { deltaY: ${deltaY}, bubbles: true, cancelable: true })); return true`)
+
 /** Zeiger-Druck dort, wo ein Finger hinträfe (ausgeblendete Leisten lassen ihn durch) */
 const tapAt = (selector, fy = 0.5) =>
   ev(`
@@ -159,6 +163,10 @@ describe('Interaktions-Karte', () => {
       await sleep(1300)
     }
     assert.match(ev(`return document.querySelector('.result-hint')?.textContent ?? ''`), /keep playing to start Right/)
+    // Das Mikrofon wechselt die Stufe nicht (es hört auch Sprechen und Nachklang)
+    play(60, 'mic')
+    await sleep(400)
+    assert.deepEqual([session().stage, session().phase], ['L', 'result'])
     play(60)
     const s = await until(() => session()?.stage === 'R' && session()?.phase === 'playing' && session())
     assert.ok(s, `erwartet Stufe R und „playing“, ist ${JSON.stringify(session())}`)
@@ -205,6 +213,35 @@ describe('Interaktions-Karte', () => {
     play(48)
     const s = await until(() => session()?.phase !== 'demo' && session())
     assert.notEqual(s.phase, 'demo')
+  })
+
+  it('Spulen im Warte-Modus: geübte Stelle ab Takt 3, das Ergebnis kommt nicht ins Protokoll', async () => {
+    await open('lh-fuenf') // C3 D3 E3 F3 | G3 F3 E3 D3 | C3 (Ganze)
+    wheel(-100_000) // ganz nach vorn: letzter Taktanfang
+    assert.equal((await until(() => session()?.fromBar === '3' && session()))?.fromBar, '3')
+    play(48)
+    const s = await until(() => session()?.phase === 'result' && session(), 4000)
+    assert.equal(s?.phase, 'result')
+    assert.equal(attempts(), 0, 'eine geübte Stelle zählt nicht als Durchgang')
+  })
+
+  it('Mitspielen läuft, Spulen hält an der Stelle an, eine Taste zählt dort ein', async () => {
+    await open('lh-fuenf')
+    await startPlayAlong()
+    wheel(-100_000)
+    const s = await until(() => session()?.pausedBy === 'seek' && session()?.fromBar === '3' && session())
+    assert.ok(s, `erwartet angehalten ab Takt 3, ist ${JSON.stringify(session())}`)
+    play(48)
+    assert.equal((await until(() => session()?.phase === 'running' && session()))?.phase, 'running')
+  })
+
+  it('Vorspielen läuft, Stufe wechseln: Das Vorspielen endet mit der alten Stufe', async () => {
+    await open('parallel')
+    act([{ ref: 'Stage', action: 'press', args: ['Listen'] }])
+    assert.equal((await until(() => session()?.phase === 'demo' && session()))?.phase, 'demo')
+    act([{ ref: 'Stage', action: 'press', args: ['Right'] }])
+    const s = await until(() => session()?.stage === 'R' && session()?.phase !== 'demo' && session())
+    assert.ok(s, `erwartet Stufe R ohne Vorspielen, ist ${JSON.stringify(session())}`)
   })
 
   it('Debug-Ebene: fünfmal auf den Titel öffnet sie, jeder Ton bekommt genau ein Urteil, Melden hält sie fest', async () => {

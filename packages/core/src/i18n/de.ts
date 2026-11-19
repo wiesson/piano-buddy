@@ -188,6 +188,7 @@ export const de = {
     stageDoneLast: (stage: string) => `${stage} sitzt.`,
     allDone: 'Das Stück sitzt mit beiden Händen.',
     keepPlaying: 'Spiel einfach weiter: Der nächste Ton startet den nächsten Durchgang.',
+    midiLost: 'Klavier getrennt. Verbinden, dann geht es hier weiter.',
     fromBar: (bar: number) => `Ab Takt ${bar}. Sterne gibt es nur, wenn du von vorn spielst.`,
     sectionHead: (bar: number) => `Ab Takt ${bar} geübt`,
     sectionNote: 'Zählt nicht für die Sterne. Dafür einmal von vorn spielen.',

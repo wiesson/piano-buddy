@@ -186,6 +186,7 @@ export const en: Messages = {
     stageDoneLast: (stage: string) => `${stage} is learned.`,
     allDone: 'You can play the piece with both hands.',
     keepPlaying: 'Just keep playing: the next note starts the next pass.',
+    midiLost: 'Piano disconnected. Reconnect it to carry on here.',
     fromBar: (bar: number) => `From bar ${bar}. Stars only count when you play from the top.`,
     sectionHead: (bar: number) => `Practised from bar ${bar}`,
     sectionNote: 'Doesn’t count for stars. Play it from the top for those.',

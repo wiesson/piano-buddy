@@ -336,9 +336,10 @@ export function PracticeScreen({
   const resumeRef = useRef(resumeTempo)
   resumeRef.current = resumeTempo
 
-  // neue Sitzung je Stufe und Tempo
+  // neue Sitzung je Stufe und Tempo; Vorspielen der alten Stufe endet mit ihr
   useEffect(() => {
     cancelClicks()
+    stopDemoRef.current()
     if (tempo === 'wait') {
       const s = wired(new WaitSession(lesson, stage, (r) => onPassRef.current(r), waitOptions(getVariant())))
       s.restart()
@@ -371,6 +372,15 @@ export function PracticeScreen({
     if (s) Object.assign(s, waitOptions(variant))
     debugRing.mark('setting', `${variantName(variant) || 'custom'}${isBlind() ? ' (blind)' : ''}`)
   }, [variant])
+
+  // Seite verlassen (Zurück, nächstes Stück, andere Fassung): Vorspielen verstummt
+  useEffect(
+    () => () => {
+      if (demoRef.current) stopAll()
+      demoRef.current = null
+    },
+    [],
+  )
 
   const stopDemo = () => {
     if (!demoRef.current) return
@@ -408,6 +418,8 @@ export function PracticeScreen({
         debugRing.get(e.id) ?? debugRing.strike(e, { expected: expectedRef.current(), lit: litRef.current.has(e.midi), phase: phaseRef.current })
       strike.verdict = undefined
       e = { ...e, id: strike.id }
+      // Beim Spulen zählt nichts: Die Stelle steht erst beim Loslassen fest
+      if (scrubRef.current) return debugRing.control(strike, 'scrub')
       // Vorspielen: Eine Taste beendet es, wie man ein Intro überspringt (sie selbst zählt nicht)
       if (demoRef.current) {
         if (e.source !== 'mic') stopDemoRef.current()
@@ -443,6 +455,9 @@ export function PracticeScreen({
           s.again()
           setResult(null)
         } else if (next && store.cleanCount(lesson.id, st) >= CLEAN_GOAL) {
+          // Das Mikrofon wechselt keine Stufe: Es hört auch Sprechen und Nachklang. Weiter dann
+          // mit einer Taste per MIDI oder Bildschirm oder dem Knopf auf der Karte
+          if (e.source === 'mic') return debugRing.control(strike, 'mic')
           // Angesagt auf der Ergebniskarte; der Ton zählt in der neuen Stufe
           debugRing.mark('setting', `stage ${next}`)
           carryRef.current = e
@@ -505,8 +520,12 @@ export function PracticeScreen({
   // Klavier getrennt, während es läuft: anhalten, statt lauter verpasste Töne zu werten
   const midiCount = midi.devices.length
   const midiCountRef = useRef(midiCount)
+  /** Klavier war da und ist weg: Warten zeigt es in der Bahn (Mitspielen hält an und sagt es dort) */
+  const [midiLost, setMidiLost] = useState(false)
   useEffect(() => {
+    if (midiCount > 0) setMidiLost(false)
     if (midiCountRef.current > 0 && midiCount === 0) {
+      setMidiLost(true)
       pauseRef.current('midi')
       // Ohne Klavier kein Loslassen des Pedals mehr: lange Treten zählt nicht
       window.clearTimeout(pedalTimer.current)
@@ -1015,7 +1034,9 @@ export function PracticeScreen({
         : fromBar && pauseReasonRef.current === 'seek'
           ? t.tempo.pausedAt(fromBar)
           : t.tempo.paused
-      : !ts && fromBar && !s?.started
+      : !ts && midiLost && midi.state === 'on'
+        ? t.practice.midiLost
+        : !ts && fromBar && !s?.started
         ? t.practice.fromBar(fromBar)
         : running || demo
           ? null
