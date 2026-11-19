@@ -11,7 +11,8 @@ import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const PORT = 5291
+// Eigener Port je Session, wenn mehrere Sessions parallel testen: FLOW_PORT=5391 pnpm … test:flows
+const PORT = Number(process.env.FLOW_PORT) || 5291
 const BASE = `http://localhost:${PORT}/app`
 const SESSION = `piano-flows-${process.pid}`
 const LOG_KEY = 'pianobuddy.attempts.v2'
@@ -300,6 +301,29 @@ describe('Interaktions-Karte', () => {
     const report = await until(() => ev(`return (window.pianoReports || []).at(-1)?.data ?? null`), 8000)
     assert.ok(report, 'Pedal hat nicht gemeldet')
     assert.ok(report.marks.some((m) => m.kind === 'pedal'), 'Pedal fehlt im Bericht')
+  })
+
+  it('iPhone hochkant, beide Hände, enger Umfang: Die Klaviatur steht für die Stufe fest', async () => {
+    browser('set', 'viewport', '390', '844')
+    try {
+      await open('elise')
+      act([{ ref: 'Stage', action: 'press', args: ['Both'] }])
+      assert.ok(await until(() => session()?.stage === 'LR'), 'Stufe „beide“ fehlt')
+      await startPlayAlong()
+      const keys = () => ev(`return [...document.querySelectorAll('.key-a11y')].map((k) => k.getAttribute('aria-label').split(',')[0]).join(' ')`)
+      const shown = () => ev(`return window.pianoShownBeat?.() ?? null`)
+      const from = shown()
+      const seen = new Set()
+      // Mitspielen ohne Töne: Die Musik läuft weiter, die Tasten dürfen sich dabei nie ändern
+      for (let i = 0; i < 30; i++) {
+        seen.add(keys())
+        await sleep(300)
+      }
+      assert.ok(shown() > from + 4, `die Musik lief nicht weit genug (${from} → ${shown()})`)
+      assert.equal(seen.size, 1, `Klaviatur wechselte: ${[...seen].join(' | ')}`)
+    } finally {
+      browser('set', 'viewport', '1280', '800')
+    }
   })
 
   it('Debug-Ebene: fünfmal auf den Titel öffnet sie, jeder Ton bekommt genau ein Urteil, Melden hält sie fest', async () => {
