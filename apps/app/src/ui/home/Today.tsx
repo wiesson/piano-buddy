@@ -26,13 +26,13 @@ export function Today({ onOpen }: { onOpen: (lessonId: string, stage: Stage) => 
           if (!lesson) return null
           const state = it.done ? (it.kind === 'review' ? (it.passed ? t.plan.passed : t.plan.retry) : '✓') : ''
           return (
-            <li key={`${it.kind}:${it.lessonId}:${it.stage}`}>
+            <li key={`${it.track ?? ''}${it.kind}:${it.lessonId}:${it.stage}`}>
               <button
                 type="button"
                 className={`today-item today-${it.kind}${it.done ? ' done' : ''}`}
                 onClick={() => onOpen(it.lessonId, it.stage)}
               >
-                <span className="today-kind">{it.kind === 'review' ? t.plan.review : t.plan.focus}</span>
+                <span className="today-kind">{it.kind === 'review' ? t.plan.review : it.track === 'pop' ? t.plan.popFocus : t.plan.focus}</span>
                 <span className="today-name">
                   {localized(lesson.title)} <span className={`today-stage stage-${it.stage}`}>{t.stage[it.stage]}</span>
                 </span>

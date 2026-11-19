@@ -76,6 +76,12 @@ describe('Element-Modell', () => {
     expect(elementsOf(piece('E4:1.5:3 D4:1.5:2 C4:6:1', undefined, { beatsPerBar: 9, beatUnit: 8 }))).not.toContain('dotted')
   })
 
+  it('Offbeat: Anschläge überwiegend auf der „und“, nicht schon ein punktierter Rhythmus oder ein Einsatz nach der Pause', () => {
+    expect(elementsOf(piece('-:0.5 C4+E4+G4:0.5:1+3+5 -:0.5 C4+E4+G4:0.5:1+3+5 -:0.5 C4+E4+G4:0.5:1+3+5 -:0.5 C4+E4+G4:0.5:1+3+5'))).toContain('offbeat')
+    expect(elementsOf(piece('E4:1.5:3 D4:0.5:2 D4:2:2'))).not.toContain('offbeat')
+    expect(elementsOf(piece('A4:1:1 -:0.5 C4:0.5:1 E4:0.5:2 A4:0.5:4 H4:1:5'))).not.toContain('offbeat')
+  })
+
   it('Sprung erst über eine Oktave hinaus', () => {
     expect(elementsOf(piece(undefined, 'C3:1:1 C2:1:5'))).not.toContain('leap')
     expect(elementsOf(piece(undefined, 'D3:1:1 C2:1:5'))).toContain('leap')

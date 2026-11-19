@@ -125,6 +125,8 @@ export interface PlanItem {
   done: boolean
   /** nur Wiederholung: erster Versuch heute war sauber */
   passed?: boolean
+  /** eigene Spur neben dem Lernpfad (Pop-Pfad) */
+  track?: 'pop'
 }
 
 export interface DailyPlan {
@@ -138,9 +140,10 @@ export const MAX_REVIEWS = 2
 
 /**
  * Tagesplan: bestimmt aus dem Stand vor heute (damit er sich nicht während des Übens verschiebt),
- * erledigt wird er mit den Versuchen von heute.
+ * erledigt wird er mit den Versuchen von heute. Wiederholt wird alles aus `lessons` (auch
+ * erzeugte Übungen wie der Pop-Pfad); der Fokus folgt nur `focusLessons` (dem Lernpfad).
  */
-export function dailyPlan(attempts: Attempt[], today: string, lessons: Lesson[] = PATH): DailyPlan {
+export function dailyPlan(attempts: Attempt[], today: string, lessons: Lesson[] = PATH, focusLessons: Lesson[] = lessons): DailyPlan {
   const before = attempts.filter((a) => dayKey(a.at) < today)
   const todays = attempts.filter((a) => dayKey(a.at) === today)
   const states = stageStates(before, lessons)
@@ -157,7 +160,9 @@ export function dailyPlan(attempts: Attempt[], today: string, lessons: Lesson[] 
       return { lessonId: s.lessonId, stage: s.stage, kind: 'review', done: t.length > 0, passed: t[0]?.clean }
     })
 
+  const focusKeys = new Set(focusLessons.flatMap((l) => stagesFor(l).map((s) => key(l.id, s))))
   const focusState = order
+    .filter((k) => focusKeys.has(k))
     .map((k) => states.get(k)!)
     .find((s) => s.level < 0 && !coveredByHigher(states, s.lessonId, s.stage, lessons))
   const items = [...reviews]

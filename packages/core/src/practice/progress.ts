@@ -3,6 +3,8 @@ import { LEVELS, PATH, parseVersionId, versionId, versionsOf } from '../music/ve
 import { store } from '../sync/store'
 import { CLEAN_GOAL } from './goal'
 import { dailyPlan, dayKey, stageStates, streak, type StageState } from './plan'
+import { popFocusItem, popLessonsIn, popNext, popUnlocked } from './popPlan'
+import { popPrefs } from '../music/popPrefs'
 
 /** Sitzt die Stufe, in dieser Fassung oder in einer schwereren desselben Stücks? */
 function stageDone(l: Lesson, s: Stage): boolean {
@@ -41,16 +43,29 @@ export function totals() {
 
 let cache: { v: number; states: Map<string, StageState> } | null = null
 
-/** Zustand aller Stufen, neu berechnet nur, wenn sich das Protokoll geändert hat */
+/** Zustand aller Stufen (Lernpfad und geübte Pop-Zellen), neu berechnet nur, wenn sich das Protokoll geändert hat */
 export function currentStates() {
   const v = store.version()
-  if (!cache || cache.v !== v) cache = { v, states: stageStates(store.attempts()) }
+  if (!cache || cache.v !== v) {
+    const attempts = store.attempts()
+    cache = { v, states: stageStates(attempts, [...PATH, ...popLessonsIn(attempts)]) }
+  }
   return cache.states
 }
 
-/** Tagesplan und Serie für heute */
+/** Tagesplan und Serie für heute: Lernpfad, Wiederholungen (auch Pop), dazu der nächste Pop-Schritt */
 export function today() {
   const attempts = store.attempts()
   const day = dayKey(Date.now())
-  return { plan: dailyPlan(attempts, day), streak: streak(attempts, day) }
+  const plan = dailyPlan(attempts, day, [...PATH, ...popLessonsIn(attempts)], PATH)
+  const pop = popFocusItem(attempts, day, popPrefs.patterns())
+  if (pop) plan.items.push(pop)
+  return { plan: { items: plan.items, complete: plan.items.every((i) => i.done) }, streak: streak(attempts, day) }
+}
+
+/** Die nächsten Pop-Übungen und ob wir den Pop-Pfad schon empfehlen */
+export function popToday() {
+  const attempts = store.attempts()
+  const patterns = popPrefs.patterns()
+  return { next: popNext(attempts, patterns), unlocked: popUnlocked(attempts, patterns) }
 }

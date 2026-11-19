@@ -13,6 +13,7 @@ import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { DevicesDialog } from '../../sync/DevicesDialog'
 import { Today } from './Today'
 import { OwnPieces } from '../pieces/OwnPieces'
+import { PopSection } from '../pop/PopSection'
 
 /**
  * Startseite der App (Web unter /app, iOS): ohne Werbeteil. Oben „Weiter mit …“, dann Lernpfad
@@ -78,6 +79,13 @@ export function AppHome({ synced }: { synced: boolean }) {
           </ol>
           <p className="pb-note">{t.home.pathNote}</p>
         </section>
+
+        <PopSection
+          onOpen={(l) => {
+            audioContext()
+            void navigate({ to: '/play/$lessonId', params: { lessonId: l.id } })
+          }}
+        />
 
         <section className="app-home-section" aria-labelledby="app-songs">
           <h2 id="app-songs" className="pb-h2">

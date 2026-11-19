@@ -38,3 +38,9 @@ export function setLocale(l: Locale) {
 }
 
 export const localized = (x: Localized): string => x[locale]
+
+/** Name eines Elements aus dem Element-Modell („Dreiklänge“, „3/4-Takt“) */
+export function elementName(e: string): string {
+  if (e.startsWith('meter:')) return t.elements.meter(e.slice(6))
+  return (t.elements as unknown as Record<string, string>)[e] ?? e
+}

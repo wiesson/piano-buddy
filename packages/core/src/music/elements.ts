@@ -40,6 +40,7 @@ export type ElementId =
   | 'triad'
   | 'eighths'
   | 'sixteenths'
+  | 'offbeat'
   | 'dotted'
   | 'pickup'
   | `meter:${string}`
@@ -56,6 +57,7 @@ export const ELEMENT_ORDER = [
   'hands-together',
   'dotted',
   'eighths',
+  'offbeat',
   'shift',
   'meter',
   'pickup',
@@ -113,6 +115,8 @@ export interface Demands {
   shortest: number
   /** punktierte Werte (1,5 oder 0,75 Schläge), außer in zusammengesetzten Taktarten */
   dotted: boolean
+  /** eine Hand schlägt überwiegend auf der „und“ an, während sie auf dem Schlag schweigt */
+  offbeat: boolean
   /** Tempo in Vierteln pro Minute */
   quarterBpm: number
   bars: number
@@ -299,6 +303,17 @@ export function demandsOf(lesson: LessonShape): Demands {
   const compound = unit === 8 && lesson.beatsPerBar % 3 === 0 && lesson.beatsPerBar > 3
   const durs = lesson.notes.map((n) => Math.round(n.dur * 1000) / 1000)
   const lastEnd = Math.max(0, ...lesson.notes.map((n) => n.start + n.dur))
+  // Offbeat: Anschläge auf dem halben Schlag, vor denen die Hand auf dem Schlag stumm ist
+  const offbeat = (['L', 'R'] as const).some((h) => {
+    const ns = lesson.notes.filter((n) => n.hand === h)
+    const starts = [...new Set(ns.map((n) => n.start))]
+    const off = starts.filter((t) => {
+      if (Math.abs(t - Math.floor(t) - 0.5) > EPS) return false
+      const beat = Math.floor(t)
+      return !ns.some((n) => n.start <= beat + EPS && n.start + n.dur > beat + EPS)
+    })
+    return starts.length > 0 && off.length * 2 >= starts.length
+  })
   return {
     hands,
     together,
@@ -307,6 +322,7 @@ export function demandsOf(lesson: LessonShape): Demands {
     pickup: !!lesson.pickup,
     shortest: Math.min(...durs),
     dotted: !compound && durs.some((d) => d === 1.5 || d === 0.75),
+    offbeat,
     quarterBpm,
     bars: Math.ceil(lastEnd / lesson.beatsPerBar - EPS),
   }
@@ -332,6 +348,7 @@ export function elementsOf(lesson: LessonShape): ElementId[] {
   if (d.shortest < 0.5 - EPS) out.add('sixteenths')
   if (d.shortest < 1 - EPS) out.add('eighths')
   if (d.dotted) out.add('dotted')
+  if (d.offbeat) out.add('offbeat')
   if (d.pickup) out.add('pickup')
   if (d.meter !== '4/4') out.add(`meter:${d.meter}`)
   const rank = (e: ElementId) => ELEMENT_ORDER.indexOf(kindOf(e))

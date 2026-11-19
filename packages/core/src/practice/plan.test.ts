@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Attempt } from '../sync/store'
 import type { Stage } from '../music/lessons'
 import { addDays, coveredByHigher, dailyPlan, dayKey, stageStates, stateFor, streak } from './plan'
+import { popFocusItem, popLessonsIn } from './popPlan'
+import { PATH } from '../music/versions'
+import { axisDistance, parseCell } from '../music/pop'
 
 /** Ein Versuch an einem Tag (Mittag in der Zeitzone des Geräts), Reihenfolge über die Minute */
 let seq = 0
@@ -161,5 +164,35 @@ describe('Serie', () => {
   it('Tage zählen in der Zeitzone des Geräts', () => {
     expect(dayKey(new Date(2026, 10, 2, 23, 59).getTime())).toBe('2026-11-02')
     expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
+  })
+})
+
+describe('Pop-Spur im Plan', () => {
+  const POP = 'pop-1564-c-ganze-grund-sing'
+
+  it('Pop-Übungen zählen wie Stücke: drei saubere Durchgänge, morgen Wiederholung', () => {
+    const a = three(D1, POP, 'L')
+    const p = dailyPlan(a, day(1), [...PATH, ...popLessonsIn(a)], PATH)
+    expect(p.items.find((i) => i.kind === 'review')).toMatchObject({ lessonId: POP, stage: 'L' })
+    // Der Fokus bleibt im Lernpfad, nicht in der Pop-Übung
+    expect(p.items.find((i) => i.kind === 'focus')).toMatchObject({ lessonId: 'lh-fuenf' })
+  })
+
+  it('am Anfang kein Pop-Schritt: erst nach „Vier Akkorde“ empfohlen', () => {
+    expect(popFocusItem([], D1)).toBeNull()
+  })
+
+  it('wer selbst mit Pop anfängt, bekommt den nächsten Pop-Schritt; nach dem Einstieg einen Nachbarn', () => {
+    const started = [at(D1, POP, 'L', false)]
+    expect(popFocusItem(started, day(1))).toMatchObject({ lessonId: POP, stage: 'L', track: 'pop', done: false })
+    const mastered = (['L', 'R', 'LR'] as const).flatMap((s) => three(D1, POP, s))
+    const next = popFocusItem(mastered, day(1))!
+    expect(next.lessonId).not.toBe(POP)
+    expect(axisDistance(parseCell(POP)!, parseCell(next.lessonId)!)).toBe(1)
+  })
+
+  it('der Pop-Schritt ist erledigt mit einem sauberen Durchgang heute', () => {
+    const a = [at(D1, POP, 'L', false), at(day(1), POP, 'L', true)]
+    expect(popFocusItem(a, day(1))).toMatchObject({ done: true })
   })
 })

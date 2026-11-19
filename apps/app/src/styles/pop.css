@@ -1,0 +1,83 @@
+/* Party-Pianist: Musterwahl und Übungen zusammenstellen. Karten wie der Player (Innen = Karte − Abstand) */
+.pop-patterns {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pop-pattern {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: var(--small-pad);
+  border-radius: var(--card-radius);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.04);
+}
+.pop-pattern-text {
+  display: grid;
+  gap: 2px;
+}
+.pop-pattern-text small {
+  color: var(--fg-dim);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.pop-pattern-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pop-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: var(--bg-2);
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+/* „Im Pfad“: immer gleich breit, an oder aus */
+.pop-toggle {
+  min-width: 92px;
+  color: var(--fg-dim);
+}
+.pop-toggle[aria-pressed='true'] {
+  background: var(--fg);
+  color: var(--bg);
+}
+.pop-toggle:disabled {
+  opacity: 0.55;
+}
+.pop-choice {
+  margin: 4px 0 0;
+}
+.pop-axes {
+  display: grid;
+  gap: 12px;
+}
+.pop-axis {
+  display: grid;
+  gap: 4px;
+  overflow-x: auto;
+}
+.pop-axis-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pop-go {
+  justify-self: start;
+  background: var(--fg);
+  color: var(--bg);
+  padding: 0 22px;
+}
+@media (max-width: 560px) {
+  .pop-pattern {
+    grid-template-columns: 1fr;
+  }
+}
