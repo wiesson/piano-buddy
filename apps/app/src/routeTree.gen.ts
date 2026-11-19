@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CalibrateRouteImport } from './routes/calibrate'
 import { Route as SinkRouteImport } from './routes/sink'
+import { Route as PiecePieceIdRouteImport } from './routes/piece.$pieceId'
 import { Route as PlayLessonIdRouteImport } from './routes/play.$lessonId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const SinkRoute = SinkRouteImport.update({
   path: '/sink',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PiecePieceIdRoute = PiecePieceIdRouteImport.update({
+  id: '/piece/$pieceId',
+  path: '/piece/$pieceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayLessonIdRoute = PlayLessonIdRouteImport.update({
   id: '/play/$lessonId',
   path: '/play/$lessonId',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calibrate': typeof CalibrateRoute
   '/sink': typeof SinkRoute
+  '/piece/$pieceId': typeof PiecePieceIdRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calibrate': typeof CalibrateRoute
   '/sink': typeof SinkRoute
+  '/piece/$pieceId': typeof PiecePieceIdRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,29 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/calibrate': typeof CalibrateRoute
   '/sink': typeof SinkRoute
+  '/piece/$pieceId': typeof PiecePieceIdRoute
   '/play/$lessonId': typeof PlayLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/calibrate' | '/sink' | '/play/$lessonId'
+  fullPaths:
+    '/' | '/calibrate' | '/sink' | '/piece/$pieceId' | '/play/$lessonId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calibrate' | '/sink' | '/play/$lessonId'
-  id: '__root__' | '/' | '/calibrate' | '/sink' | '/play/$lessonId'
+  to: '/' | '/calibrate' | '/sink' | '/piece/$pieceId' | '/play/$lessonId'
+  id:
+    | '__root__'
+    | '/'
+    | '/calibrate'
+    | '/sink'
+    | '/piece/$pieceId'
+    | '/play/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalibrateRoute: typeof CalibrateRoute
   SinkRoute: typeof SinkRoute
+  PiecePieceIdRoute: typeof PiecePieceIdRoute
   PlayLessonIdRoute: typeof PlayLessonIdRoute
 }
 
@@ -92,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SinkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/piece/$pieceId': {
+      id: '/piece/$pieceId'
+      path: '/piece/$pieceId'
+      fullPath: '/piece/$pieceId'
+      preLoaderRoute: typeof PiecePieceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/play/$lessonId': {
       id: '/play/$lessonId'
       path: '/play/$lessonId'
@@ -106,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalibrateRoute: CalibrateRoute,
   SinkRoute: SinkRoute,
+  PiecePieceIdRoute: PiecePieceIdRoute,
   PlayLessonIdRoute: PlayLessonIdRoute,
 }
 export const routeTree = rootRouteImport

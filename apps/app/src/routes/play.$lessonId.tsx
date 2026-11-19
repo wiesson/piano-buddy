@@ -1,18 +1,19 @@
 import { useEffect } from 'react'
 import { createFileRoute, redirect, useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router'
-import { LESSONS, type Stage } from '@piano/core/music/lessons'
+import type { Stage } from '@piano/core/music/lessons'
+import { lessonAfter, lessonById } from '@piano/core/music/pieceStore'
 import { SITE } from '@piano/core/content/site'
 import { localized } from '@piano/core/i18n'
 import { PracticeScreen } from '../ui/practice/PracticeScreen'
 
 const STAGES: readonly Stage[] = ['L', 'R', 'LR']
 
-/** Ein Stück unter eigener Adresse, z. B. /play/ode?stage=R: teilbar, und „Zurück“ führt zur Startseite */
+/** Ein Stück (oder eine Lernfassung eines eigenen Stücks) unter eigener Adresse, z. B. /play/ode?stage=R: teilbar, und „Zurück“ führt zur Startseite */
 export const Route = createFileRoute('/play/$lessonId')({
   validateSearch: (search: Record<string, unknown>): { stage?: Stage } =>
     STAGES.includes(search.stage as Stage) ? { stage: search.stage as Stage } : {},
   beforeLoad: ({ params }) => {
-    if (!LESSONS.some((l) => l.id === params.lessonId)) throw redirect({ to: '/', replace: true })
+    if (!lessonById(params.lessonId)) throw redirect({ to: '/', replace: true })
   },
   component: Play,
 })
@@ -23,9 +24,9 @@ function Play() {
   const navigate = useNavigate()
   const router = useRouter()
   const canGoBack = useCanGoBack()
-  const index = LESSONS.findIndex((l) => l.id === lessonId)
-  const lesson = LESSONS[index]
-  const next = LESSONS[index + 1]
+  // Eingebaute Stücke und Lernfassungen eigener Stücke (MIDI-Import)
+  const lesson = lessonById(lessonId)!
+  const next = lessonAfter(lessonId)
 
   useEffect(() => {
     const before = document.title

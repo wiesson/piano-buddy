@@ -1,0 +1,317 @@
+/* Eigene Stücke (MIDI-Import): Startseiten-Abschnitt und Stückseite, im Papier der Startseite */
+
+/* ---------- Startseite ---------- */
+.own-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.own-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 16px;
+  align-items: center;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  border-radius: var(--small-radius);
+  background: var(--card);
+  text-align: left;
+}
+@media (hover: hover) {
+  .own-item:hover {
+    background: color-mix(in srgb, var(--card) 70%, var(--bg-2));
+  }
+}
+.own-name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.own-item .pb-mono {
+  grid-column: 1;
+}
+.own-progress {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  gap: 3px;
+}
+.own-progress i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--bg-3);
+}
+.own-progress i.done {
+  background: var(--hand-l);
+  box-shadow: none;
+}
+.own-open {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.own-open .pb-small {
+  max-width: 30rem;
+  font-size: 14px;
+}
+/* Datei irgendwo auf die Seite ziehen: Fläche erscheint nur beim Ziehen */
+.own-drop {
+  position: fixed;
+  inset: 12px;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  border-radius: var(--card-radius);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  box-shadow: inset 0 0 0 2px var(--hand-l);
+  font-family: var(--serif);
+  font-size: 28px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.own-drop[data-dragging] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.own-drop[data-drag-reject] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.own-error {
+  margin: 0;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+/* ---------- Stückseite ---------- */
+.piece-page {
+  min-height: 100%;
+}
+.piece-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  height: calc(56px + var(--sat));
+  padding: var(--sat) max(10px, var(--sar)) 0 max(10px, var(--sal));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.piece-main {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0 max(20px, var(--sar)) calc(40px + var(--sab)) max(20px, var(--sal));
+  display: grid;
+  gap: 48px;
+}
+.piece-head {
+  display: grid;
+  gap: 6px;
+}
+.piece-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(34px, 5vw, 48px);
+  line-height: 1.08;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+/* Player: Karte mit Übersicht, Transport, Fassung. Innen Radius = Karte − Abstand */
+.piece-player {
+  display: grid;
+  gap: 14px;
+  margin-top: -24px;
+  padding: var(--small-pad);
+  border-radius: var(--card-radius);
+  background: var(--card);
+  box-shadow: 0 1px 0 rgba(43, 36, 32, 0.04);
+}
+.piece-overview {
+  display: block;
+  width: 100%;
+  height: 132px;
+  border-radius: calc(var(--card-radius) - var(--small-pad));
+  background: var(--bg);
+  touch-action: none;
+  cursor: pointer;
+}
+.piece-transport {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+.piece-play {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--bg);
+}
+.piece-play svg {
+  margin-left: 2px;
+}
+.piece-play.on svg {
+  margin-left: 0;
+}
+.piece-seek-control {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  cursor: pointer;
+  touch-action: none;
+}
+.piece-seek-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-3);
+}
+.piece-seek-fill {
+  position: absolute;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.piece-seek-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1.5px var(--accent),
+    0 1px 3px rgba(43, 36, 32, 0.2);
+}
+.piece-seek-thumb:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.piece-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Umschalter (Fassung, Hand): Pille mit gleitendem Feld wie die Tempo-Leiter */
+.piece-switch {
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  justify-self: start;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.piece-switch-indicator {
+  position: absolute;
+  z-index: -1;
+  top: var(--segmented-control-indicator-top);
+  left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width);
+  height: var(--segmented-control-indicator-height);
+  border-radius: 9px;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(43, 36, 32, 0.14);
+  transition:
+    left 0.2s ease,
+    width 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .piece-switch-indicator {
+    transition: none;
+  }
+}
+.piece-switch-item {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+.piece-switch-item[data-checked] {
+  color: var(--fg);
+}
+.piece-hand .hand-L[data-checked] {
+  color: var(--hand-l);
+}
+.piece-hand .hand-R[data-checked] {
+  color: color-mix(in srgb, var(--hand-r) 80%, var(--fg));
+}
+
+/* Hände */
+.piece-parts {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--bg-3);
+}
+.piece-part {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--bg-3);
+}
+.piece-part-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-weight: 700;
+}
+.piece-split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.piece-split-buttons {
+  display: flex;
+  gap: 6px;
+}
+.piece-split-buttons .pb-btn-sm {
+  margin: 0;
+}
+
+.piece-foot {
+  padding-top: 4px;
+}
+.piece-remove {
+  color: var(--fg-dim);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.piece-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.piece-confirm .pb-btn-ghost {
+  color: var(--ink);
+  background: rgba(36, 26, 23, 0.07);
+}
+.pb-btn-danger {
+  background: var(--accent);
+  color: #fffcf6;
+}

@@ -11,6 +11,7 @@ import { SongGallery } from '@piano/ui/home/SongGallery'
 import { useThemeColor } from '@piano/ui/shared/useThemeColor'
 import { DevicesDialog } from '../../sync/DevicesDialog'
 import { Today } from './Today'
+import { OwnPieces } from '../pieces/OwnPieces'
 
 /**
  * Startseite der App (Web unter /app, iOS): ohne Werbeteil. Oben „Weiter mit …“, dann Lernpfad
@@ -70,6 +71,8 @@ export function AppHome({ synced }: { synced: boolean }) {
           </h2>
           <SongGallery onOpen={open} />
         </section>
+
+        <OwnPieces onOpen={(pieceId) => void navigate({ to: '/piece/$pieceId', params: { pieceId } })} />
 
         <footer className="app-home-foot">
           <Link to="/calibrate">{t.calib.title}</Link>
