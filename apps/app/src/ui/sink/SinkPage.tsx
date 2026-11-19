@@ -293,6 +293,8 @@ export function SinkPage() {
             <SettingsMenu
               mode="roll"
               onMode={() => {}}
+              keyHelp="now"
+              onKeyHelp={() => {}}
               midi={midi}
               onToggleMidi={() => setMidiOn((v) => !v)}
               micStatus={micStatus}
