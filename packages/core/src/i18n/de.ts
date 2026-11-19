@@ -15,7 +15,7 @@ export const de = {
     start: 'Erstes Stück starten',
     continueWith: (title: string) => `Weiter mit ${title}`,
     practiceAgain: 'Noch einmal üben',
-    practice: 'Üben',
+    openApp: 'Zur App',
     how: 'So funktioniert’s',
     statsNew: (n: number) => `${n} Stücke · Mikrofon oder MIDI · ohne Konto`,
     stats: (learned: number, total: number, clean: number) =>

@@ -13,7 +13,7 @@ export const en: Messages = {
     start: 'Start the first piece',
     continueWith: (title: string) => `Continue with ${title}`,
     practiceAgain: 'Practice again',
-    practice: 'Practice',
+    openApp: 'Open the app',
     how: 'How it works',
     statsNew: (n: number) => `${n} pieces · microphone or MIDI · no account`,
     stats: (learned: number, total: number, clean: number) =>

@@ -23,6 +23,8 @@ const TryPiano = lazy(() => import('./TryPiano'))
  * Fragen, Fuß. Wer schon geübt hat, kommt mit einem Tipp weiter: Hero-Knopf und Leiste öffnen
  * das nächste Stück.
  */
+const APP_URL = '/app/'
+
 export function HomeScreen({ onOpen }: { onOpen: (l: Lesson) => void }) {
   useThemeColor('#fbf7ef')
   const next = nextLesson()
@@ -42,9 +44,10 @@ export function HomeScreen({ onOpen }: { onOpen: (l: Lesson) => void }) {
         </a>
         <div className="pb-bar-actions pb-reveal">
           <AboutDialog className="icon-button pb-bar-about" />
-          <button type="button" className="pb-btn pb-btn-sm pb-bar-cta" onClick={open}>
-            {t.home.practice}
-          </button>
+          {/* In die App: Startseite mit „Heute“, Lernpfad und eigenen Stücken (eigener Worker unter /app) */}
+          <a className="pb-btn pb-btn-sm pb-bar-cta" href={APP_URL}>
+            {t.home.openApp}
+          </a>
         </div>
       </header>
 
@@ -68,9 +71,9 @@ export function HomeScreen({ onOpen }: { onOpen: (l: Lesson) => void }) {
               {t.home.dock.faq}
             </a>
             <AboutDialog label={t.home.dock.about} className="pb-pill-item" />
-            <button type="button" className="is-lit" onClick={open}>
-              {cta}
-            </button>
+            <a className="is-lit" href={APP_URL}>
+              {t.home.openApp}
+            </a>
           </nav>
         </div>
       </div>

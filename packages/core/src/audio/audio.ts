@@ -26,10 +26,20 @@ export function getPiano() {
   return piano
 }
 
+/**
+ * Geplante Töne mit ihrer Absage. smplr hält Töne, die mehr als 0,2 s in der Zukunft liegen, in
+ * einer eigenen Warteschlange, die `piano.stop()` nicht leert: Ohne Absage spielten Vorspielen
+ * und Player nach dem Anhalten weiter und überlagerten sich beim Springen.
+ */
+let pending: { stop: (time?: number) => void; end: number }[] = []
+
 export function playNote(midi: number, duration = 0.6, when = 0, velocity = 80) {
   const p = getPiano()
   const c = audioContext()
-  p.start({ note: midi, velocity, duration, time: when ? when : c.currentTime })
+  const at = when ? when : c.currentTime
+  const stop = p.start({ note: midi, velocity, duration, time: at })
+  if (pending.length > 256) pending = pending.filter((x) => x.end > c.currentTime)
+  pending.push({ stop, end: at + duration + 1 })
 }
 
 /**
@@ -44,7 +54,11 @@ export function holdNote(midi: number, velocity = 80): () => void {
   return () => stop(Math.max(c.currentTime, t0 + 0.15))
 }
 
+/** Alles verstummt sofort: geplante Töne abgesagt, klingende mit kurzem Ausklang */
 export function stopAll() {
+  const now = ctx?.currentTime
+  for (const x of pending) x.stop(now)
+  pending = []
   piano?.stop()
 }
 
