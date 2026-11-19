@@ -23,6 +23,11 @@ export const attemptFields = {
   held: v.optional(v.array(v.union(v.number(), v.null()))), // je Ton: gehaltener Anteil in % (null = nicht gemessen)
 }
 
+/** Rechte eines KI-Zugangs: Fortschritt lesen, Stücke anlegen */
+export const AGENT_SCOPES = ['progress.read', 'pieces.write'] as const
+export type AgentScope = (typeof AGENT_SCOPES)[number]
+export const agentScope = v.union(v.literal('progress.read'), v.literal('pieces.write'))
+
 export default defineSchema({
   profiles: defineTable({ createdAt: v.number() }),
   devices: defineTable({
@@ -37,7 +42,50 @@ export default defineSchema({
     profileId: v.id('profiles'),
     codeHash: v.string(),
     expiresAt: v.number(),
-  }).index('by_codeHash', ['codeHash']),
+    /** Gerät, das den Code angeboten hat: Wird es entfernt, verfallen seine Codes mit. */
+    deviceId: v.optional(v.id('devices')),
+  })
+    .index('by_codeHash', ['codeHash'])
+    .index('by_device', ['deviceId'])
+    .index('by_expires', ['expiresAt']),
+  /**
+   * Fehlversuche beim Einlösen von Kopplungscodes, je Zeitfenster. key ist „global“ oder
+   * „device:<Hash des Schlüssels>“. Ein falscher Code lässt sich keinem Code zuordnen, daher
+   * zählt der Server je einlösendem Gerät und zusätzlich über alle zusammen.
+   */
+  pairFailures: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  })
+    .index('by_key', ['key'])
+    .index('by_window', ['windowStart']),
+  /**
+   * KI-Zugänge: eine KI (über den MCP-Server) darf mit diesem Schlüssel auf das Profil zugreifen,
+   * nur mit den gewählten Rechten und nur bis zum Ablauf. Der Schlüssel `pb_<_id>_<Geheimnis>`
+   * entsteht auf dem Gerät und wird genau einmal angezeigt; hier liegt nur SHA-256 des Geheimnisses.
+   * Getrennt von `devices`: Ein KI-Schlüssel ist nie ein Geräteschlüssel und umgekehrt.
+   */
+  agentKeys: defineTable({
+    profileId: v.id('profiles'),
+    name: v.string(),
+    scopes: v.array(agentScope),
+    secretHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  }).index('by_profile', ['profileId']),
+  /** Protokoll je Aufruf eines KI-Zugangs, ohne Inhalte: wann, welcher Zugang, welches Werkzeug, Ergebnis. */
+  agentCalls: defineTable({
+    profileId: v.id('profiles'),
+    keyId: v.id('agentKeys'),
+    at: v.number(),
+    tool: v.string(),
+    outcome: v.string(),
+  })
+    .index('by_key', ['keyId', 'at'])
+    .index('by_at', ['at']),
   // Mikrofon-Messungen, die jemand ausdrücklich schickt (Lernmodus → „Messung senden“), damit die
   // Erkennung besser wird. Messwerte und Aufnahme liegen als Dateien im Speicher.
   micReports: defineTable({

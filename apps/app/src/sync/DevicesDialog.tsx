@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import {
   Dialog,
@@ -16,6 +16,13 @@ import { store } from '@piano/core/sync/store'
 import { useSyncStatus } from './hooks'
 import { toast } from '@piano/ui/shared/Toaster'
 import { CloseIcon, DevicesIcon } from '@piano/ui/shared/icons'
+import type { Id } from '../../../../convex/_generated/dataModel'
+import { getPref, setPref } from '../ui/practice/prefs'
+import { AgentKeys } from './AgentKeys'
+import '../styles/access.css'
+
+/** KI-Zugänge sind noch nicht für alle sichtbar: 5× auf den Titel tippen blendet sie ein und aus. */
+const AGENTS_PREF = 'labs.agents'
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 function randomCode() {
@@ -30,11 +37,49 @@ export function DevicesDialog() {
   const devices = useQuery(api.sync.devices, dev.registered ? { token: dev.token } : 'skip')
   const offer = useMutation(api.sync.offerPairCode)
   const claim = useMutation(api.sync.claimPairCode)
+  const remove = useMutation(api.sync.removeDevice)
+  const [labs, setLabs] = useState(() => getPref(AGENTS_PREF, false))
+  const agentKeys = useQuery(api.agents.list, dev.registered ? { token: dev.token } : 'skip')
+  const [confirming, setConfirming] = useState<Id<'devices'> | null>(null)
+  const taps = useRef<number[]>([])
   const [shown, setShown] = useState<{ code: string; expiresAt: number } | null>(null)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
+
+  // Kommt ein Gerät dazu, ist der angezeigte Code verbraucht: ausblenden
+  const deviceCount = devices?.length ?? 0
+  const countAtShow = useRef(0)
+  useEffect(() => {
+    if (shown && deviceCount > countAtShow.current) setShown(null)
+  }, [shown, deviceCount])
+
+  // „Wirklich entfernen“ gilt nur kurz, dann wieder „Entfernen“
+  useEffect(() => {
+    if (!confirming) return
+    const timer = window.setTimeout(() => setConfirming(null), 4000)
+    return () => clearTimeout(timer)
+  }, [confirming])
+
+  const tapTitle = () => {
+    const now = Date.now()
+    taps.current = [...taps.current.filter((x) => now - x < 2000), now]
+    if (taps.current.length < 5) return
+    taps.current = []
+    setLabs((on) => (setPref(AGENTS_PREF, !on), !on))
+  }
+
+  const removeDevice = async (id: Id<'devices'>, label: string) => {
+    if (confirming !== id) return setConfirming(id)
+    setConfirming(null)
+    try {
+      await remove({ token: dev.token, deviceId: id })
+      toast(t.sync.removedToast(label), { description: t.sync.removedHint, type: 'success' })
+    } catch {
+      toast(t.sync.removeFailed, { type: 'error' })
+    }
+  }
 
   useEffect(() => {
     if (!shown) return
@@ -47,6 +92,7 @@ export function DevicesDialog() {
     const c = randomCode()
     try {
       const { expiresAt } = await offer({ token: dev.token, code: c })
+      countAtShow.current = devices?.length ?? Infinity
       setShown({ code: c, expiresAt })
       setNow(Date.now())
     } catch {
@@ -67,7 +113,7 @@ export function DevicesDialog() {
           description: r.moved ? t.sync.movedAttempts(r.moved) : t.sync.sameEverywhere,
           type: 'success',
         })
-      } else setError(t.sync.codeInvalid)
+      } else setError('reason' in r && r.reason === 'locked' ? t.sync.codeLocked : t.sync.codeInvalid)
     } catch {
       setError(t.sync.noConnection)
     } finally {
@@ -79,7 +125,7 @@ export function DevicesDialog() {
   const count = devices?.length ?? 1
 
   return (
-    <Dialog onOpenChange={(open) => !open && (setShown(null), setError(null))}>
+    <Dialog onOpenChange={(open) => !open && (setShown(null), setError(null), setConfirming(null))}>
       <DialogTrigger className="icon-button sync-trigger" aria-label={count > 1 ? t.sync.paired(count) : t.sync.pair}>
         <DevicesIcon />
         {count > 1 && <span className="sync-count">{count}</span>}
@@ -87,17 +133,30 @@ export function DevicesDialog() {
       </DialogTrigger>
       <DialogBackdrop className="dialog-backdrop" />
       <DialogContent className="dialog">
-        <DialogTitle className="dialog-title">{t.sync.title}</DialogTitle>
+        <DialogTitle className="dialog-title" onClick={tapTitle}>
+          {t.sync.title}
+        </DialogTitle>
         <DialogDescription className="dialog-desc">
           {online ? (pending ? t.sync.pending(pending) : t.sync.allSynced) : t.sync.offline}
         </DialogDescription>
 
         {devices && devices.length > 0 && (
-          <ul className="device-list">
-            {devices.map((d, i) => (
-              <li key={i}>
-                {d.label}
-                {d.self && <span className="device-self">{t.sync.thisDevice}</span>}
+          <ul className="access-list">
+            {devices.map((d) => (
+              <li key={d.id} className="access-row">
+                <span className="access-main">
+                  <span className="access-name">{d.label}</span>
+                </span>
+                {d.self ? (
+                  <span className="access-self">{t.sync.thisDevice}</span>
+                ) : (
+                  <button
+                    className={`access-action ${confirming === d.id ? 'is-confirming' : ''}`}
+                    onClick={() => void removeDevice(d.id, d.label)}
+                  >
+                    {confirming === d.id ? t.sync.confirmRemove : t.sync.remove}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -153,6 +212,8 @@ export function DevicesDialog() {
             </p>
           )}
         </section>
+
+        {agentKeys && (labs || agentKeys.length > 0) && <AgentKeys token={dev.token} keys={agentKeys} />}
 
         <DialogClose className="icon-button icon-button-ink dialog-close" aria-label={t.sync.close}>
           <CloseIcon />

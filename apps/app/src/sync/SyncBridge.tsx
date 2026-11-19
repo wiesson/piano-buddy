@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
-import { store } from '@piano/core/sync/store'
+import { newDeviceToken, store } from '@piano/core/sync/store'
 import { useStoreVersion } from './hooks'
 
 /**
@@ -25,8 +25,9 @@ export function SyncBridge() {
 
   useEffect(() => {
     if (remote) store.mergeRemote(remote)
-    // Server kennt das Gerät nicht (mehr): neu anmelden, die lokalen Durchgänge gehen wieder hoch
-    if (remote === null) store.setDevice({ registered: false })
+    // Server kennt das Gerät nicht (mehr), etwa weil es auf einem anderen Gerät entfernt wurde:
+    // mit neuem Schlüssel als eigenes Profil neu anmelden. Der alte Schlüssel bleibt ungültig.
+    if (remote === null) store.setDevice({ registered: false, token: newDeviceToken() })
   }, [remote])
 
   useEffect(() => {

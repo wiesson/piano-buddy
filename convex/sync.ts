@@ -1,17 +1,20 @@
 import { v } from 'convex/values'
-import { mutation, query, type QueryCtx } from './_generated/server'
+import type { Id } from './_generated/dataModel'
+import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
+import { sha256, validDeviceToken as validToken } from './keys'
 import { attemptFields } from './schema'
 
 const PAIR_CODE_TTL_MS = 10 * 60 * 1000
 const MAX_BATCH = 200
 
-async function sha256(s: string) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-/** Schlüssel müssen lang genug sein, damit sie nicht zu erraten sind (das Gerät erzeugt 32 Byte). */
-const validToken = (t: string) => /^[A-Za-z0-9_-]{40,128}$/.test(t)
+/**
+ * Versuchslimit beim Einlösen: je Gerät 5 Fehlversuche pro Viertelstunde, über alle Geräte 200.
+ * Das zweite Limit bremst Angreifer, die sich für jeden Versuch einen neuen Schlüssel ausdenken;
+ * bei 32^8 möglichen Codes bleibt Raten damit aussichtslos.
+ */
+export const PAIR_WINDOW_MS = 15 * 60 * 1000
+export const PAIR_FAILS_PER_DEVICE = 5
+export const PAIR_FAILS_GLOBAL = 200
 /** Kopplungscode: 8 Zeichen ohne Verwechslungsgefahr (kein I, O, 0, 1) */
 export const normalizeCode = (c: string) => c.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '')
 
@@ -24,6 +27,7 @@ async function findDevice(ctx: QueryCtx, token: string) {
     .unique()
 }
 
+/** Nur Geräteschlüssel. KI-Schlüssel (`pb_…`) gelten hier nie, siehe `agents.ts`. */
 export async function requireDevice(ctx: QueryCtx, token: string) {
   const d = await findDevice(ctx, token)
   if (!d) throw new Error('Unbekanntes Gerät')
@@ -90,7 +94,10 @@ export const attempts = query({
 /** Gekoppelte Geräte des Profils */
 export const devices = query({
   args: { token: v.string() },
-  returns: v.union(v.null(), v.array(v.object({ label: v.string(), createdAt: v.number(), self: v.boolean() }))),
+  returns: v.union(
+    v.null(),
+    v.array(v.object({ id: v.id('devices'), label: v.string(), createdAt: v.number(), self: v.boolean() })),
+  ),
   handler: async (ctx, { token }) => {
     const device = await findDevice(ctx, token)
     if (!device) return null
@@ -98,11 +105,60 @@ export const devices = query({
       .query('devices')
       .withIndex('by_profile', (q) => q.eq('profileId', device.profileId))
       .collect()
-    return all.map((d) => ({ label: d.label, createdAt: d.createdAt, self: d._id === device._id }))
+    return all.map((d) => ({ id: d._id, label: d.label, createdAt: d.createdAt, self: d._id === device._id }))
   },
 })
 
-/** Gerät A erzeugt den Code selbst (Zufall im Browser) und meldet nur dessen Hash an. */
+/**
+ * Ein anderes Gerät aus dem Profil entfernen (verloren, verkauft, nicht mehr gewollt). Sein
+ * Schlüssel gilt sofort nicht mehr, Codes, die es angeboten hat, verfallen. Das entfernte Gerät
+ * meldet sich danach mit neuem Schlüssel als eigenes, leeres Profil an. Sich selbst entfernt
+ * man nicht, sonst bliebe ein Profil ohne Gerät zurück.
+ */
+export const removeDevice = mutation({
+  args: { token: v.string(), deviceId: v.id('devices') },
+  returns: v.null(),
+  handler: async (ctx, { token, deviceId }) => {
+    const me = await requireDevice(ctx, token)
+    const target = await ctx.db.get(deviceId)
+    if (!target || target.profileId !== me.profileId) throw new Error('Unbekanntes Gerät')
+    if (target._id === me._id) throw new Error('Dieses Gerät kann sich nicht selbst entfernen')
+    await deleteDevice(ctx, target._id)
+    return null
+  },
+})
+
+async function deleteDevice(ctx: MutationCtx, deviceId: Id<'devices'>) {
+  const codes = await ctx.db
+    .query('pairCodes')
+    .withIndex('by_device', (q) => q.eq('deviceId', deviceId))
+    .collect()
+  for (const c of codes) await ctx.db.delete(c._id)
+  await ctx.db.delete(deviceId)
+}
+
+/** Fehlversuche im laufenden Fenster; abgelaufene Fenster zählen als 0. */
+async function failures(ctx: QueryCtx, key: string, now: number) {
+  const row = await ctx.db
+    .query('pairFailures')
+    .withIndex('by_key', (q) => q.eq('key', key))
+    .unique()
+  return { row, count: row && row.windowStart + PAIR_WINDOW_MS > now ? row.count : 0 }
+}
+
+async function countFailure(ctx: MutationCtx, key: string, now: number) {
+  const { row, count } = await failures(ctx, key, now)
+  if (!row) await ctx.db.insert('pairFailures', { key, windowStart: now, count: 1 })
+  else if (count === 0) await ctx.db.patch(row._id, { windowStart: now, count: 1 })
+  else await ctx.db.patch(row._id, { count: count + 1 })
+}
+
+/**
+ * Gerät A erzeugt den Code selbst (Zufall im Browser) und meldet nur dessen Hash an.
+ * Je Gerät gilt nur der zuletzt angebotene Code. Je Code gibt es nur eine Zeile: Gleichlautende
+ * ältere fallen weg, egal von wem. Sonst könnte ein Angreifer Codes „anbieten“, um fremde zu
+ * treffen, ohne dass ein Fehlversuch zählt. Die Antwort ist in beiden Fällen gleich.
+ */
 export const offerPairCode = mutation({
   args: { token: v.string(), code: v.string() },
   returns: v.object({ expiresAt: v.number() }),
@@ -110,8 +166,18 @@ export const offerPairCode = mutation({
     const device = await requireDevice(ctx, token)
     const norm = normalizeCode(code)
     if (norm.length !== 8) throw new Error('Ungültiger Code')
+    const codeHash = await sha256(norm)
+    const mine = await ctx.db
+      .query('pairCodes')
+      .withIndex('by_device', (q) => q.eq('deviceId', device._id))
+      .collect()
+    const same = await ctx.db
+      .query('pairCodes')
+      .withIndex('by_codeHash', (q) => q.eq('codeHash', codeHash))
+      .collect()
+    for (const id of new Set([...mine, ...same].map((c) => c._id))) await ctx.db.delete(id)
     const expiresAt = Date.now() + PAIR_CODE_TTL_MS
-    await ctx.db.insert('pairCodes', { profileId: device.profileId, codeHash: await sha256(norm), expiresAt })
+    await ctx.db.insert('pairCodes', { profileId: device.profileId, codeHash, expiresAt, deviceId: device._id })
     return { expiresAt }
   },
 })
@@ -119,22 +185,43 @@ export const offerPairCode = mutation({
 /**
  * Gerät B löst den Code ein: Sein Schlüssel gehört danach zum Profil von Gerät A. Durchgänge,
  * die Gerät B schon in einem eigenen Profil hatte, ziehen mit um. Ein Code gilt nur einmal.
+ * Fehlversuche sind begrenzt (siehe PAIR_FAILS_*); ist das Limit erreicht, prüft der Server
+ * gar nicht erst, auch einen richtigen Code nicht.
  */
 export const claimPairCode = mutation({
   args: { token: v.string(), code: v.string(), label: v.string() },
-  returns: v.union(v.object({ ok: v.literal(true), moved: v.number() }), v.object({ ok: v.literal(false) })),
+  returns: v.union(
+    v.object({ ok: v.literal(true), moved: v.number() }),
+    v.object({ ok: v.literal(false), reason: v.union(v.literal('invalid'), v.literal('locked')) }),
+  ),
   handler: async (ctx, { token, code, label }) => {
     if (!validToken(token)) throw new Error('Ungültiger Schlüssel')
+    const now = Date.now()
+    const deviceKey = `device:${await sha256(token)}`
+    if (
+      (await failures(ctx, deviceKey, now)).count >= PAIR_FAILS_PER_DEVICE ||
+      (await failures(ctx, 'global', now)).count >= PAIR_FAILS_GLOBAL
+    )
+      return { ok: false as const, reason: 'locked' as const }
+    const fail = async () => {
+      await countFailure(ctx, deviceKey, now)
+      await countFailure(ctx, 'global', now)
+      return { ok: false as const, reason: 'invalid' as const }
+    }
+
     const norm = normalizeCode(code)
-    if (norm.length !== 8) return { ok: false as const }
+    if (norm.length !== 8) return fail()
     const codeHash = await sha256(norm)
     const pc = await ctx.db
       .query('pairCodes')
       .withIndex('by_codeHash', (q) => q.eq('codeHash', codeHash))
       .first()
-    if (!pc) return { ok: false as const }
+    if (!pc) return fail()
     await ctx.db.delete(pc._id)
-    if (pc.expiresAt < Date.now()) return { ok: false as const }
+    if (pc.expiresAt < now) return fail()
+    // Das anbietende Gerät muss noch zum Profil gehören (nicht entfernt, nicht weggekoppelt)
+    const issuer = pc.deviceId ? await ctx.db.get(pc.deviceId) : null
+    if (!issuer || issuer.profileId !== pc.profileId) return fail()
 
     const target = pc.profileId
     let moved = 0
@@ -165,6 +252,12 @@ export const claimPairCode = mutation({
             moved++
           }
         }
+        // KI-Zugänge des alten Profils gelten nicht im neuen weiter: Das neue Profil hat sie nie erteilt
+        const keys = await ctx.db
+          .query('agentKeys')
+          .withIndex('by_profile', (q) => q.eq('profileId', old))
+          .collect()
+        for (const k of keys) if (!k.revokedAt) await ctx.db.patch(k._id, { revokedAt: Date.now() })
         await ctx.db.delete(old)
       }
     } else {

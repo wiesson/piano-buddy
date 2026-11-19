@@ -77,7 +77,16 @@ function guessLabel() {
 }
 
 let log: Map<string, Stored> = new Map(read<Stored[]>(LOG_KEY, []).map((a) => [a.attemptId, a]))
-let device: Device = read<Device | null>(DEVICE_KEY, null) ?? { token: randomToken(), label: guessLabel(), registered: false }
+/** Neuer Geräteschlüssel. Nie mit `pb_` vorn: so beginnen nur KI-Schlüssel, der Server lehnt das ab. */
+export function newDeviceToken() {
+  for (;;) {
+    const t = randomToken()
+    if (!t.startsWith('pb_')) return t
+  }
+}
+
+let device: Device = read<Device | null>(DEVICE_KEY, null) ?? { token: newDeviceToken(), label: guessLabel(), registered: false }
+if (device.token.startsWith('pb_')) device = { ...device, token: newDeviceToken(), registered: false }
 write(DEVICE_KEY, device)
 
 const listeners = new Set<() => void>()

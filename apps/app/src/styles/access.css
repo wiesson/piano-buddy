@@ -1,0 +1,174 @@
+/* ---------- Geräte und KI-Zugänge im Geräte-Dialog ---------- */
+
+/* Zeilen ohne Rundung: nur Trennlinien, damit keine Radien mit dem Dialog konkurrieren */
+.access-list {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+}
+.access-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+}
+.access-row + .access-row {
+  border-top: 1px solid rgba(36, 26, 23, 0.08);
+}
+.access-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.access-name {
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.access-meta,
+.access-self,
+.access-note {
+  font-size: 13px;
+  color: #7a6a5c;
+}
+.access-note {
+  margin: 0;
+}
+.access-row.is-expired .access-name {
+  color: #7a6a5c;
+}
+/* Rechts bündig: wird der Text länger („Wirklich entfernen“), wächst der Knopf nach links */
+.access-action {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--felt);
+  transition:
+    background-color 160ms,
+    color 160ms;
+}
+.access-action.is-confirming {
+  background: var(--felt);
+  color: #fffaf1;
+}
+
+.access-form,
+.access-reveal {
+  display: grid;
+  gap: 12px;
+  animation: access-in 200ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+@keyframes access-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .access-form,
+  .access-reveal {
+    animation: none;
+  }
+}
+.access-field {
+  display: grid;
+  gap: 6px;
+}
+.access-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #5b4a3f;
+}
+/* Gleiche Fläche und Radius wie die Felder des Kopplungscodes */
+.access-input {
+  border: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #fffaf1;
+  box-shadow: inset 0 0 0 1.5px #cdbfa9;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+}
+.access-input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.access-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.access-chip {
+  padding: 8px 14px;
+  border-radius: 99px;
+  font-weight: 600;
+  color: #5b4a3f;
+  box-shadow: inset 0 0 0 1.5px #cdbfa9;
+  transition:
+    background-color 160ms,
+    color 160ms,
+    box-shadow 160ms;
+}
+.access-chip[data-pressed] {
+  background: var(--ink);
+  color: var(--card);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+/* Volle Breite, Felder teilen sich den Platz: nichts bricht um, nichts springt beim Wechsel */
+.access-switch {
+  display: flex;
+}
+.access-switch .lang-item {
+  flex: 1;
+  padding: 8px 6px;
+  white-space: nowrap;
+}
+
+.access-reveal h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.access-reveal .pair-hint {
+  margin: -8px 0 0;
+}
+.dialog .access-cmd {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fffaf1;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  -webkit-user-select: all;
+  user-select: all;
+}
+.access-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.access-primary {
+  padding: 10px 18px;
+  border-radius: 99px;
+  font-weight: 800;
+  background: var(--ink);
+  color: var(--card);
+  min-width: 9em;
+}
+.access-text {
+  padding: 10px 12px;
+  font-weight: 700;
+  color: #5b4a3f;
+}
