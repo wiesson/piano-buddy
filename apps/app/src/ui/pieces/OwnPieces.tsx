@@ -47,15 +47,16 @@ export function OwnPieces({ onOpen }: { onOpen: (pieceId: string) => void }) {
               <li key={p.id}>
                 <button type="button" className="own-item" onClick={() => onOpen(p.id)}>
                   <span className="own-name">{p.title}</span>
-                  <span className="pb-mono">
+                  <span className="pb-mono own-meta">
                     {t.pieces.meta(barsOf(p), path[path.length - 1].lesson.notes.length, p.bpm)}
                   </span>
-                  <span className="own-progress" aria-hidden="true">
-                    {path.map((s) => (
-                      <i key={s.lesson.id} className={lessonDone(s.lesson) ? 'done' : ''} />
-                    ))}
+                  {/* Feste Spalte statt eines Punkts je Schritt: lange Songs haben über 50 Schritte */}
+                  <span className="own-progress">
+                    <span className="pb-mono">{`${done}/${path.length}`}</span>
+                    <span className="own-bar" aria-hidden="true">
+                      <i style={{ width: `${(done / path.length) * 100}%` }} />
+                    </span>
                   </span>
-                  <span className="sr-only">{`${done}/${path.length}`}</span>
                 </button>
               </li>
             )
