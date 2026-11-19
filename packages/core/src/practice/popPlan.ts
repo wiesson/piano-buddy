@@ -1,4 +1,4 @@
-import { elementsOf, newElements, type ElementId } from '../music/elements'
+import { elementsOf, handChordElements, newElements, type ElementId } from '../music/elements'
 import { stagesFor, type Lesson } from '../music/lessons'
 import { DEFAULT_PATTERNS, frontier, parseCell, popLesson, startCell, type Cell, type Next, type PatternId } from '../music/pop'
 import { PATH } from '../music/versions'
@@ -25,9 +25,9 @@ function learnedLessons(attempts: Attempt[]): Lesson[] {
   )
 }
 
-/** Was der Nutzer kann: die Elemente aller Schritte, deren Stufen sitzen */
+/** Was der Nutzer kann: die Elemente aller Schritte, deren Stufen sitzen, dazu Akkorde je Hand */
 export function knownElements(attempts: Attempt[]): Set<ElementId> {
-  return new Set(learnedLessons(attempts).flatMap((l) => elementsOf(l)))
+  return new Set(learnedLessons(attempts).flatMap((l) => [...elementsOf(l), ...handChordElements(l)]))
 }
 
 /** Pop-Zellen, in denen alle Stufen sitzen */

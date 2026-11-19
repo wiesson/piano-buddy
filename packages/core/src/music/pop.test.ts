@@ -27,15 +27,33 @@ const chordsOf = (cell: Cell, hand: 'L' | 'R') => {
 describe('Pop-Pfad: Erzeugung', () => {
   it('genug Zellen: 3 Folgen × 4 Tonarten × 3+ Muster × 2 Griffe × 2 Rollen, jede spielbar', () => {
     const cells = allCells(PATTERNS)
-    expect(cells.length).toBe(3 * 4 * PATTERNS.length * 2 * 2)
+    // Oktav-Bass nur beim Begleiten: in der Rolle Melodie hätte links keine Akkorde
+    expect(cells.length).toBe(3 * 4 * (PATTERNS.length * 2 * 2 - 2))
+    expect(cells.some((x) => x.pattern === 'oktave' && x.role === 'melodie')).toBe(false)
     const bad = cells.flatMap((x) => playabilityProblems(popLesson(x)).map((p) => `${cellId(x)}: ${p}`))
     expect(bad).toEqual([])
+  })
+
+  it('die Prüfung erkennt, wenn beide Hände zugleich dieselbe Taste spielen', () => {
+    const l = popLesson(c())
+    const clash = { ...l, notes: [...l.notes, { midi: 60, start: 0, dur: 4, hand: 'L' as const, finger: 1 }] }
+    expect(playabilityProblems(clash).some((p) => p.includes('beide Hände'))).toBe(true)
+  })
+
+  it('Rolle Melodie: Akkorde links bleiben unter dem Grundton der Melodie', () => {
+    for (const x of allCells(PATTERNS).filter((y) => y.role === 'melodie')) {
+      const l = popLesson(x)
+      const top = Math.max(...l.notes.filter((n) => n.hand === 'L').map((n) => n.midi))
+      const low = Math.min(...l.notes.filter((n) => n.hand === 'R').map((n) => n.midi))
+      expect(top, cellId(x)).toBeLessThan(low)
+    }
   })
 
   it('Kennung hin und zurück, Unsinn wird abgelehnt', () => {
     for (const x of allCells(PATTERNS)) expect(parseCell(cellId(x))).toEqual(x)
     expect(parseCell('pop-1564-x-ganze-grund-sing')).toBeNull()
     expect(parseCell('kanon')).toBeNull()
+    expect(parseCell('pop-1564-c-oktave-grund-melodie')).toBeNull()
   })
 
   it('Taktsumme: neun Takte 4/4, die Folge zweimal und der Schlussakkord', () => {

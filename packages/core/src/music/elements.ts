@@ -46,6 +46,8 @@ export type ElementId =
   | `meter:${string}`
   | 'leap'
   | 'wide-range'
+  /** nur für den Pop-Pfad, nicht in `elementsOf`: Dreiklänge in dieser Hand */
+  | `chords:${Hand}`
 
 /** Bereich einer Hand: der Anfangsbereich, darunter, darüber */
 export type Register = 'mid' | 'low' | 'high'
@@ -353,6 +355,16 @@ export function elementsOf(lesson: LessonShape): ElementId[] {
   if (d.meter !== '4/4') out.add(`meter:${d.meter}`)
   const rank = (e: ElementId) => ELEMENT_ORDER.indexOf(kindOf(e))
   return [...out].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+}
+
+/**
+ * Dreiklänge je Hand: rechts gelernte Akkorde sind links noch neue Arbeit. Gehört nicht zu
+ * `elementsOf` (der Lernpfad der Klassiker zählt Dreiklänge einmal), der Pop-Pfad nutzt es, um die
+ * Rolle „Melodie“ (Akkorde links) ehrlich als neu zu werten.
+ */
+export function handChordElements(lesson: LessonShape): ElementId[] {
+  const d = demandsOf(lesson)
+  return (['L', 'R'] as const).filter((h) => (d.hands[h]?.maxChord ?? 0) >= 3).map((h) => `chords:${h}` as const)
 }
 
 /** Was ein Stück gegenüber dem schon Bekannten neu verlangt; wer Dreiklänge kann, kann Zweiklänge */

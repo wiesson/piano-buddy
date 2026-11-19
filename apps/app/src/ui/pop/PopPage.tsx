@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from '@ui-sdk/react/segmented-control'
 import type { Lesson } from '@piano/core/music/lessons'
 import { elementsOf, newElements } from '@piano/core/music/elements'
-import { AXES, PATTERNS, PROGRESSIONS, axisValues, popLesson, startCell, type Axis, type Cell, type PatternId } from '@piano/core/music/pop'
+import { AXES, PATTERNS, PROGRESSIONS, axisValues, popLesson, startCell, validCell, type Axis, type Cell, type PatternId } from '@piano/core/music/pop'
 import { MIN_PATTERNS, popPrefs } from '@piano/core/music/popPrefs'
 import { knownElements } from '@piano/core/practice/popPlan'
 import { popToday } from '@piano/core/practice/progress'
@@ -144,6 +144,11 @@ function Grid({ patterns, onOpen }: { patterns: PatternId[]; onOpen: (l: Lesson)
   const [cell, setCell] = useState<Cell>(() => popToday().next[0]?.cell ?? startCell(patterns))
   // Abgewähltes Muster: auf das erste gewählte zurück
   const current = patterns.includes(cell.pattern) ? cell : { ...cell, pattern: patterns[0] }
+  // Eine Achse wechseln; ergibt das eine Zelle, die es nicht gibt (Oktav-Bass mit Melodie), zurück aufs erste Muster
+  const pick = (a: Axis, v: string) => {
+    const next = { ...current, [a]: v } as Cell
+    setCell(validCell(next) ? next : { ...next, pattern: patterns[0] })
+  }
   const lesson = popLesson(current)
   const fresh = newElements(knownElements(store.attempts()), lesson)
   const all = shown(elementsOf(lesson))
@@ -161,11 +166,11 @@ function Grid({ patterns, onOpen }: { patterns: PatternId[]; onOpen: (l: Lesson)
               className="piece-switch"
               aria-label={t.pop.axes[a]}
               value={current[a]}
-              onValueChange={(v) => v && setCell({ ...current, [a]: v } as Cell)}
+              onValueChange={(v) => v && pick(a, v as string)}
             >
               <SegmentedControlIndicator className="piece-switch-indicator" />
               {(axisValues(a, patterns) as readonly string[]).map((v) => (
-                <SegmentedControlItem key={v} value={v} className="piece-switch-item">
+                <SegmentedControlItem key={v} value={v} className="piece-switch-item" disabled={!validCell({ ...current, [a]: v } as Cell)}>
                   {valueLabel(a, v)}
                 </SegmentedControlItem>
               ))}

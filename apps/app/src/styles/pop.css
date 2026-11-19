@@ -81,3 +81,7 @@
     grid-template-columns: 1fr;
   }
 }
+/* Was es in dieser Kombination nicht gibt, bleibt stehen und ist ausgegraut */
+.pop-axis .piece-switch-item[data-disabled] {
+  opacity: 0.35;
+}
